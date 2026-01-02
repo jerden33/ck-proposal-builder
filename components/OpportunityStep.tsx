@@ -133,15 +133,15 @@ export function OpportunityStep({ data, products, updateOpportunity, toggleProdu
           </div>
           
           <div>
-            <label className="input-label">Estimated value</label>
+            <label className="input-label">Monthly gallons</label>
             <input
-              type="text"
-              value={data.estimatedValue}
-              onChange={(e) => updateOpportunity('estimatedValue', e.target.value)}
-              placeholder="$125,000"
+              type="number"
+              value={data.monthlyGallons}
+              onChange={(e) => updateOpportunity('monthlyGallons', e.target.value)}
+              placeholder="15000"
               className="input-field"
             />
-            <p className="text-xs text-gray-500 mt-1">Annual contract value</p>
+            <p className="text-xs text-gray-500 mt-1">Estimated monthly fuel usage</p>
           </div>
           
           <div>
