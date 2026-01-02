@@ -20,7 +20,7 @@ export default function Home() {
     contactPhone: '',
     selectedProducts: [],
     fleetSize: '',
-    estimatedValue: '',
+    monthlyGallons: '',
     closeDate: '',
     notes: ''
   })
