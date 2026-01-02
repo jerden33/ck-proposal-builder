@@ -89,8 +89,10 @@ export function PreviewPanel({ opportunityData, addresses, products }: PreviewPa
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Value</p>
-                  <p className="font-semibold text-off-black">{opportunityData.estimatedValue || '—'}</p>
+                  <p className="text-xs text-gray-500">Monthly gallons</p>
+                  <p className="font-semibold text-off-black">
+                    {opportunityData.monthlyGallons ? `${Number(opportunityData.monthlyGallons).toLocaleString()} gal` : '—'}
+                  </p>
                 </div>
               </div>
             </div>
