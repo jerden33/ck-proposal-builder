@@ -32,7 +32,7 @@ export interface OpportunityData {
   contactPhone: string
   selectedProducts: string[]
   fleetSize: string
-  estimatedValue: string
+  monthlyGallons: string
   closeDate: string
   notes: string
 }
