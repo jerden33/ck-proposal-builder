@@ -60,8 +60,10 @@ export function GenerateStep({ opportunityData, addresses, sections, products }:
               </p>
             </div>
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Estimated value</p>
-              <p className="font-semibold text-off-black text-lg">{opportunityData.estimatedValue || '—'}</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Monthly gallons</p>
+              <p className="font-semibold text-off-black text-lg">
+                {opportunityData.monthlyGallons ? `${Number(opportunityData.monthlyGallons).toLocaleString()} gal` : '—'}
+              </p>
             </div>
           </div>
           
