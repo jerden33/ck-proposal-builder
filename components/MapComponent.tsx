@@ -61,13 +61,15 @@ export function MapComponent({ center, stores, height = 400 }: MapComponentProps
     customerMarker.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)'
     customerMarker.style.cursor = 'pointer'
 
-    new mapboxgl.Marker(customerMarker)
-      .setLngLat([center.lng, center.lat])
-      .setPopup(
-        new mapboxgl.Popup({ offset: 25 })
-          .setHTML('<div style="font-weight: 600; padding: 4px;">Customer Location</div>')
-      )
-      .addTo(map.current)
+    if (map.current) {
+      new mapboxgl.Marker(customerMarker)
+        .setLngLat([center.lng, center.lat])
+        .setPopup(
+          new mapboxgl.Popup({ offset: 25 })
+            .setHTML('<div style="font-weight: 600; padding: 4px;">Customer Location</div>')
+        )
+        .addTo(map.current)
+    }
 
     // Add store markers (smaller brand orange)
     stores.forEach(store => {
@@ -81,31 +83,33 @@ export function MapComponent({ center, stores, height = 400 }: MapComponentProps
       storeMarker.style.boxShadow = '0 1px 4px rgba(0,0,0,0.3)'
       storeMarker.style.cursor = 'pointer'
 
-      new mapboxgl.Marker(storeMarker)
-        .setLngLat([store.coordinates.lng, store.coordinates.lat])
-        .setPopup(
-          new mapboxgl.Popup({ offset: 20 })
-            .setHTML(`
-              <div style="padding: 8px;">
-                <div style="font-weight: 600; margin-bottom: 4px;">${store.name}</div>
-                <div style="font-size: 13px; color: #666;">${store.address}</div>
-                <div style="font-size: 13px; color: #666;">${store.city}, ${store.state} ${store.zip}</div>
-                ${store.truckAccessible ? '<div style="font-size: 12px; color: #ED8B00; margin-top: 4px;">✓ Truck Accessible</div>' : ''}
-              </div>
-            `)
-        )
-        .addTo(map.current)
+      if (map.current) {
+        new mapboxgl.Marker(storeMarker)
+          .setLngLat([store.coordinates.lng, store.coordinates.lat])
+          .setPopup(
+            new mapboxgl.Popup({ offset: 20 })
+              .setHTML(`
+                <div style="padding: 8px;">
+                  <div style="font-weight: 600; margin-bottom: 4px;">${store.name}</div>
+                  <div style="font-size: 13px; color: #666;">${store.address}</div>
+                  <div style="font-size: 13px; color: #666;">${store.city}, ${store.state} ${store.zip}</div>
+                  ${store.truckAccessible ? '<div style="font-size: 12px; color: #ED8B00; margin-top: 4px;">✓ Truck Accessible</div>' : ''}
+                </div>
+              `)
+          )
+          .addTo(map.current)
+      }
     })
 
     // Fit bounds to show all markers
-    if (stores.length > 0) {
+    if (stores.length > 0 && map.current) {
       const bounds = new mapboxgl.LngLatBounds()
       bounds.extend([center.lng, center.lat])
       stores.forEach(store => {
         bounds.extend([store.coordinates.lng, store.coordinates.lat])
       })
       map.current.fitBounds(bounds, { padding: 50, maxZoom: 13 })
-    } else {
+    } else if (map.current) {
       map.current.setCenter([center.lng, center.lat])
       map.current.setZoom(11)
     }
