@@ -190,17 +190,6 @@ export async function generateProposalPDF(
   pdf.setFillColor(OFF_WHITE)
   pdf.rect(0, 0, pageWidth, pageHeight, 'F')
 
-  // Add subtle diagonal gradient overlay
-  pdf.setFillColor(255, 255, 255)
-  pdf.setGState({ opacity: 0.6 })
-  const trianglePoints = [
-    { x: 0, y: 0 },
-    { x: pageWidth, y: 0 },
-    { x: pageWidth, y: pageHeight }
-  ]
-  pdf.triangle(trianglePoints[0].x, trianglePoints[0].y, trianglePoints[1].x, trianglePoints[1].y, trianglePoints[2].x, trianglePoints[2].y, 'F')
-  pdf.setGState({ opacity: 1 })
-
   // Logo area (top right) with gradient bar
   const logoBarWidth = 55
   const logoBarHeight = 12

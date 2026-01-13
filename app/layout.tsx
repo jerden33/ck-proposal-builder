@@ -32,22 +32,37 @@ export default function RootLayout({
         
         {/* Circle K Pro Logo - Bottom Right */}
         <div className="fixed bottom-8 right-8 z-50 pointer-events-none">
-          <svg width="140" height="48" viewBox="0 0 140 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <g opacity="0.9">
-              {/* CIRCLE K */}
-              <text x="6" y="32" fill="#ED8B00" fontSize="26" fontWeight="700" fontFamily="Space Grotesk, sans-serif">
-                CIRCLE K
-              </text>
-              {/* pro */}
-              <text x="102" y="36" fill="#ED8B00" fontSize="18" fontWeight="500" fontFamily="Space Grotesk, sans-serif">
-                pro
-              </text>
-              {/* TM */}
-              <text x="130" y="24" fill="#ED8B00" fontSize="10" fontWeight="400">
-                ™
-              </text>
-            </g>
-          </svg>
+          <div className="bg-white/90 backdrop-blur-sm rounded-lg px-4 py-3 shadow-lg border border-gray-100">
+            <svg width="160" height="52" viewBox="0 0 160 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <g>
+                {/* Background accent bar */}
+                <rect x="0" y="18" width="160" height="28" rx="4" fill="url(#orangeGradient)" opacity="0.08"/>
+
+                {/* CIRCLE K */}
+                <text x="8" y="36" fill="#D64303" fontSize="28" fontWeight="800" fontFamily="Space Grotesk, sans-serif" letterSpacing="0.02em">
+                  CIRCLE K
+                </text>
+
+                {/* pro */}
+                <text x="116" y="40" fill="#ED8B00" fontSize="20" fontWeight="600" fontFamily="Space Grotesk, sans-serif" fontStyle="italic">
+                  pro
+                </text>
+
+                {/* TM symbol */}
+                <text x="148" y="26" fill="#D64303" fontSize="10" fontWeight="600">
+                  ™
+                </text>
+
+                {/* Gradient definition */}
+                <defs>
+                  <linearGradient id="orangeGradient" x1="0" y1="0" x2="160" y2="0">
+                    <stop offset="0%" stopColor="#ED8B00"/>
+                    <stop offset="100%" stopColor="#D64303"/>
+                  </linearGradient>
+                </defs>
+              </g>
+            </svg>
+          </div>
         </div>
       </body>
     </html>
