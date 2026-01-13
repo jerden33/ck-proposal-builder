@@ -103,24 +103,36 @@ export async function generateProposalPDF(
   const addFooter = (pageNumber?: number) => {
     const footerY = pageHeight - 12
 
-    // Logo area (bottom right) - Ready for actual logo file
-    // When logo file is available, use: pdf.addImage(LOGO_PATH, 'PNG', ...)
-    pdf.setFontSize(10)
-    pdf.setTextColor(BRAND_ORANGE)
-    pdf.setFont('helvetica', 'bold')
+    // Logo area (bottom right) - Using actual Circle K Pro logo
+    try {
+      // Logo dimensions: height of 8mm (proportional to 12px in UI)
+      const logoHeight = 8
+      const logoWidth = 40 // Approximate width for Circle K Pro logo
+      const logoX = pageWidth - margin - logoWidth
+      const logoY = footerY - logoHeight + 2
 
-    const logoText = 'CIRCLE K'
-    const logoWidth = pdf.getTextWidth(logoText)
-    const logoX = pageWidth - margin - logoWidth - 15
+      // Add the logo image from public folder
+      pdf.addImage(LOGO_PATH, 'PNG', logoX, logoY, logoWidth, logoHeight)
+    } catch (error) {
+      // Fallback to text if logo file is not available
+      console.warn('Logo file not found, using text fallback')
+      pdf.setFontSize(10)
+      pdf.setTextColor(BRAND_ORANGE)
+      pdf.setFont('helvetica', 'bold')
 
-    pdf.text(logoText, logoX, footerY)
+      const logoText = 'CIRCLE K'
+      const logoWidth = pdf.getTextWidth(logoText)
+      const logoX = pageWidth - margin - logoWidth - 15
 
-    pdf.setFontSize(8)
-    pdf.setFont('helvetica', 'normal')
-    pdf.text('pro', logoX + logoWidth + 2, footerY)
+      pdf.text(logoText, logoX, footerY)
 
-    pdf.setFontSize(6)
-    pdf.text('™', logoX + logoWidth + 11, footerY - 2)
+      pdf.setFontSize(8)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text('pro', logoX + logoWidth + 2, footerY)
+
+      pdf.setFontSize(6)
+      pdf.text('™', logoX + logoWidth + 11, footerY - 2)
+    }
 
     // Confidential text (bottom left)
     pdf.setFontSize(9)
@@ -140,23 +152,35 @@ export async function generateProposalPDF(
   pdf.setFillColor(OFF_WHITE)
   pdf.rect(0, 0, pageWidth, pageHeight, 'F')
 
-  // Logo area (top right) with gradient bar
-  const logoBarWidth = 55
-  const logoBarHeight = 12
-  const logoX = pageWidth - margin - logoBarWidth
-  const logoY = 20
+  // Logo area (top right) - Using actual Circle K Pro logo
+  try {
+    const coverLogoHeight = 12
+    const coverLogoWidth = 55
+    const logoX = pageWidth - margin - coverLogoWidth
+    const logoY = 20
 
-  drawOrangeGradientTile(logoX - 2, logoY - 2, logoBarWidth + 4, logoBarHeight + 4, 2)
+    // Add the logo image from public folder
+    pdf.addImage(LOGO_PATH, 'PNG', logoX, logoY, coverLogoWidth, coverLogoHeight)
+  } catch (error) {
+    // Fallback to text if logo file is not available
+    console.warn('Logo file not found on cover page, using text fallback')
+    const logoBarWidth = 55
+    const logoBarHeight = 12
+    const logoX = pageWidth - margin - logoBarWidth
+    const logoY = 20
 
-  pdf.setFontSize(24)
-  pdf.setTextColor(DARK_ORANGE)
-  pdf.setFont('helvetica', 'bold')
-  pdf.text('CIRCLE K', logoX + 2, logoY + 8)
+    drawOrangeGradientTile(logoX - 2, logoY - 2, logoBarWidth + 4, logoBarHeight + 4, 2)
 
-  pdf.setFontSize(16)
-  pdf.setFont('helvetica', 'normal')
-  pdf.setTextColor(BRAND_ORANGE)
-  pdf.text('pro', pageWidth - margin - 10, logoY + 11)
+    pdf.setFontSize(24)
+    pdf.setTextColor(DARK_ORANGE)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text('CIRCLE K', logoX + 2, logoY + 8)
+
+    pdf.setFontSize(16)
+    pdf.setFont('helvetica', 'normal')
+    pdf.setTextColor(BRAND_ORANGE)
+    pdf.text('pro', pageWidth - margin - 10, logoY + 11)
+  }
 
   // Title section with background tile
   yPos = 70
