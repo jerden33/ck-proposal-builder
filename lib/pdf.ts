@@ -60,12 +60,6 @@ export async function generateProposalPDF(
     pdf.setFillColor(OFF_WHITE)
     drawRoundedRect(x, y, width, height, radius, 'F')
 
-    // Light gradient effect - top half slightly lighter
-    pdf.setFillColor(255, 255, 255)
-    pdf.setGState({ opacity: 0.5 })
-    drawRoundedRect(x, y, width, height / 2, radius, 'F')
-    pdf.setGState({ opacity: 1 })
-
     // Border
     pdf.setDrawColor(230, 230, 230)
     pdf.setLineWidth(0.3)
@@ -74,15 +68,9 @@ export async function generateProposalPDF(
 
   // Helper function to draw orange gradient tile (for highlights)
   const drawOrangeGradientTile = (x: number, y: number, width: number, height: number, radius: number = 3) => {
-    // Base layer - orange tint
+    // Base layer - light orange tint
     pdf.setFillColor(255, 248, 240)
     drawRoundedRect(x, y, width, height, radius, 'F')
-
-    // Gradient effect from orange to white
-    pdf.setFillColor(237, 139, 0)
-    pdf.setGState({ opacity: 0.05 })
-    drawRoundedRect(x, y, width, height / 1.5, radius, 'F')
-    pdf.setGState({ opacity: 1 })
 
     // Border with orange accent
     pdf.setDrawColor(237, 139, 0)
@@ -92,61 +80,23 @@ export async function generateProposalPDF(
 
   // Helper function to draw icon-style circle with gradient
   const drawIconCircle = (x: number, y: number, radius: number) => {
-    // Gradient effect for circle
-    pdf.setFillColor(214, 67, 3) // Dark orange
-    pdf.circle(x, y, radius, 'F')
-
-    // Lighter overlay for gradient effect
+    // Draw circle with brand orange
     pdf.setFillColor(237, 139, 0) // Brand orange
-    pdf.setGState({ opacity: 0.6 })
-    pdf.circle(x - radius * 0.2, y - radius * 0.2, radius * 0.8, 'F')
-    pdf.setGState({ opacity: 1 })
+    pdf.circle(x, y, radius, 'F')
   }
 
   // Helper function to draw strong orange gradient card (for products)
   const drawOrangeGradientCard = (x: number, y: number, width: number, height: number, radius: number = 4) => {
-    // Dark orange base
+    // Draw solid orange background
     pdf.setFillColor(214, 67, 3) // Dark orange
     drawRoundedRect(x, y, width, height, radius, 'F')
-
-    // Lighter gradient overlay from top
-    for (let i = 0; i < 8; i++) {
-      const opacity = 0.4 - (i * 0.05)
-      pdf.setFillColor(237, 139, 0) // Brand orange
-      pdf.setGState({ opacity: Math.max(opacity, 0) })
-      const segmentHeight = height / 8
-      drawRoundedRect(x, y + (i * segmentHeight), width, segmentHeight, radius, 'F')
-    }
-    pdf.setGState({ opacity: 1 })
-
-    // Subtle highlight at top
-    pdf.setFillColor(255, 255, 255)
-    pdf.setGState({ opacity: 0.2 })
-    drawRoundedRect(x, y, width, height / 4, radius, 'F')
-    pdf.setGState({ opacity: 1 })
   }
 
   // Helper function to draw green gradient tile (for pricing highlights)
   const drawGreenGradientTile = (x: number, y: number, width: number, height: number, radius: number = 4) => {
-    // Dark green base
+    // Draw solid green background
     pdf.setFillColor(22, 163, 74) // Dark green
     drawRoundedRect(x, y, width, height, radius, 'F')
-
-    // Lighter gradient overlay
-    for (let i = 0; i < 8; i++) {
-      const opacity = 0.4 - (i * 0.05)
-      pdf.setFillColor(34, 197, 94) // Success green
-      pdf.setGState({ opacity: Math.max(opacity, 0) })
-      const segmentHeight = height / 8
-      drawRoundedRect(x, y + (i * segmentHeight), width, segmentHeight, radius, 'F')
-    }
-    pdf.setGState({ opacity: 1 })
-
-    // Subtle highlight
-    pdf.setFillColor(255, 255, 255)
-    pdf.setGState({ opacity: 0.15 })
-    drawRoundedRect(x, y, width, height / 4, radius, 'F')
-    pdf.setGState({ opacity: 1 })
   }
 
   // Helper function to add footer with logo to pages
@@ -223,16 +173,10 @@ export async function generateProposalPDF(
   pdf.setFontSize(24)
   pdf.text('Proposal', margin + 8, yPos)
 
-  // Add gradient accent bar below title
+  // Add accent bar below title
   yPos += 8
-  const gradientBarY = yPos
-  for (let i = 0; i < 10; i++) {
-    const opacity = 1 - (i / 10)
-    pdf.setFillColor(237, 139, 0)
-    pdf.setGState({ opacity: opacity * 0.8 })
-    pdf.rect(margin + 8 + (i * 5), gradientBarY, 5, 3, 'F')
-  }
-  pdf.setGState({ opacity: 1 })
+  pdf.setFillColor(237, 139, 0)
+  pdf.rect(margin + 8, yPos, 60, 3, 'F')
 
   // Customer info tile
   yPos += 30
