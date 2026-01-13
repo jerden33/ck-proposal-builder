@@ -9,6 +9,13 @@ const DARK_ORANGE = '#D64303'
 const OFF_BLACK = '#101820'
 const OFF_WHITE = '#F7F5F2'
 const LIGHT_GREY = '#F9F9F9'
+const SUCCESS_GREEN = '#22c55e'
+const DARK_GREEN = '#16a34a'
+
+// NOTE: Circle K Pro logo file needed!
+// Place 'circle-k-pro-logo.png' in /public folder
+// Logo should include TM symbol and follow brand guidelines
+const LOGO_PATH = '/circle-k-pro-logo.png' // Update when logo file is added
 
 export async function generateProposalPDF(
   opportunityData: OpportunityData,
@@ -26,10 +33,12 @@ export async function generateProposalPDF(
   const pageHeight = pdf.internal.pageSize.getHeight()
   const margin = 20
   let yPos = margin
+  let pageNumber = 1
 
   // Helper function to add new page
   const addNewPage = () => {
     pdf.addPage()
+    pageNumber++
     yPos = margin
   }
 
@@ -92,6 +101,88 @@ export async function generateProposalPDF(
     pdf.setGState({ opacity: 0.6 })
     pdf.circle(x - radius * 0.2, y - radius * 0.2, radius * 0.8, 'F')
     pdf.setGState({ opacity: 1 })
+  }
+
+  // Helper function to draw strong orange gradient card (for products)
+  const drawOrangeGradientCard = (x: number, y: number, width: number, height: number, radius: number = 4) => {
+    // Dark orange base
+    pdf.setFillColor(214, 67, 3) // Dark orange
+    drawRoundedRect(x, y, width, height, radius, 'F')
+
+    // Lighter gradient overlay from top
+    for (let i = 0; i < 8; i++) {
+      const opacity = 0.4 - (i * 0.05)
+      pdf.setFillColor(237, 139, 0) // Brand orange
+      pdf.setGState({ opacity: Math.max(opacity, 0) })
+      const segmentHeight = height / 8
+      drawRoundedRect(x, y + (i * segmentHeight), width, segmentHeight, radius, 'F')
+    }
+    pdf.setGState({ opacity: 1 })
+
+    // Subtle highlight at top
+    pdf.setFillColor(255, 255, 255)
+    pdf.setGState({ opacity: 0.2 })
+    drawRoundedRect(x, y, width, height / 4, radius, 'F')
+    pdf.setGState({ opacity: 1 })
+  }
+
+  // Helper function to draw green gradient tile (for pricing highlights)
+  const drawGreenGradientTile = (x: number, y: number, width: number, height: number, radius: number = 4) => {
+    // Dark green base
+    pdf.setFillColor(22, 163, 74) // Dark green
+    drawRoundedRect(x, y, width, height, radius, 'F')
+
+    // Lighter gradient overlay
+    for (let i = 0; i < 8; i++) {
+      const opacity = 0.4 - (i * 0.05)
+      pdf.setFillColor(34, 197, 94) // Success green
+      pdf.setGState({ opacity: Math.max(opacity, 0) })
+      const segmentHeight = height / 8
+      drawRoundedRect(x, y + (i * segmentHeight), width, segmentHeight, radius, 'F')
+    }
+    pdf.setGState({ opacity: 1 })
+
+    // Subtle highlight
+    pdf.setFillColor(255, 255, 255)
+    pdf.setGState({ opacity: 0.15 })
+    drawRoundedRect(x, y, width, height / 4, radius, 'F')
+    pdf.setGState({ opacity: 1 })
+  }
+
+  // Helper function to add footer with logo to pages
+  const addFooter = (pageNumber?: number) => {
+    const footerY = pageHeight - 12
+
+    // Logo area (bottom right) - Ready for actual logo file
+    // When logo file is available, use: pdf.addImage(LOGO_PATH, 'PNG', ...)
+    pdf.setFontSize(10)
+    pdf.setTextColor(BRAND_ORANGE)
+    pdf.setFont('helvetica', 'bold')
+
+    const logoText = 'CIRCLE K'
+    const logoWidth = pdf.getTextWidth(logoText)
+    const logoX = pageWidth - margin - logoWidth - 15
+
+    pdf.text(logoText, logoX, footerY)
+
+    pdf.setFontSize(8)
+    pdf.setFont('helvetica', 'normal')
+    pdf.text('pro', logoX + logoWidth + 2, footerY)
+
+    pdf.setFontSize(6)
+    pdf.text('™', logoX + logoWidth + 11, footerY - 2)
+
+    // Confidential text (bottom left)
+    pdf.setFontSize(9)
+    pdf.setTextColor('#999999')
+    pdf.setFont('helvetica', 'normal')
+    pdf.text('Confidential Proposal', margin, footerY)
+
+    // Page number (if provided)
+    if (pageNumber) {
+      pdf.setFontSize(9)
+      pdf.text(`${pageNumber}`, pageWidth / 2, footerY, { align: 'center' })
+    }
   }
 
   // === COVER PAGE ===
@@ -177,10 +268,8 @@ export async function generateProposalPDF(
   const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   pdf.text(today, margin + 8, yPos)
 
-  // Footer with Circle K Pro branding
-  pdf.setFontSize(10)
-  pdf.setTextColor('#999999')
-  pdf.text('Circle K Pro | Confidential', margin, pageHeight - 15)
+  // Add footer to cover page
+  addFooter()
 
   // === PAGE 2: EXECUTIVE SUMMARY ===
   if (sections.executiveSummary) {
@@ -330,6 +419,9 @@ export async function generateProposalPDF(
         yPos += 30
       }
     }
+
+    // Add footer to Executive Summary page
+    addFooter(pageNumber)
   }
 
   // === SELECTED PRODUCTS ===
@@ -353,46 +445,51 @@ export async function generateProposalPDF(
     )
 
     selectedProducts.forEach((product, index) => {
-      if (index > 0) yPos += 8
+      if (index > 0) yPos += 10
 
-      const descSplit = pdf.splitTextToSize(product.description, pageWidth - 2 * margin - 16)
+      const descSplit = pdf.splitTextToSize(product.description, pageWidth - 2 * margin - 20)
       const featureCount = product.features.length
-      const productTileHeight = 25 + descSplit.length * 6 + featureCount * 6
+      const productTileHeight = 28 + descSplit.length * 6 + featureCount * 7
 
       checkPageBreak(productTileHeight + 10)
 
-      // Draw product card with gradient
-      drawOrangeGradientTile(margin, yPos, pageWidth - 2 * margin, productTileHeight, 4)
+      // Draw product card with strong orange gradient
+      drawOrangeGradientCard(margin, yPos, pageWidth - 2 * margin, productTileHeight, 5)
 
-      // Product name
-      yPos += 10
-      pdf.setFontSize(14)
-      pdf.setTextColor(DARK_ORANGE)
+      // Product name (white on gradient)
+      yPos += 12
+      pdf.setFontSize(15)
+      pdf.setTextColor(255, 255, 255) // White
       pdf.setFont('helvetica', 'bold')
-      pdf.text(product.name, margin + 8, yPos)
+      pdf.text(product.name, margin + 10, yPos)
 
-      // Product description
-      yPos += 8
-      pdf.setFontSize(11)
-      pdf.setTextColor(OFF_BLACK)
+      // Product description (white on gradient)
+      yPos += 9
+      pdf.setFontSize(10)
+      pdf.setTextColor(255, 255, 255) // White
       pdf.setFont('helvetica', 'normal')
-      pdf.text(descSplit, margin + 8, yPos)
-      yPos += descSplit.length * 6 + 5
+      pdf.text(descSplit, margin + 10, yPos)
+      yPos += descSplit.length * 6 + 6
 
-      // Features with styled bullets
+      // Features with white checkmarks
       product.features.forEach(feature => {
-        pdf.setFillColor(BRAND_ORANGE)
-        pdf.circle(margin + 10, yPos - 1.5, 1, 'F')
+        // White checkmark circle
+        pdf.setFillColor(255, 255, 255)
+        pdf.circle(margin + 12, yPos - 1.5, 1.2, 'F')
 
-        pdf.setFontSize(10)
-        pdf.setTextColor(OFF_BLACK)
+        pdf.setFontSize(9)
+        pdf.setTextColor(255, 255, 255) // White text
+        pdf.setFont('helvetica', 'normal')
         const featureSplit = pdf.splitTextToSize(feature, pageWidth - 2 * margin - 25)
-        pdf.text(featureSplit, margin + 14, yPos)
-        yPos += 6
+        pdf.text(featureSplit, margin + 16, yPos)
+        yPos += 7
       })
 
-      yPos += 5
+      yPos += 6
     })
+
+    // Add footer to Solution Overview page
+    addFooter(pageNumber)
   }
 
   // === PRICING SECTION ===
@@ -445,44 +542,44 @@ export async function generateProposalPDF(
       yPos += 15
     }
 
-    // Estimated fuel savings
+    // Estimated fuel savings (Green Gradient)
     if (sections.showEstimatedSavings && monthlySavings > 0) {
       yPos += 5
-      const savingsTileHeight = 45
-      drawGradientTile(margin, yPos, pageWidth - 2 * margin, savingsTileHeight, 4)
+      const savingsTileHeight = 50
+      drawGreenGradientTile(margin, yPos, pageWidth - 2 * margin, savingsTileHeight, 5)
 
-      yPos += 10
-      pdf.setFontSize(12)
-      pdf.setTextColor('#666666')
+      yPos += 12
+      pdf.setFontSize(11)
+      pdf.setTextColor(255, 255, 255) // White
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('Estimated Fuel Savings', margin + 10, yPos)
+
+      yPos += 12
+
+      // Monthly and Annual savings side-by-side
+      const monthlyX = margin + 10
+      const annualX = margin + (pageWidth - 2 * margin) / 2 + 5
+
+      // Monthly
+      pdf.setFontSize(9)
+      pdf.setTextColor(255, 255, 255)
       pdf.setFont('helvetica', 'normal')
-      pdf.text('Estimated Fuel Savings', margin + 8, yPos)
-
-      yPos += 10
-
-      // Monthly savings
-      const monthlyX = margin + 8
-      const annualX = margin + (pageWidth - 2 * margin) / 2 + 4
-
-      pdf.setFontSize(10)
-      pdf.setTextColor('#666666')
       pdf.text('Monthly', monthlyX, yPos)
 
-      pdf.setFontSize(18)
-      pdf.setTextColor(DARK_ORANGE)
+      pdf.setFontSize(20)
       pdf.setFont('helvetica', 'bold')
-      pdf.text(`$${monthlySavings.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, monthlyX, yPos + 8)
+      pdf.text(`$${monthlySavings.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, monthlyX, yPos + 10)
 
-      pdf.setFontSize(10)
-      pdf.setTextColor('#666666')
+      // Annual
+      pdf.setFontSize(9)
       pdf.setFont('helvetica', 'normal')
       pdf.text('Annual', annualX, yPos)
 
-      pdf.setFontSize(18)
-      pdf.setTextColor(DARK_ORANGE)
+      pdf.setFontSize(20)
       pdf.setFont('helvetica', 'bold')
-      pdf.text(`$${annualFuelSavings.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, annualX, yPos + 8)
+      pdf.text(`$${annualFuelSavings.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, annualX, yPos + 10)
 
-      yPos += 25
+      yPos += 26
     }
 
     // Additional cost savings
@@ -518,27 +615,29 @@ export async function generateProposalPDF(
       yPos += 5
     }
 
-    // Total annual value
+    // Total annual value (Green Gradient - Eye-catching)
     if (sections.showTotalAnnualValue && annualFuelSavings > 0) {
       yPos += 10
 
-      const totalTileHeight = 35
-      drawOrangeGradientTile(margin, yPos, pageWidth - 2 * margin, totalTileHeight, 4)
+      const totalTileHeight = 40
+      drawGreenGradientTile(margin, yPos, pageWidth - 2 * margin, totalTileHeight, 5)
 
-      yPos += 12
-      pdf.setFontSize(14)
-      pdf.setTextColor('#666666')
+      yPos += 13
+      pdf.setFontSize(12)
+      pdf.setTextColor(255, 255, 255) // White
       pdf.setFont('helvetica', 'bold')
-      pdf.text('Total Annual Value', margin + 8, yPos)
+      pdf.text('TOTAL ANNUAL VALUE', margin + 10, yPos)
 
-      yPos += 12
-      pdf.setFontSize(28)
-      pdf.setTextColor(DARK_ORANGE)
+      yPos += 14
+      pdf.setFontSize(32)
       pdf.setFont('helvetica', 'bold')
-      pdf.text(`$${annualFuelSavings.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, margin + 8, yPos)
+      pdf.text(`$${annualFuelSavings.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, margin + 10, yPos)
 
-      yPos += 15
+      yPos += 18
     }
+
+    // Add footer to Pricing page
+    addFooter(pageNumber)
   }
 
   // === COVERAGE ANALYSIS ===
@@ -651,6 +750,9 @@ export async function generateProposalPDF(
 
       yPos += 10
     }
+
+    // Add footer to Coverage Analysis page
+    addFooter(pageNumber)
   }
 
   // === TERMS AND CONDITIONS ===
@@ -696,6 +798,9 @@ export async function generateProposalPDF(
     })
 
     yPos += 5
+
+    // Add footer to Terms page
+    addFooter(pageNumber)
   }
 
   // === SIGNATURE PAGE ===
@@ -757,6 +862,9 @@ export async function generateProposalPDF(
     pdf.setLineWidth(0.5)
     pdf.setDrawColor(BRAND_ORANGE)
     pdf.line(dateBoxX + 6, yPos + 25, dateBoxX + sigBoxWidth - 6, yPos + 25)
+
+    // Add footer to Signature page
+    addFooter(pageNumber)
   }
 
   // Save the PDF
