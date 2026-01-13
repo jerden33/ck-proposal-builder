@@ -41,11 +41,6 @@ export default function RootLayout({
               height={48}
               priority
               className="w-40 h-auto"
-              onError={(e) => {
-                // Hide logo container if image fails to load
-                const container = e.currentTarget.closest('.fixed') as HTMLElement
-                if (container) container.style.display = 'none'
-              }}
             />
           </div>
         </div>
