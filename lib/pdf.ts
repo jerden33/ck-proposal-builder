@@ -117,7 +117,7 @@ export async function generateProposalPDF(
       // Fallback to text if logo file is not available
       console.warn('Logo file not found, using text fallback')
       pdf.setFontSize(10)
-      pdf.setTextColor(BRAND_ORANGE)
+      pdf.setTextColor(DARK_ORANGE)
       pdf.setFont('helvetica', 'bold')
 
       const logoText = 'CIRCLE K'
@@ -128,9 +128,12 @@ export async function generateProposalPDF(
 
       pdf.setFontSize(8)
       pdf.setFont('helvetica', 'normal')
+      pdf.setTextColor(BRAND_ORANGE)
       pdf.text('pro', logoX + logoWidth + 2, footerY)
 
       pdf.setFontSize(6)
+      pdf.setTextColor(DARK_ORANGE)
+      pdf.setFont('helvetica', 'bold')
       pdf.text('™', logoX + logoWidth + 11, footerY - 2)
     }
 
@@ -180,6 +183,12 @@ export async function generateProposalPDF(
     pdf.setFont('helvetica', 'normal')
     pdf.setTextColor(BRAND_ORANGE)
     pdf.text('pro', pageWidth - margin - 10, logoY + 11)
+
+    // Add TM symbol
+    pdf.setFontSize(8)
+    pdf.setTextColor(DARK_ORANGE)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text('™', pageWidth - margin - 3, logoY + 4)
   }
 
   // Title section with background tile
