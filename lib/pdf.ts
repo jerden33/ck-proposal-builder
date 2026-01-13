@@ -395,6 +395,152 @@ export async function generateProposalPDF(
     })
   }
 
+  // === PRICING SECTION ===
+  const hasAnyPricingData = sections.showPerGallonDiscount || sections.showEstimatedSavings ||
+                            sections.showAdditionalSavings || sections.showTotalAnnualValue
+
+  if (hasAnyPricingData) {
+    addNewPage()
+
+    // Add page background
+    pdf.setFillColor(OFF_WHITE)
+    pdf.rect(0, 0, pageWidth, pageHeight, 'F')
+
+    pdf.setFontSize(20)
+    pdf.setTextColor(DARK_ORANGE)
+    pdf.setFont('helvetica', 'bold')
+    drawIconCircle(margin + 4, yPos + 3, 3)
+    pdf.text('Pricing', margin + 12, yPos + 5)
+
+    yPos += 20
+
+    // Calculate savings if needed
+    const perGallonDiscount = parseFloat(opportunityData.perGallonDiscount) || 0
+    const monthlyGallons = parseFloat(opportunityData.monthlyGallons) || 0
+    const monthlySavings = perGallonDiscount * monthlyGallons
+    const annualFuelSavings = monthlySavings * 12
+
+    // Per gallon discount
+    if (sections.showPerGallonDiscount && perGallonDiscount > 0) {
+      const discountTileHeight = 30
+      drawOrangeGradientTile(margin, yPos, pageWidth - 2 * margin, discountTileHeight, 4)
+
+      yPos += 10
+      pdf.setFontSize(12)
+      pdf.setTextColor('#666666')
+      pdf.setFont('helvetica', 'normal')
+      pdf.text('Per Gallon Discount', margin + 8, yPos)
+
+      yPos += 10
+      pdf.setFontSize(24)
+      pdf.setTextColor(DARK_ORANGE)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text(`${perGallonDiscount.toFixed(2)}¢`, margin + 8, yPos)
+
+      pdf.setFontSize(12)
+      pdf.setTextColor(OFF_BLACK)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text('per gallon', margin + 8 + pdf.getTextWidth(`${perGallonDiscount.toFixed(2)}¢`) + 3, yPos)
+
+      yPos += 15
+    }
+
+    // Estimated fuel savings
+    if (sections.showEstimatedSavings && monthlySavings > 0) {
+      yPos += 5
+      const savingsTileHeight = 45
+      drawGradientTile(margin, yPos, pageWidth - 2 * margin, savingsTileHeight, 4)
+
+      yPos += 10
+      pdf.setFontSize(12)
+      pdf.setTextColor('#666666')
+      pdf.setFont('helvetica', 'normal')
+      pdf.text('Estimated Fuel Savings', margin + 8, yPos)
+
+      yPos += 10
+
+      // Monthly savings
+      const monthlyX = margin + 8
+      const annualX = margin + (pageWidth - 2 * margin) / 2 + 4
+
+      pdf.setFontSize(10)
+      pdf.setTextColor('#666666')
+      pdf.text('Monthly', monthlyX, yPos)
+
+      pdf.setFontSize(18)
+      pdf.setTextColor(DARK_ORANGE)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text(`$${monthlySavings.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, monthlyX, yPos + 8)
+
+      pdf.setFontSize(10)
+      pdf.setTextColor('#666666')
+      pdf.setFont('helvetica', 'normal')
+      pdf.text('Annual', annualX, yPos)
+
+      pdf.setFontSize(18)
+      pdf.setTextColor(DARK_ORANGE)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text(`$${annualFuelSavings.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, annualX, yPos + 8)
+
+      yPos += 25
+    }
+
+    // Additional cost savings
+    if (sections.showAdditionalSavings && opportunityData.additionalSavings && opportunityData.additionalSavings.trim().length > 0) {
+      yPos += 5
+
+      pdf.setFontSize(12)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setTextColor(DARK_ORANGE)
+      pdf.text('Additional Cost Savings', margin, yPos)
+
+      yPos += 10
+
+      const additionalItems = opportunityData.additionalSavings.split('\n').filter(line => line.trim().length > 0)
+      const itemsTileHeight = additionalItems.length * 10 + 15
+
+      drawGradientTile(margin, yPos, pageWidth - 2 * margin, itemsTileHeight, 4)
+
+      yPos += 10
+      pdf.setFontSize(10)
+      pdf.setTextColor(OFF_BLACK)
+      pdf.setFont('helvetica', 'normal')
+
+      additionalItems.forEach(item => {
+        pdf.setFillColor(BRAND_ORANGE)
+        pdf.circle(margin + 9, yPos - 1.5, 0.8, 'F')
+
+        const itemSplit = pdf.splitTextToSize(item.trim(), pageWidth - 2 * margin - 20)
+        pdf.text(itemSplit, margin + 12, yPos)
+        yPos += 10
+      })
+
+      yPos += 5
+    }
+
+    // Total annual value
+    if (sections.showTotalAnnualValue && annualFuelSavings > 0) {
+      yPos += 10
+
+      const totalTileHeight = 35
+      drawOrangeGradientTile(margin, yPos, pageWidth - 2 * margin, totalTileHeight, 4)
+
+      yPos += 12
+      pdf.setFontSize(14)
+      pdf.setTextColor('#666666')
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('Total Annual Value', margin + 8, yPos)
+
+      yPos += 12
+      pdf.setFontSize(28)
+      pdf.setTextColor(DARK_ORANGE)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text(`$${annualFuelSavings.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, margin + 8, yPos)
+
+      yPos += 15
+    }
+  }
+
   // === COVERAGE ANALYSIS ===
   if (sections.coverageAnalysis && addresses.length > 0) {
     addNewPage()

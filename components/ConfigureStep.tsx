@@ -1,11 +1,12 @@
 'use client'
 
-import { ProposalSections } from '@/lib/types'
+import { ProposalSections, OpportunityData } from '@/lib/types'
 import { Check } from 'lucide-react'
 
 interface ConfigureStepProps {
   sections: ProposalSections
   toggleSection: (section: keyof ProposalSections) => void
+  opportunityData: OpportunityData
 }
 
 const sectionList = [
@@ -20,8 +21,14 @@ const sectionList = [
   { key: 'signaturePage' as keyof ProposalSections, name: 'Signature page', description: 'Authorization and sign-off section', recommended: true }
 ]
 
-export function ConfigureStep({ sections, toggleSection }: ConfigureStepProps) {
+export function ConfigureStep({ sections, toggleSection, opportunityData }: ConfigureStepProps) {
   const selectedCount = Object.values(sections).filter(Boolean).length
+
+  // Check which pricing options are available based on data
+  const hasPerGallonDiscount = opportunityData.perGallonDiscount && parseFloat(opportunityData.perGallonDiscount) > 0
+  const hasMonthlyGallons = opportunityData.monthlyGallons && parseFloat(opportunityData.monthlyGallons) > 0
+  const hasAdditionalSavings = opportunityData.additionalSavings && opportunityData.additionalSavings.trim().length > 0
+  const canCalculateSavings = hasPerGallonDiscount && hasMonthlyGallons
 
   return (
     <div className="space-y-6 fade-in">
@@ -68,6 +75,119 @@ export function ConfigureStep({ sections, toggleSection }: ConfigureStepProps) {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold mb-2">Pricing Information</h2>
+          <p className="text-gray-600">Choose which pricing details to include in the proposal</p>
+        </div>
+
+        <div className="space-y-3">
+          {/* Per gallon discount */}
+          <div
+            onClick={() => hasPerGallonDiscount && toggleSection('showPerGallonDiscount')}
+            className={`section-toggle ${sections.showPerGallonDiscount ? 'active' : ''} ${!hasPerGallonDiscount ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <div className="flex items-start gap-4">
+              <div className={`flex-shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all mt-0.5 ${
+                sections.showPerGallonDiscount
+                  ? 'bg-dark-orange border-dark-orange'
+                  : 'border-ck-grey'
+              }`}>
+                {sections.showPerGallonDiscount && (
+                  <Check size={16} className="text-white" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-off-black">Show per gallon discount</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  {hasPerGallonDiscount
+                    ? `Display the ${parseFloat(opportunityData.perGallonDiscount).toFixed(2)}¢ per gallon savings`
+                    : 'Enter per gallon discount in Step 1 to enable'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Estimated fuel savings */}
+          <div
+            onClick={() => canCalculateSavings && toggleSection('showEstimatedSavings')}
+            className={`section-toggle ${sections.showEstimatedSavings ? 'active' : ''} ${!canCalculateSavings ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <div className="flex items-start gap-4">
+              <div className={`flex-shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all mt-0.5 ${
+                sections.showEstimatedSavings
+                  ? 'bg-dark-orange border-dark-orange'
+                  : 'border-ck-grey'
+              }`}>
+                {sections.showEstimatedSavings && (
+                  <Check size={16} className="text-white" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-off-black">Show estimated fuel savings</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  {canCalculateSavings
+                    ? 'Display calculated monthly and annual fuel cost savings'
+                    : 'Enter both per gallon discount and monthly gallons in Step 1 to enable'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Additional cost savings */}
+          <div
+            onClick={() => hasAdditionalSavings && toggleSection('showAdditionalSavings')}
+            className={`section-toggle ${sections.showAdditionalSavings ? 'active' : ''} ${!hasAdditionalSavings ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <div className="flex items-start gap-4">
+              <div className={`flex-shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all mt-0.5 ${
+                sections.showAdditionalSavings
+                  ? 'bg-dark-orange border-dark-orange'
+                  : 'border-ck-grey'
+              }`}>
+                {sections.showAdditionalSavings && (
+                  <Check size={16} className="text-white" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-off-black">Show additional cost savings</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  {hasAdditionalSavings
+                    ? 'Display itemized list of additional savings'
+                    : 'Enter additional cost savings in Step 1 to enable'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Total annual value */}
+          <div
+            onClick={() => canCalculateSavings && toggleSection('showTotalAnnualValue')}
+            className={`section-toggle ${sections.showTotalAnnualValue ? 'active' : ''} ${!canCalculateSavings ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <div className="flex items-start gap-4">
+              <div className={`flex-shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all mt-0.5 ${
+                sections.showTotalAnnualValue
+                  ? 'bg-dark-orange border-dark-orange'
+                  : 'border-ck-grey'
+              }`}>
+                {sections.showTotalAnnualValue && (
+                  <Check size={16} className="text-white" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-off-black">Show total annual value</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  {canCalculateSavings
+                    ? 'Display combined total annual savings'
+                    : 'Enter both per gallon discount and monthly gallons in Step 1 to enable'}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

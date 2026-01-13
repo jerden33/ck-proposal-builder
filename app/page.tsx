@@ -22,7 +22,9 @@ export default function Home() {
     fleetSize: '',
     monthlyGallons: '',
     closeDate: '',
-    notes: ''
+    notes: '',
+    perGallonDiscount: '',
+    additionalSavings: ''
   })
   
   const [addresses, setAddresses] = useState<Address[]>([])
@@ -35,7 +37,11 @@ export default function Home() {
     implementationTimeline: false,
     caseStudies: false,
     termsConditions: true,
-    signaturePage: true
+    signaturePage: true,
+    showPerGallonDiscount: false,
+    showEstimatedSavings: false,
+    showAdditionalSavings: false,
+    showTotalAnnualValue: false
   })
 
   const steps = [
@@ -226,6 +232,7 @@ export default function Home() {
                 <ConfigureStep
                   sections={proposalSections}
                   toggleSection={toggleSection}
+                  opportunityData={opportunityData}
                 />
               )}
               

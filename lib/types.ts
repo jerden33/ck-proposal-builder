@@ -35,6 +35,8 @@ export interface OpportunityData {
   monthlyGallons: string
   closeDate: string
   notes: string
+  perGallonDiscount: string
+  additionalSavings: string
 }
 
 export interface Address {
@@ -62,4 +64,8 @@ export interface ProposalSections {
   caseStudies: boolean
   termsConditions: boolean
   signaturePage: boolean
+  showPerGallonDiscount: boolean
+  showEstimatedSavings: boolean
+  showAdditionalSavings: boolean
+  showTotalAnnualValue: boolean
 }
