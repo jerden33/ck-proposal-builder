@@ -20,11 +20,40 @@ export function GenerateStep({ opportunityData, addresses, sections, products }:
 
   const selectedSectionCount = Object.values(sections).filter(Boolean).length
 
+  const loadLogoAsBase64 = async (): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        canvas.width = img.width
+        canvas.height = img.height
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(img, 0, 0)
+          resolve(canvas.toDataURL('image/png'))
+        } else {
+          reject(new Error('Failed to get canvas context'))
+        }
+      }
+      img.onerror = () => reject(new Error('Failed to load logo'))
+      img.src = '/circle-k-pro-logo.png'
+    })
+  }
+
   const handleGeneratePDF = async () => {
     setGenerating(true)
     try {
+      // Pre-load the logo as base64
+      let logoBase64: string | undefined
+      try {
+        logoBase64 = await loadLogoAsBase64()
+      } catch (logoError) {
+        console.warn('Could not load logo, will use text fallback:', logoError)
+      }
+
       const { generateProposalPDF } = await import('@/lib/pdf')
-      await generateProposalPDF(opportunityData, addresses, sections, products)
+      await generateProposalPDF(opportunityData, addresses, sections, products, logoBase64)
       alert('PDF generated successfully!')
     } catch (error) {
       console.error('Error generating PDF:', error)

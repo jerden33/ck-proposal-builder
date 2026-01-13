@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import { DM_Sans, Space_Grotesk } from 'next/font/google'
 import './globals.css'
 
@@ -33,28 +34,19 @@ export default function RootLayout({
         {/* Circle K Pro Logo - Bottom Right */}
         <div className="fixed bottom-8 right-8 z-50 pointer-events-none">
           <div className="bg-white/90 backdrop-blur-sm rounded-lg px-4 py-3 shadow-lg border border-gray-100">
-            {/* Circle K Pro Logo - Matches brand guidelines */}
-            <svg width="160" height="48" viewBox="0 0 160 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <g>
-                {/* CIRCLE K - Bold, uppercase */}
-                <text x="4" y="30" fill="#D64303" fontSize="22" fontWeight="800" fontFamily="Space Grotesk, Arial Black, sans-serif" letterSpacing="0.5">
-                  CIRCLE K
-                </text>
-
-                {/* "pro" - Italic, lowercase, brand orange */}
-                <text x="102" y="33" fill="#ED8B00" fontSize="17" fontWeight="600" fontFamily="Space Grotesk, Arial, sans-serif" fontStyle="italic">
-                  pro
-                </text>
-
-                {/* TM symbol - Small, superscript */}
-                <text x="133" y="20" fill="#D64303" fontSize="8" fontWeight="700">
-                  ™
-                </text>
-
-                {/* Subtle underline accent */}
-                <line x1="4" y1="36" x2="140" y2="36" stroke="#ED8B00" strokeWidth="1.5" opacity="0.3"/>
-              </g>
-            </svg>
+            <Image
+              src="/circle-k-pro-logo.png"
+              alt="Circle K Pro"
+              width={160}
+              height={48}
+              priority
+              className="w-40 h-auto"
+              onError={(e) => {
+                // Hide logo container if image fails to load
+                const container = e.currentTarget.closest('.fixed') as HTMLElement
+                if (container) container.style.display = 'none'
+              }}
+            />
           </div>
         </div>
       </body>
