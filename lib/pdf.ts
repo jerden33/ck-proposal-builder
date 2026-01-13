@@ -54,49 +54,106 @@ export async function generateProposalPDF(
     pdf.roundedRect(x, y, width, height, radius, radius, style)
   }
 
-  // Helper function to draw gradient-like tile background
-  const drawGradientTile = (x: number, y: number, width: number, height: number, radius: number = 3) => {
-    // Base layer - light background
-    pdf.setFillColor(OFF_WHITE)
-    drawRoundedRect(x, y, width, height, radius, 'F')
-
-    // Border
-    pdf.setDrawColor(230, 230, 230)
-    pdf.setLineWidth(0.3)
-    drawRoundedRect(x, y, width, height, radius, 'S')
+  // Helper function to draw drop shadow
+  const drawShadow = (x: number, y: number, width: number, height: number, radius: number) => {
+    pdf.setFillColor(0, 0, 0)
+    pdf.setGState(pdf.GState({ opacity: 0.08 }))
+    drawRoundedRect(x + 1, y + 1.5, width, height, radius, 'F')
+    pdf.setGState(pdf.GState({ opacity: 1 }))
   }
 
-  // Helper function to draw orange gradient tile (for highlights)
-  const drawOrangeGradientTile = (x: number, y: number, width: number, height: number, radius: number = 3) => {
-    // Base layer - light orange tint
-    pdf.setFillColor(255, 248, 240)
-    drawRoundedRect(x, y, width, height, radius, 'F')
+  // Helper function to create linear gradient using layered rectangles
+  const drawGradient = (x: number, y: number, width: number, height: number, radius: number, color1: [number, number, number], color2: [number, number, number], steps: number = 20) => {
+    const stepHeight = height / steps
 
-    // Border with orange accent
-    pdf.setDrawColor(237, 139, 0)
+    for (let i = 0; i < steps; i++) {
+      const ratio = i / (steps - 1)
+      const r = Math.round(color1[0] + (color2[0] - color1[0]) * ratio)
+      const g = Math.round(color1[1] + (color2[1] - color1[1]) * ratio)
+      const b = Math.round(color1[2] + (color2[2] - color1[2]) * ratio)
+
+      pdf.setFillColor(r, g, b)
+
+      const currentY = y + i * stepHeight
+      const currentHeight = stepHeight + 0.5 // Slight overlap to prevent gaps
+
+      if (i === 0) {
+        // First segment with top rounded corners
+        pdf.rect(x, currentY, width, currentHeight, 'F')
+      } else if (i === steps - 1) {
+        // Last segment with bottom rounded corners
+        pdf.rect(x, currentY, width, currentHeight, 'F')
+      } else {
+        // Middle segments without rounding
+        pdf.rect(x, currentY, width, currentHeight, 'F')
+      }
+    }
+
+    // Redraw outline with rounded corners
+    pdf.setDrawColor(color2[0], color2[1], color2[2])
     pdf.setLineWidth(0.5)
     drawRoundedRect(x, y, width, height, radius, 'S')
   }
 
-  // Helper function to draw icon-style circle with gradient
+  // Helper function to draw subtle tile background
+  const drawGradientTile = (x: number, y: number, width: number, height: number, radius: number = 4) => {
+    // Draw shadow first
+    drawShadow(x, y, width, height, radius)
+
+    // Light gradient background
+    pdf.setFillColor(255, 255, 255)
+    drawRoundedRect(x, y, width, height, radius, 'F')
+
+    // Subtle border
+    pdf.setDrawColor(230, 230, 230)
+    pdf.setLineWidth(0.5)
+    drawRoundedRect(x, y, width, height, radius, 'S')
+  }
+
+  // Helper function to draw orange gradient tile (for highlights)
+  const drawOrangeGradientTile = (x: number, y: number, width: number, height: number, radius: number = 4) => {
+    // Draw shadow first
+    drawShadow(x, y, width, height, radius)
+
+    // Orange gradient: Brand Orange (#ED8B00) → Dark Orange (#D64303)
+    drawGradient(x, y, width, height, radius, [237, 139, 0], [214, 67, 3], 25)
+  }
+
+  // Helper function to draw icon-style circle
   const drawIconCircle = (x: number, y: number, radius: number) => {
+    // Draw shadow
+    pdf.setFillColor(0, 0, 0)
+    pdf.setGState(pdf.GState({ opacity: 0.1 }))
+    pdf.circle(x + 0.3, y + 0.3, radius, 'F')
+    pdf.setGState(pdf.GState({ opacity: 1 }))
+
     // Draw circle with brand orange
-    pdf.setFillColor(237, 139, 0) // Brand orange
+    pdf.setFillColor(237, 139, 0)
     pdf.circle(x, y, radius, 'F')
   }
 
   // Helper function to draw strong orange gradient card (for products)
-  const drawOrangeGradientCard = (x: number, y: number, width: number, height: number, radius: number = 4) => {
-    // Draw solid orange background
-    pdf.setFillColor(214, 67, 3) // Dark orange
-    drawRoundedRect(x, y, width, height, radius, 'F')
+  const drawOrangeGradientCard = (x: number, y: number, width: number, height: number, radius: number = 5) => {
+    // Draw shadow first
+    drawShadow(x, y, width, height, radius)
+
+    // Strong orange gradient: Brand Orange → Dark Orange
+    drawGradient(x, y, width, height, radius, [237, 139, 0], [214, 67, 3], 30)
   }
 
   // Helper function to draw green gradient tile (for pricing highlights)
-  const drawGreenGradientTile = (x: number, y: number, width: number, height: number, radius: number = 4) => {
-    // Draw solid green background
-    pdf.setFillColor(22, 163, 74) // Dark green
-    drawRoundedRect(x, y, width, height, radius, 'F')
+  const drawGreenGradientTile = (x: number, y: number, width: number, height: number, radius: number = 5) => {
+    // Draw shadow first for depth
+    drawShadow(x, y, width, height, radius)
+
+    // Vibrant green gradient: #10b981 → #059669
+    drawGradient(x, y, width, height, radius, [16, 185, 129], [5, 150, 105], 30)
+  }
+
+  // Helper function to draw accent bar
+  const drawAccentBar = (x: number, y: number, width: number, height: number) => {
+    pdf.setFillColor(237, 139, 0) // Brand orange
+    pdf.rect(x, y, width, height, 'F')
   }
 
   // Helper function to add footer with logo to pages
@@ -151,8 +208,8 @@ export async function generateProposalPDF(
   }
 
   // === COVER PAGE ===
-  // Background gradient effect for entire page
-  pdf.setFillColor(OFF_WHITE)
+  // Modern gradient background
+  pdf.setFillColor(249, 250, 251) // Very light gray
   pdf.rect(0, 0, pageWidth, pageHeight, 'F')
 
   // Logo area (top right) - Using actual Circle K Pro logo
@@ -167,72 +224,81 @@ export async function generateProposalPDF(
   } catch (error) {
     // Fallback to text if logo file is not available
     console.warn('Logo file not found on cover page, using text fallback')
-    const logoBarWidth = 55
-    const logoBarHeight = 12
+    const logoBarWidth = 58
+    const logoBarHeight = 16
     const logoX = pageWidth - margin - logoBarWidth
-    const logoY = 20
+    const logoY = 18
 
-    drawOrangeGradientTile(logoX - 2, logoY - 2, logoBarWidth + 4, logoBarHeight + 4, 2)
+    // Background tile for logo
+    drawGradientTile(logoX - 3, logoY - 3, logoBarWidth + 6, logoBarHeight + 6, 4)
 
     pdf.setFontSize(24)
     pdf.setTextColor(DARK_ORANGE)
     pdf.setFont('helvetica', 'bold')
-    pdf.text('CIRCLE K', logoX + 2, logoY + 8)
+    pdf.text('CIRCLE K', logoX + 2, logoY + 10)
 
     pdf.setFontSize(16)
     pdf.setFont('helvetica', 'normal')
     pdf.setTextColor(BRAND_ORANGE)
-    pdf.text('pro', pageWidth - margin - 10, logoY + 11)
+    pdf.text('pro', pageWidth - margin - 12, logoY + 13)
 
     // Add TM symbol
     pdf.setFontSize(8)
     pdf.setTextColor(DARK_ORANGE)
     pdf.setFont('helvetica', 'bold')
-    pdf.text('™', pageWidth - margin - 3, logoY + 4)
+    pdf.text('™', pageWidth - margin - 5, logoY + 6)
   }
 
-  // Title section with background tile
-  yPos = 70
-  const titleBoxHeight = 60
-  drawGradientTile(margin, yPos, pageWidth - 2 * margin, titleBoxHeight, 4)
+  // Title section with modern gradient tile
+  yPos = 85
+  const titleBoxHeight = 75
+  drawOrangeGradientTile(margin, yPos, pageWidth - 2 * margin, titleBoxHeight, 10)
 
-  yPos += 15
-  pdf.setFontSize(32)
-  pdf.setTextColor(OFF_BLACK)
+  yPos += 25
+  pdf.setFontSize(36)
+  pdf.setTextColor(255, 255, 255)
   pdf.setFont('helvetica', 'bold')
-  pdf.text('Fleet Fuel Solutions', margin + 8, yPos)
+  pdf.text('Fleet Fuel Solutions', margin + 15, yPos)
 
-  yPos += 15
-  pdf.setFontSize(24)
-  pdf.text('Proposal', margin + 8, yPos)
+  yPos += 20
+  pdf.setFontSize(28)
+  pdf.setGState(pdf.GState({ opacity: 0.95 }))
+  pdf.text('Proposal', margin + 15, yPos)
+  pdf.setGState(pdf.GState({ opacity: 1 }))
 
-  // Add accent bar below title
-  yPos += 8
-  pdf.setFillColor(237, 139, 0)
-  pdf.rect(margin + 8, yPos, 60, 3, 'F')
-
-  // Customer info tile
-  yPos += 30
-  const customerTileHeight = 35
-  drawOrangeGradientTile(margin, yPos, pageWidth - 2 * margin, customerTileHeight, 4)
-
+  // Add decorative accent bar
   yPos += 10
-  pdf.setFontSize(16)
-  pdf.setFont('helvetica', 'bold')
-  pdf.setTextColor(OFF_BLACK)
-  pdf.text(`Prepared for`, margin + 8, yPos)
+  pdf.setDrawColor(255, 255, 255)
+  pdf.setLineWidth(2)
+  pdf.setGState(pdf.GState({ opacity: 0.4 }))
+  pdf.line(margin + 15, yPos, margin + 85, yPos)
+  pdf.setGState(pdf.GState({ opacity: 1 }))
 
-  yPos += 8
-  pdf.setFontSize(18)
-  pdf.setTextColor(DARK_ORANGE)
-  pdf.text(opportunityData.customerName, margin + 8, yPos)
+  // Customer info tile with gradient
+  yPos += 30
+  const customerTileHeight = 45
+  drawGreenGradientTile(margin, yPos, pageWidth - 2 * margin, customerTileHeight, 10)
 
   yPos += 15
+  pdf.setFontSize(14)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setTextColor(255, 255, 255)
+  pdf.setGState(pdf.GState({ opacity: 0.9 }))
+  pdf.text(`Prepared for`, margin + 15, yPos)
+  pdf.setGState(pdf.GState({ opacity: 1 }))
+
+  yPos += 12
+  pdf.setFontSize(22)
+  pdf.setFont('helvetica', 'bold')
+  pdf.text(opportunityData.customerName, margin + 15, yPos)
+
+  yPos += 12
   pdf.setFontSize(12)
-  pdf.setTextColor('#666666')
   pdf.setFont('helvetica', 'normal')
+  pdf.setGState(pdf.GState({ opacity: 0.9 }))
   const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-  pdf.text(today, margin + 8, yPos)
+  pdf.text(today, margin + 15, yPos)
+  pdf.setGState(pdf.GState({ opacity: 1 }))
 
   // Add footer to cover page
   addFooter()
@@ -242,42 +308,46 @@ export async function generateProposalPDF(
     addNewPage()
 
     // Add page background
-    pdf.setFillColor(OFF_WHITE)
+    pdf.setFillColor(249, 250, 251) // Light gray background
     pdf.rect(0, 0, pageWidth, pageHeight, 'F')
 
-    // Section header with gradient bar
-    pdf.setFontSize(20)
+    // Section header with accent bar
+    pdf.setFontSize(24)
     pdf.setTextColor(DARK_ORANGE)
     pdf.setFont('helvetica', 'bold')
-    drawIconCircle(margin + 4, yPos + 3, 3)
-    pdf.text('Executive Summary', margin + 12, yPos + 5)
+    drawIconCircle(margin + 4, yPos + 4, 3.5)
+    pdf.text('Executive Summary', margin + 14, yPos + 7)
 
-    yPos += 15
-
-    // Summary text tile
-    const summaryText = `Circle K Pro is pleased to present this comprehensive fleet fuel solutions proposal tailored to meet ${opportunityData.customerName}'s operational needs. Our program offers significant cost savings, nationwide coverage at over 6,000 locations, and streamlined fleet management tools.`
-    const splitSummary = pdf.splitTextToSize(summaryText, pageWidth - 2 * margin - 16)
-
-    const summaryTileHeight = splitSummary.length * 6 + 20
-    drawGradientTile(margin, yPos, pageWidth - 2 * margin, summaryTileHeight, 4)
-
+    // Accent bar under header
     yPos += 10
-    pdf.setFontSize(11)
+    drawAccentBar(margin + 14, yPos, 45, 1.5)
+
+    yPos += 18
+
+    // Summary text tile with shadow
+    const summaryText = `Circle K Pro is pleased to present this comprehensive fleet fuel solutions proposal tailored to meet ${opportunityData.customerName}'s operational needs. Our program offers significant cost savings, nationwide coverage at over 6,000 locations, and streamlined fleet management tools.`
+    const splitSummary = pdf.splitTextToSize(summaryText, pageWidth - 2 * margin - 28)
+
+    const summaryTileHeight = splitSummary.length * 7 + 24
+    drawGradientTile(margin, yPos, pageWidth - 2 * margin, summaryTileHeight, 6)
+
+    yPos += 14
+    pdf.setFontSize(12)
     pdf.setTextColor(OFF_BLACK)
     pdf.setFont('helvetica', 'normal')
-    pdf.text(splitSummary, margin + 8, yPos)
-    yPos += splitSummary.length * 6 + 10
+    pdf.text(splitSummary, margin + 14, yPos)
+    yPos += splitSummary.length * 7 + 15
 
     // Key Benefits section
-    yPos += 10
+    yPos += 12
     checkPageBreak(80)
 
-    pdf.setFontSize(14)
+    pdf.setFontSize(16)
     pdf.setFont('helvetica', 'bold')
     pdf.setTextColor(DARK_ORANGE)
     pdf.text('Key Benefits', margin, yPos)
 
-    yPos += 10
+    yPos += 12
 
     const benefits = [
       'Save at least 10¢ per gallon automatically',
@@ -288,101 +358,106 @@ export async function generateProposalPDF(
       'U.S.-based customer support'
     ]
 
-    // Draw benefits in styled tiles
-    const benefitTileWidth = (pageWidth - 2 * margin - 5) / 2
-    const benefitTileHeight = 18
+    // Draw benefits in styled gradient tiles
+    const benefitTileWidth = (pageWidth - 2 * margin - 8) / 2
+    const benefitTileHeight = 22
     let benefitX = margin
     let benefitY = yPos
 
     benefits.forEach((benefit, index) => {
-      checkPageBreak(benefitTileHeight + 5)
+      checkPageBreak(benefitTileHeight + 8)
 
       if (index % 2 === 0 && index > 0) {
-        benefitY += benefitTileHeight + 5
+        benefitY += benefitTileHeight + 8
         benefitX = margin
       } else if (index % 2 === 1) {
-        benefitX = margin + benefitTileWidth + 5
+        benefitX = margin + benefitTileWidth + 8
       }
 
-      // Draw gradient tile for each benefit
-      drawOrangeGradientTile(benefitX, benefitY, benefitTileWidth, benefitTileHeight, 3)
+      // Draw orange gradient tile for each benefit
+      drawOrangeGradientTile(benefitX, benefitY, benefitTileWidth, benefitTileHeight, 5)
 
       // Draw checkmark icon circle
-      pdf.setFillColor(BRAND_ORANGE)
-      pdf.circle(benefitX + 5, benefitY + 9, 2, 'F')
-      pdf.setTextColor(255, 255, 255)
-      pdf.setFontSize(10)
+      pdf.setFillColor(255, 255, 255)
+      pdf.circle(benefitX + 8, benefitY + 11, 2.2, 'F')
+      pdf.setTextColor(214, 67, 3) // Dark orange
+      pdf.setFontSize(11)
       pdf.setFont('helvetica', 'bold')
-      pdf.text('✓', benefitX + 3.5, benefitY + 10.5)
+      pdf.text('✓', benefitX + 6.3, benefitY + 12.5)
 
       // Benefit text
-      pdf.setFontSize(9)
-      pdf.setTextColor(OFF_BLACK)
+      pdf.setFontSize(10)
+      pdf.setTextColor(255, 255, 255)
       pdf.setFont('helvetica', 'normal')
-      const splitBenefit = pdf.splitTextToSize(benefit, benefitTileWidth - 20)
-      pdf.text(splitBenefit, benefitX + 10, benefitY + 10)
+      const splitBenefit = pdf.splitTextToSize(benefit, benefitTileWidth - 24)
+      pdf.text(splitBenefit, benefitX + 13, benefitY + 12)
     })
 
-    yPos = benefitY + benefitTileHeight + 10
+    yPos = benefitY + benefitTileHeight + 12
 
     // Fleet Details
     if (opportunityData.fleetSize || opportunityData.monthlyGallons) {
-      yPos += 10
-      checkPageBreak(60)
+      yPos += 12
+      checkPageBreak(65)
 
-      pdf.setFontSize(14)
+      pdf.setFontSize(16)
       pdf.setFont('helvetica', 'bold')
       pdf.setTextColor(DARK_ORANGE)
       pdf.text('Fleet Overview', margin, yPos)
 
-      yPos += 10
+      yPos += 12
+
+      const statBoxWidth = (pageWidth - 2 * margin - 10) / 2
+      const statBoxHeight = 32
 
       // Fleet size tile
       if (opportunityData.fleetSize) {
-        const fleetTileHeight = 25
-        drawGradientTile(margin, yPos, (pageWidth - 2 * margin - 5) / 2, fleetTileHeight, 3)
+        drawGreenGradientTile(margin, yPos, statBoxWidth, statBoxHeight, 6)
 
         pdf.setFontSize(10)
-        pdf.setTextColor('#666666')
+        pdf.setTextColor(255, 255, 255)
         pdf.setFont('helvetica', 'normal')
-        pdf.text('Fleet Size', margin + 6, yPos + 8)
+        pdf.setGState(pdf.GState({ opacity: 0.9 }))
+        pdf.text('Fleet Size', margin + 10, yPos + 10)
+        pdf.setGState(pdf.GState({ opacity: 1 }))
 
-        pdf.setFontSize(18)
-        pdf.setTextColor(DARK_ORANGE)
+        pdf.setFontSize(22)
         pdf.setFont('helvetica', 'bold')
-        pdf.text(`${opportunityData.fleetSize}`, margin + 6, yPos + 18)
+        pdf.text(`${opportunityData.fleetSize}`, margin + 10, yPos + 22)
 
-        pdf.setFontSize(10)
-        pdf.setTextColor(OFF_BLACK)
+        pdf.setFontSize(11)
         pdf.setFont('helvetica', 'normal')
-        pdf.text('vehicles', margin + 6 + pdf.getTextWidth(`${opportunityData.fleetSize}`) + 2, yPos + 18)
+        pdf.setGState(pdf.GState({ opacity: 0.9 }))
+        pdf.text('vehicles', margin + 10 + pdf.getTextWidth(`${opportunityData.fleetSize}`) + 3, yPos + 22)
+        pdf.setGState(pdf.GState({ opacity: 1 }))
       }
 
       // Monthly gallons tile
       if (opportunityData.monthlyGallons) {
-        const gallonTileHeight = 25
-        const gallonTileX = margin + (pageWidth - 2 * margin - 5) / 2 + 5
-        drawGradientTile(gallonTileX, yPos, (pageWidth - 2 * margin - 5) / 2, gallonTileHeight, 3)
+        const gallonTileX = margin + statBoxWidth + 10
+        drawGreenGradientTile(gallonTileX, yPos, statBoxWidth, statBoxHeight, 6)
 
         pdf.setFontSize(10)
-        pdf.setTextColor('#666666')
+        pdf.setTextColor(255, 255, 255)
         pdf.setFont('helvetica', 'normal')
-        pdf.text('Monthly Fuel Usage', gallonTileX + 6, yPos + 8)
+        pdf.setGState(pdf.GState({ opacity: 0.9 }))
+        pdf.text('Monthly Fuel Usage', gallonTileX + 10, yPos + 10)
+        pdf.setGState(pdf.GState({ opacity: 1 }))
 
-        pdf.setFontSize(18)
-        pdf.setTextColor(DARK_ORANGE)
+        pdf.setFontSize(22)
         pdf.setFont('helvetica', 'bold')
         const gallonsFormatted = Number(opportunityData.monthlyGallons).toLocaleString()
-        pdf.text(gallonsFormatted, gallonTileX + 6, yPos + 18)
+        pdf.text(gallonsFormatted, gallonTileX + 10, yPos + 22)
 
-        pdf.setFontSize(10)
-        pdf.setTextColor(OFF_BLACK)
+        pdf.setFontSize(11)
         pdf.setFont('helvetica', 'normal')
-        pdf.text('gallons', gallonTileX + 6 + pdf.getTextWidth(gallonsFormatted) + 2, yPos + 18)
+        pdf.setGState(pdf.GState({ opacity: 0.9 }))
+        pdf.text('gallons', gallonTileX + 10 + pdf.getTextWidth(gallonsFormatted) + 3, yPos + 22)
+        pdf.setGState(pdf.GState({ opacity: 1 }))
 
-        yPos += 30
+        yPos += statBoxHeight + 15
       } else if (opportunityData.fleetSize) {
-        yPos += 30
+        yPos += statBoxHeight + 15
       }
     }
 
@@ -395,63 +470,90 @@ export async function generateProposalPDF(
     addNewPage()
 
     // Add page background
-    pdf.setFillColor(OFF_WHITE)
+    pdf.setFillColor(249, 250, 251) // Light gray background
     pdf.rect(0, 0, pageWidth, pageHeight, 'F')
 
-    pdf.setFontSize(20)
+    // Section header with accent bar
+    pdf.setFontSize(24)
     pdf.setTextColor(DARK_ORANGE)
     pdf.setFont('helvetica', 'bold')
-    drawIconCircle(margin + 4, yPos + 3, 3)
-    pdf.text('Solution Overview', margin + 12, yPos + 5)
+    drawIconCircle(margin + 4, yPos + 4, 3.5)
+    pdf.text('Solution Overview', margin + 14, yPos + 7)
 
-    yPos += 15
+    // Accent bar under header
+    yPos += 10
+    drawAccentBar(margin + 14, yPos, 45, 1.5)
+
+    yPos += 20
 
     const selectedProducts = products.filter(p =>
       opportunityData.selectedProducts.includes(p.id)
     )
 
     selectedProducts.forEach((product, index) => {
-      if (index > 0) yPos += 10
+      if (index > 0) yPos += 12
 
-      const descSplit = pdf.splitTextToSize(product.description, pageWidth - 2 * margin - 20)
+      const descSplit = pdf.splitTextToSize(product.description, pageWidth - 2 * margin - 28)
       const featureCount = product.features.length
-      const productTileHeight = 28 + descSplit.length * 6 + featureCount * 7
+      const productTileHeight = 36 + descSplit.length * 6 + featureCount * 8
 
-      checkPageBreak(productTileHeight + 10)
+      checkPageBreak(productTileHeight + 12)
 
-      // Draw product card with strong orange gradient
-      drawOrangeGradientCard(margin, yPos, pageWidth - 2 * margin, productTileHeight, 5)
+      // Draw product card with vibrant orange gradient and shadow
+      drawOrangeGradientCard(margin, yPos, pageWidth - 2 * margin, productTileHeight, 8)
 
-      // Product name (white on gradient)
-      yPos += 12
-      pdf.setFontSize(15)
-      pdf.setTextColor(255, 255, 255) // White
+      // Product name (white on gradient) - Larger and bolder
+      yPos += 16
+      pdf.setFontSize(18)
+      pdf.setTextColor(255, 255, 255)
       pdf.setFont('helvetica', 'bold')
-      pdf.text(product.name, margin + 10, yPos)
+      pdf.text(product.name, margin + 14, yPos)
 
-      // Product description (white on gradient)
-      yPos += 9
-      pdf.setFontSize(10)
-      pdf.setTextColor(255, 255, 255) // White
+      // Product description (white on gradient) - Slightly transparent
+      yPos += 10
+      pdf.setFontSize(11)
+      pdf.setGState(pdf.GState({ opacity: 0.95 }))
       pdf.setFont('helvetica', 'normal')
-      pdf.text(descSplit, margin + 10, yPos)
-      yPos += descSplit.length * 6 + 6
+      pdf.text(descSplit, margin + 14, yPos)
+      pdf.setGState(pdf.GState({ opacity: 1 }))
+      yPos += descSplit.length * 6 + 8
 
-      // Features with white checkmarks
-      product.features.forEach(feature => {
-        // White checkmark circle
-        pdf.setFillColor(255, 255, 255)
-        pdf.circle(margin + 12, yPos - 1.5, 1.2, 'F')
-
-        pdf.setFontSize(9)
-        pdf.setTextColor(255, 255, 255) // White text
-        pdf.setFont('helvetica', 'normal')
-        const featureSplit = pdf.splitTextToSize(feature, pageWidth - 2 * margin - 25)
-        pdf.text(featureSplit, margin + 16, yPos)
-        yPos += 7
-      })
+      // Divider line
+      pdf.setDrawColor(255, 255, 255)
+      pdf.setLineWidth(0.3)
+      pdf.setGState(pdf.GState({ opacity: 0.3 }))
+      pdf.line(margin + 14, yPos, pageWidth - margin - 14, yPos)
+      pdf.setGState(pdf.GState({ opacity: 1 }))
 
       yPos += 6
+
+      // Features with styled checkmarks
+      product.features.forEach(feature => {
+        // White checkmark circle with slight shadow
+        pdf.setFillColor(255, 255, 255)
+        pdf.setGState(pdf.GState({ opacity: 0.3 }))
+        pdf.circle(margin + 17, yPos - 1, 1.8, 'F')
+        pdf.setGState(pdf.GState({ opacity: 1 }))
+
+        pdf.setFillColor(255, 255, 255)
+        pdf.circle(margin + 16.5, yPos - 1.5, 1.8, 'F')
+
+        // Checkmark text
+        pdf.setFontSize(10)
+        pdf.setTextColor(214, 67, 3) // Dark orange for contrast
+        pdf.setFont('helvetica', 'bold')
+        pdf.text('✓', margin + 15, yPos - 0.2)
+
+        // Feature text
+        pdf.setFontSize(10)
+        pdf.setTextColor(255, 255, 255)
+        pdf.setFont('helvetica', 'normal')
+        const featureSplit = pdf.splitTextToSize(feature, pageWidth - 2 * margin - 32)
+        pdf.text(featureSplit, margin + 22, yPos)
+        yPos += 8
+      })
+
+      yPos += 8
     })
 
     // Add footer to Solution Overview page
@@ -465,17 +567,22 @@ export async function generateProposalPDF(
   if (hasAnyPricingData) {
     addNewPage()
 
-    // Add page background
-    pdf.setFillColor(OFF_WHITE)
+    // Add page background with subtle gradient
+    pdf.setFillColor(249, 250, 251) // Very light gray
     pdf.rect(0, 0, pageWidth, pageHeight, 'F')
 
-    pdf.setFontSize(20)
+    // Section header with accent bar
+    pdf.setFontSize(24)
     pdf.setTextColor(DARK_ORANGE)
     pdf.setFont('helvetica', 'bold')
-    drawIconCircle(margin + 4, yPos + 3, 3)
-    pdf.text('Pricing', margin + 12, yPos + 5)
+    drawIconCircle(margin + 4, yPos + 4, 3.5)
+    pdf.text('Pricing Breakdown', margin + 14, yPos + 7)
 
-    yPos += 20
+    // Accent bar under header
+    yPos += 10
+    drawAccentBar(margin + 14, yPos, 45, 1.5)
+
+    yPos += 15
 
     // Calculate savings if needed
     const perGallonDiscount = parseFloat(opportunityData.perGallonDiscount) || 0
@@ -483,76 +590,145 @@ export async function generateProposalPDF(
     const monthlySavings = perGallonDiscount * monthlyGallons
     const annualFuelSavings = monthlySavings * 12
 
-    // Per gallon discount
-    if (sections.showPerGallonDiscount && perGallonDiscount > 0) {
-      const discountTileHeight = 30
-      drawOrangeGradientTile(margin, yPos, pageWidth - 2 * margin, discountTileHeight, 4)
-
-      yPos += 10
-      pdf.setFontSize(12)
-      pdf.setTextColor('#666666')
-      pdf.setFont('helvetica', 'normal')
-      pdf.text('Per Gallon Discount', margin + 8, yPos)
-
-      yPos += 10
-      pdf.setFontSize(24)
-      pdf.setTextColor(DARK_ORANGE)
-      pdf.setFont('helvetica', 'bold')
-      pdf.text(`${perGallonDiscount.toFixed(2)}¢`, margin + 8, yPos)
-
-      pdf.setFontSize(12)
-      pdf.setTextColor(OFF_BLACK)
-      pdf.setFont('helvetica', 'normal')
-      pdf.text('per gallon', margin + 8 + pdf.getTextWidth(`${perGallonDiscount.toFixed(2)}¢`) + 3, yPos)
-
-      yPos += 15
+    // Parse additional savings to calculate total
+    let additionalAnnualSavings = 0
+    if (sections.showAdditionalSavings && opportunityData.additionalSavings) {
+      const additionalItems = opportunityData.additionalSavings.split('\n').filter(line => line.trim().length > 0)
+      additionalItems.forEach(item => {
+        // Extract monetary values like $500/mo or $500/month
+        const monthlyMatch = item.match(/\$([0-9,]+)\s*\/\s*mo(?:nth)?/i)
+        if (monthlyMatch) {
+          const value = parseFloat(monthlyMatch[1].replace(/,/g, ''))
+          additionalAnnualSavings += value * 12
+        }
+        // Extract annual values like $6000/year
+        const annualMatch = item.match(/\$([0-9,]+)\s*\/\s*(?:year|yr|annually)/i)
+        if (annualMatch) {
+          additionalAnnualSavings += parseFloat(annualMatch[1].replace(/,/g, ''))
+        }
+      })
     }
 
-    // Estimated fuel savings (Green Gradient)
+    const totalAnnualValue = annualFuelSavings + additionalAnnualSavings
+
+    // === MAIN PRICING BOX - Eye-catching Green Gradient ===
     if (sections.showEstimatedSavings && monthlySavings > 0) {
-      yPos += 5
-      const savingsTileHeight = 50
-      drawGreenGradientTile(margin, yPos, pageWidth - 2 * margin, savingsTileHeight, 5)
+      const pricingBoxHeight = 75
+      drawGreenGradientTile(margin, yPos, pageWidth - 2 * margin, pricingBoxHeight, 8)
 
-      yPos += 12
-      pdf.setFontSize(11)
-      pdf.setTextColor(255, 255, 255) // White
+      // Icon/emoji
+      pdf.setFontSize(28)
+      pdf.text('💰', margin + 12, yPos + 15)
+
+      // Title
+      yPos += 13
+      pdf.setFontSize(14)
+      pdf.setTextColor(255, 255, 255)
       pdf.setFont('helvetica', 'bold')
-      pdf.text('Estimated Fuel Savings', margin + 10, yPos)
+      pdf.text('ESTIMATED FUEL SAVINGS', margin + 30, yPos)
+
+      yPos += 8
+
+      // Divider line
+      pdf.setDrawColor(255, 255, 255)
+      pdf.setLineWidth(0.3)
+      pdf.setGState(pdf.GState({ opacity: 0.3 }))
+      pdf.line(margin + 30, yPos, pageWidth - margin - 12, yPos)
+      pdf.setGState(pdf.GState({ opacity: 1 }))
 
       yPos += 12
 
-      // Monthly and Annual savings side-by-side
-      const monthlyX = margin + 10
-      const annualX = margin + (pageWidth - 2 * margin) / 2 + 5
+      // Details layout
+      const contentWidth = pageWidth - 2 * margin - 30
+      const col1Width = contentWidth / 3
+      const col2Width = contentWidth / 3
+      const col3Width = contentWidth / 3
 
-      // Monthly
+      // Per Gallon Discount
+      const col1X = margin + 30
       pdf.setFontSize(9)
       pdf.setTextColor(255, 255, 255)
       pdf.setFont('helvetica', 'normal')
-      pdf.text('Monthly', monthlyX, yPos)
+      pdf.setGState(pdf.GState({ opacity: 0.9 }))
+      pdf.text('Per Gallon', col1X, yPos)
+      pdf.setGState(pdf.GState({ opacity: 1 }))
 
-      pdf.setFontSize(20)
+      pdf.setFontSize(18)
       pdf.setFont('helvetica', 'bold')
-      pdf.text(`$${monthlySavings.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, monthlyX, yPos + 10)
+      pdf.text(`${perGallonDiscount.toFixed(2)}¢`, col1X, yPos + 10)
 
-      // Annual
+      // Monthly Gallons
+      const col2X = col1X + col1Width
       pdf.setFontSize(9)
       pdf.setFont('helvetica', 'normal')
-      pdf.text('Annual', annualX, yPos)
+      pdf.setGState(pdf.GState({ opacity: 0.9 }))
+      pdf.text('Monthly Gallons', col2X, yPos)
+      pdf.setGState(pdf.GState({ opacity: 1 }))
 
-      pdf.setFontSize(20)
+      pdf.setFontSize(18)
       pdf.setFont('helvetica', 'bold')
-      pdf.text(`$${annualFuelSavings.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, annualX, yPos + 10)
+      const gallonsFormatted = Number(monthlyGallons).toLocaleString()
+      pdf.text(gallonsFormatted, col2X, yPos + 10)
 
-      yPos += 26
+      // Monthly Savings
+      const col3X = col2X + col2Width
+      pdf.setFontSize(9)
+      pdf.setFont('helvetica', 'normal')
+      pdf.setGState(pdf.GState({ opacity: 0.9 }))
+      pdf.text('Monthly Savings', col3X, yPos)
+      pdf.setGState(pdf.GState({ opacity: 1 }))
+
+      pdf.setFontSize(18)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text(`$${monthlySavings.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, col3X, yPos + 10)
+
+      yPos += 20
+
+      // Annual Savings - Prominent
+      pdf.setFontSize(10)
+      pdf.setFont('helvetica', 'normal')
+      pdf.setGState(pdf.GState({ opacity: 0.9 }))
+      pdf.text('ANNUAL FUEL SAVINGS', col1X, yPos)
+      pdf.setGState(pdf.GState({ opacity: 1 }))
+
+      pdf.setFontSize(32)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text(`$${annualFuelSavings.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, col1X, yPos + 12)
+
+      yPos += 28
+    }
+
+    // Per gallon discount (if shown without savings calculation)
+    if (sections.showPerGallonDiscount && perGallonDiscount > 0 && (!sections.showEstimatedSavings || monthlySavings === 0)) {
+      yPos += 5
+      const discountTileHeight = 35
+      drawOrangeGradientTile(margin, yPos, pageWidth - 2 * margin, discountTileHeight, 6)
+
+      yPos += 13
+      pdf.setFontSize(11)
+      pdf.setTextColor(255, 255, 255)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('Per Gallon Discount', margin + 15, yPos)
+
+      yPos += 12
+      pdf.setFontSize(28)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text(`${perGallonDiscount.toFixed(2)}¢`, margin + 15, yPos)
+
+      pdf.setFontSize(12)
+      pdf.setFont('helvetica', 'normal')
+      pdf.setGState(pdf.GState({ opacity: 0.9 }))
+      pdf.text('per gallon', margin + 15 + pdf.getTextWidth(`${perGallonDiscount.toFixed(2)}¢`) + 3, yPos)
+      pdf.setGState(pdf.GState({ opacity: 1 }))
+
+      yPos += 18
     }
 
     // Additional cost savings
     if (sections.showAdditionalSavings && opportunityData.additionalSavings && opportunityData.additionalSavings.trim().length > 0) {
-      yPos += 5
+      yPos += 12
 
-      pdf.setFontSize(12)
+      pdf.setFontSize(14)
       pdf.setFont('helvetica', 'bold')
       pdf.setTextColor(DARK_ORANGE)
       pdf.text('Additional Cost Savings', margin, yPos)
@@ -560,46 +736,62 @@ export async function generateProposalPDF(
       yPos += 10
 
       const additionalItems = opportunityData.additionalSavings.split('\n').filter(line => line.trim().length > 0)
-      const itemsTileHeight = additionalItems.length * 10 + 15
+      const itemsTileHeight = additionalItems.length * 12 + 20
 
-      drawGradientTile(margin, yPos, pageWidth - 2 * margin, itemsTileHeight, 4)
+      drawGradientTile(margin, yPos, pageWidth - 2 * margin, itemsTileHeight, 5)
 
-      yPos += 10
+      yPos += 14
       pdf.setFontSize(10)
       pdf.setTextColor(OFF_BLACK)
       pdf.setFont('helvetica', 'normal')
 
       additionalItems.forEach(item => {
-        pdf.setFillColor(BRAND_ORANGE)
-        pdf.circle(margin + 9, yPos - 1.5, 0.8, 'F')
+        // Checkmark circle
+        pdf.setFillColor(16, 185, 129) // Green
+        pdf.circle(margin + 12, yPos - 2, 1.5, 'F')
+        pdf.setTextColor(255, 255, 255)
+        pdf.setFontSize(9)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text('✓', margin + 10.5, yPos - 0.5)
 
-        const itemSplit = pdf.splitTextToSize(item.trim(), pageWidth - 2 * margin - 20)
-        pdf.text(itemSplit, margin + 12, yPos)
-        yPos += 10
+        pdf.setFontSize(11)
+        pdf.setTextColor(OFF_BLACK)
+        pdf.setFont('helvetica', 'normal')
+        const itemSplit = pdf.splitTextToSize(item.trim(), pageWidth - 2 * margin - 30)
+        pdf.text(itemSplit, margin + 18, yPos)
+        yPos += 12
       })
 
-      yPos += 5
+      yPos += 8
     }
 
-    // Total annual value (Green Gradient - Eye-catching)
-    if (sections.showTotalAnnualValue && annualFuelSavings > 0) {
+    // Total annual value (Green Gradient - HUGE and eye-catching)
+    if (sections.showTotalAnnualValue && totalAnnualValue > 0) {
       yPos += 10
 
-      const totalTileHeight = 40
-      drawGreenGradientTile(margin, yPos, pageWidth - 2 * margin, totalTileHeight, 5)
+      const totalTileHeight = 55
+      drawGreenGradientTile(margin, yPos, pageWidth - 2 * margin, totalTileHeight, 8)
 
-      yPos += 13
-      pdf.setFontSize(12)
-      pdf.setTextColor(255, 255, 255) // White
+      yPos += 17
+      pdf.setFontSize(14)
+      pdf.setTextColor(255, 255, 255)
       pdf.setFont('helvetica', 'bold')
-      pdf.text('TOTAL ANNUAL VALUE', margin + 10, yPos)
+      pdf.text('TOTAL ANNUAL VALUE', margin + 15, yPos)
 
-      yPos += 14
-      pdf.setFontSize(32)
+      yPos += 8
+      // Decorative line
+      pdf.setDrawColor(255, 255, 255)
+      pdf.setLineWidth(0.5)
+      pdf.setGState(pdf.GState({ opacity: 0.4 }))
+      pdf.line(margin + 15, yPos, pageWidth - margin - 15, yPos)
+      pdf.setGState(pdf.GState({ opacity: 1 }))
+
+      yPos += 16
+      pdf.setFontSize(36)
       pdf.setFont('helvetica', 'bold')
-      pdf.text(`$${annualFuelSavings.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, margin + 10, yPos)
+      pdf.text(`$${totalAnnualValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, margin + 15, yPos)
 
-      yPos += 18
+      yPos += 20
     }
 
     // Add footer to Pricing page
@@ -611,85 +803,91 @@ export async function generateProposalPDF(
     addNewPage()
 
     // Add page background
-    pdf.setFillColor(OFF_WHITE)
+    pdf.setFillColor(249, 250, 251) // Light gray background
     pdf.rect(0, 0, pageWidth, pageHeight, 'F')
 
-    pdf.setFontSize(20)
+    // Section header with accent bar
+    pdf.setFontSize(24)
     pdf.setTextColor(DARK_ORANGE)
     pdf.setFont('helvetica', 'bold')
-    drawIconCircle(margin + 4, yPos + 3, 3)
-    pdf.text('Coverage Analysis', margin + 12, yPos + 5)
+    drawIconCircle(margin + 4, yPos + 4, 3.5)
+    pdf.text('Coverage Analysis', margin + 14, yPos + 7)
 
-    yPos += 15
+    // Accent bar under header
+    yPos += 10
+    drawAccentBar(margin + 14, yPos, 45, 1.5)
+
+    yPos += 20
 
     for (const address of addresses) {
       if (!address.geocoded || !address.lat || !address.lng) continue
 
-      checkPageBreak(140)
+      checkPageBreak(150)
 
-      // Address tile
-      const addressTileHeight = 35
-      drawGradientTile(margin, yPos, pageWidth - 2 * margin, addressTileHeight, 4)
+      // Address header box with gradient
+      const addressTileHeight = 28
+      drawOrangeGradientTile(margin, yPos, pageWidth - 2 * margin, addressTileHeight, 6)
 
       // Address header with icon
-      pdf.setFillColor(BRAND_ORANGE)
-      pdf.circle(margin + 6, yPos + 8, 2, 'F')
+      pdf.setFontSize(16)
+      pdf.text('📍', margin + 12, yPos + 13)
+
+      pdf.setFontSize(13)
       pdf.setTextColor(255, 255, 255)
-      pdf.setFontSize(9)
       pdf.setFont('helvetica', 'bold')
-      pdf.text('📍', margin + 4.5, yPos + 9.5)
+      const addressText = pdf.splitTextToSize(address.formattedAddress || address.address, pageWidth - 2 * margin - 35)
+      pdf.text(addressText, margin + 20, yPos + 13)
 
-      pdf.setFontSize(12)
-      pdf.setTextColor(OFF_BLACK)
-      pdf.setFont('helvetica', 'bold')
-      const addressText = pdf.splitTextToSize(address.formattedAddress || address.address, pageWidth - 2 * margin - 25)
-      pdf.text(addressText, margin + 12, yPos + 9)
+      yPos += addressTileHeight + 8
 
-      // Coverage stats tiles
-      yPos += 22
-      const statTileWidth = (pageWidth - 2 * margin - 5) / 2
-      const statTileHeight = 20
+      // Coverage stats boxes - Orange gradient with white text
+      const statBoxWidth = (pageWidth - 2 * margin - 10) / 2
+      const statBoxHeight = 32
 
       // Within 5 miles stat
-      drawOrangeGradientTile(margin + 8, yPos, statTileWidth - 8, statTileHeight, 3)
+      drawOrangeGradientTile(margin, yPos, statBoxWidth, statBoxHeight, 6)
 
-      pdf.setFontSize(9)
-      pdf.setTextColor('#666666')
+      pdf.setFontSize(10)
+      pdf.setTextColor(255, 255, 255)
       pdf.setFont('helvetica', 'normal')
-      pdf.text('Within 5 miles', margin + 12, yPos + 7)
+      pdf.setGState(pdf.GState({ opacity: 0.9 }))
+      pdf.text('Within 5 miles', margin + 10, yPos + 10)
+      pdf.setGState(pdf.GState({ opacity: 1 }))
 
-      pdf.setFontSize(16)
-      pdf.setTextColor(DARK_ORANGE)
+      pdf.setFontSize(22)
       pdf.setFont('helvetica', 'bold')
-      pdf.text(`${address.coverage.within5mi}`, margin + 12, yPos + 15)
+      pdf.text(`${address.coverage.within5mi}`, margin + 10, yPos + 22)
 
-      pdf.setFontSize(9)
-      pdf.setTextColor(OFF_BLACK)
+      pdf.setFontSize(11)
       pdf.setFont('helvetica', 'normal')
-      pdf.text('locations', margin + 12 + pdf.getTextWidth(`${address.coverage.within5mi}`) + 2, yPos + 15)
+      pdf.setGState(pdf.GState({ opacity: 0.9 }))
+      pdf.text('locations', margin + 10 + pdf.getTextWidth(`${address.coverage.within5mi}`) + 3, yPos + 22)
+      pdf.setGState(pdf.GState({ opacity: 1 }))
 
       // Within 10 miles stat
-      const stat2X = margin + 8 + statTileWidth - 8 + 5
-      drawOrangeGradientTile(stat2X, yPos, statTileWidth - 8, statTileHeight, 3)
+      const stat2X = margin + statBoxWidth + 10
+      drawOrangeGradientTile(stat2X, yPos, statBoxWidth, statBoxHeight, 6)
 
-      pdf.setFontSize(9)
-      pdf.setTextColor('#666666')
+      pdf.setFontSize(10)
+      pdf.setTextColor(255, 255, 255)
       pdf.setFont('helvetica', 'normal')
-      pdf.text('Within 10 miles', stat2X + 4, yPos + 7)
+      pdf.setGState(pdf.GState({ opacity: 0.9 }))
+      pdf.text('Within 10 miles', stat2X + 10, yPos + 10)
+      pdf.setGState(pdf.GState({ opacity: 1 }))
 
-      pdf.setFontSize(16)
-      pdf.setTextColor(DARK_ORANGE)
+      pdf.setFontSize(22)
       pdf.setFont('helvetica', 'bold')
-      pdf.text(`${address.coverage.within10mi}`, stat2X + 4, yPos + 15)
+      pdf.text(`${address.coverage.within10mi}`, stat2X + 10, yPos + 22)
 
-      pdf.setFontSize(9)
-      pdf.setTextColor(OFF_BLACK)
+      pdf.setFontSize(11)
       pdf.setFont('helvetica', 'normal')
-      pdf.text('locations', stat2X + 4 + pdf.getTextWidth(`${address.coverage.within10mi}`) + 2, yPos + 15)
+      pdf.setGState(pdf.GState({ opacity: 0.9 }))
+      pdf.text('locations', stat2X + 10 + pdf.getTextWidth(`${address.coverage.within10mi}`) + 3, yPos + 22)
+      pdf.setGState(pdf.GState({ opacity: 1 }))
 
-      yPos += 30
+      yPos += statBoxHeight + 10
 
-      // Try to add static map image with rounded border
+      // Try to add static map image with enhanced border and shadow
       try {
         const mapUrl = getStaticMapUrl(
           { lat: address.lat, lng: address.lng },
@@ -699,22 +897,25 @@ export async function generateProposalPDF(
         )
 
         if (mapUrl) {
-          checkPageBreak(80)
+          checkPageBreak(82)
+
+          // Draw shadow for map
+          drawShadow(margin, yPos, pageWidth - 2 * margin, 70, 5)
 
           // Draw border for map
-          pdf.setDrawColor(220, 220, 220)
-          pdf.setLineWidth(1)
-          drawRoundedRect(margin - 0.5, yPos - 0.5, pageWidth - 2 * margin + 1, 71, 4, 'S')
+          pdf.setDrawColor(214, 67, 3) // Dark orange border
+          pdf.setLineWidth(1.5)
+          drawRoundedRect(margin - 0.5, yPos - 0.5, pageWidth - 2 * margin + 1, 71, 5, 'S')
 
           // Add map image
           pdf.addImage(mapUrl, 'PNG', margin, yPos, pageWidth - 2 * margin, 70)
-          yPos += 75
+          yPos += 78
         }
       } catch (error) {
         console.error('Error adding map to PDF:', error)
       }
 
-      yPos += 10
+      yPos += 15
     }
 
     // Add footer to Coverage Analysis page
@@ -726,16 +927,21 @@ export async function generateProposalPDF(
     addNewPage()
 
     // Add page background
-    pdf.setFillColor(OFF_WHITE)
+    pdf.setFillColor(249, 250, 251) // Light gray background
     pdf.rect(0, 0, pageWidth, pageHeight, 'F')
 
-    pdf.setFontSize(20)
+    // Section header with accent bar
+    pdf.setFontSize(24)
     pdf.setTextColor(DARK_ORANGE)
     pdf.setFont('helvetica', 'bold')
-    drawIconCircle(margin + 4, yPos + 3, 3)
-    pdf.text('Terms and Conditions', margin + 12, yPos + 5)
+    drawIconCircle(margin + 4, yPos + 4, 3.5)
+    pdf.text('Terms and Conditions', margin + 14, yPos + 7)
 
-    yPos += 15
+    // Accent bar under header
+    yPos += 10
+    drawAccentBar(margin + 14, yPos, 45, 1.5)
+
+    yPos += 20
 
     const terms = [
       'This proposal is valid for 30 days from the date of issue.',
@@ -746,24 +952,25 @@ export async function generateProposalPDF(
     ]
 
     // Calculate total height needed for terms tile
-    const termsTileHeight = terms.length * 10 + 15
-    drawGradientTile(margin, yPos, pageWidth - 2 * margin, termsTileHeight, 4)
+    const termsTileHeight = terms.length * 12 + 22
+    drawGradientTile(margin, yPos, pageWidth - 2 * margin, termsTileHeight, 6)
 
-    yPos += 10
-    pdf.setFontSize(10)
+    yPos += 14
+    pdf.setFontSize(11)
     pdf.setTextColor(OFF_BLACK)
     pdf.setFont('helvetica', 'normal')
 
     terms.forEach(term => {
+      // Orange bullet circle
       pdf.setFillColor(BRAND_ORANGE)
-      pdf.circle(margin + 9, yPos - 1.5, 0.8, 'F')
+      pdf.circle(margin + 12, yPos - 2, 1.2, 'F')
 
-      const termSplit = pdf.splitTextToSize(term, pageWidth - 2 * margin - 20)
-      pdf.text(termSplit, margin + 12, yPos)
-      yPos += 10
+      const termSplit = pdf.splitTextToSize(term, pageWidth - 2 * margin - 30)
+      pdf.text(termSplit, margin + 18, yPos)
+      yPos += 12
     })
 
-    yPos += 5
+    yPos += 10
 
     // Add footer to Terms page
     addFooter(pageNumber)
@@ -774,60 +981,65 @@ export async function generateProposalPDF(
     addNewPage()
 
     // Add page background
-    pdf.setFillColor(OFF_WHITE)
+    pdf.setFillColor(249, 250, 251) // Light gray background
     pdf.rect(0, 0, pageWidth, pageHeight, 'F')
 
-    pdf.setFontSize(20)
+    // Section header with accent bar
+    pdf.setFontSize(24)
     pdf.setTextColor(DARK_ORANGE)
     pdf.setFont('helvetica', 'bold')
-    drawIconCircle(margin + 4, yPos + 3, 3)
-    pdf.text('Authorization', margin + 12, yPos + 5)
+    drawIconCircle(margin + 4, yPos + 4, 3.5)
+    pdf.text('Authorization', margin + 14, yPos + 7)
 
-    yPos += 20
+    // Accent bar under header
+    yPos += 10
+    drawAccentBar(margin + 14, yPos, 45, 1.5)
 
-    // Authorization text tile
+    yPos += 22
+
+    // Authorization text tile with shadow
     const authText = `By signing below, the customer authorizes Circle K Pro to proceed with the implementation of the fleet fuel solution as outlined in this proposal.`
-    const splitAuth = pdf.splitTextToSize(authText, pageWidth - 2 * margin - 16)
+    const splitAuth = pdf.splitTextToSize(authText, pageWidth - 2 * margin - 28)
 
-    const authTileHeight = splitAuth.length * 6 + 20
-    drawGradientTile(margin, yPos, pageWidth - 2 * margin, authTileHeight, 4)
+    const authTileHeight = splitAuth.length * 7 + 24
+    drawGradientTile(margin, yPos, pageWidth - 2 * margin, authTileHeight, 6)
 
-    yPos += 12
-    pdf.setFontSize(11)
+    yPos += 14
+    pdf.setFontSize(12)
     pdf.setTextColor(OFF_BLACK)
     pdf.setFont('helvetica', 'normal')
-    pdf.text(splitAuth, margin + 8, yPos)
+    pdf.text(splitAuth, margin + 14, yPos)
 
-    yPos += splitAuth.length * 6 + 20
+    yPos += splitAuth.length * 7 + 25
 
-    // Signature boxes with styling
-    const sigBoxWidth = (pageWidth - 2 * margin - 10) / 2
-    const sigBoxHeight = 35
+    // Signature boxes with gradient styling
+    const sigBoxWidth = (pageWidth - 2 * margin - 12) / 2
+    const sigBoxHeight = 42
 
-    // Signature box
-    drawOrangeGradientTile(margin, yPos, sigBoxWidth, sigBoxHeight, 4)
+    // Signature box with white background
+    drawGradientTile(margin, yPos, sigBoxWidth, sigBoxHeight, 6)
 
-    pdf.setFontSize(9)
-    pdf.setTextColor('#666666')
-    pdf.setFont('helvetica', 'normal')
-    pdf.text('Authorized Signature', margin + 6, yPos + 8)
+    pdf.setFontSize(11)
+    pdf.setTextColor(DARK_ORANGE)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text('Authorized Signature', margin + 12, yPos + 12)
 
-    pdf.setLineWidth(0.5)
+    pdf.setLineWidth(1)
     pdf.setDrawColor(BRAND_ORANGE)
-    pdf.line(margin + 6, yPos + 25, margin + sigBoxWidth - 6, yPos + 25)
+    pdf.line(margin + 12, yPos + 30, margin + sigBoxWidth - 12, yPos + 30)
 
-    // Date box
-    const dateBoxX = margin + sigBoxWidth + 10
-    drawOrangeGradientTile(dateBoxX, yPos, sigBoxWidth, sigBoxHeight, 4)
+    // Date box with white background
+    const dateBoxX = margin + sigBoxWidth + 12
+    drawGradientTile(dateBoxX, yPos, sigBoxWidth, sigBoxHeight, 6)
 
-    pdf.setFontSize(9)
-    pdf.setTextColor('#666666')
-    pdf.setFont('helvetica', 'normal')
-    pdf.text('Date', dateBoxX + 6, yPos + 8)
+    pdf.setFontSize(11)
+    pdf.setTextColor(DARK_ORANGE)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text('Date', dateBoxX + 12, yPos + 12)
 
-    pdf.setLineWidth(0.5)
+    pdf.setLineWidth(1)
     pdf.setDrawColor(BRAND_ORANGE)
-    pdf.line(dateBoxX + 6, yPos + 25, dateBoxX + sigBoxWidth - 6, yPos + 25)
+    pdf.line(dateBoxX + 12, yPos + 30, dateBoxX + sigBoxWidth - 12, yPos + 30)
 
     // Add footer to Signature page
     addFooter(pageNumber)
