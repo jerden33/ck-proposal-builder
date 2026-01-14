@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
-import { MapPin, TrendingUp, Users, Fuel, CheckCircle2, Mail, Phone, MapIcon } from 'lucide-react'
+import { MapPin, TrendingUp, Users, Fuel, CheckCircle2 } from 'lucide-react'
 import { MapComponent } from '@/components/MapComponent'
 import type { OpportunityData, Address, ProposalSections, Product } from '@/lib/types'
 
@@ -43,7 +43,7 @@ function ProposalContent() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-off-white to-white">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-brand-orange mx-auto mb-4"></div>
+          <div className="loading-spinner w-16 h-16 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading proposal...</p>
         </div>
       </div>
@@ -95,36 +95,20 @@ function ProposalContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-off-white to-white">
-      {/* HERO SECTION */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-dark-orange via-brand-orange to-dark-orange text-white">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0" style={{
-            backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
-            backgroundSize: '40px 40px'
-          }} />
-        </div>
-
-        <div className="relative max-w-6xl mx-auto px-6 py-16">
-          <div className="flex justify-between items-start mb-12">
-            <div>
-              <h1 className="text-5xl md:text-6xl font-bold mb-2">Fleet Fuel Solutions</h1>
-              <p className="text-3xl md:text-4xl font-light opacity-90">Proposal</p>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg px-4 py-3">
-              <Image
-                src="/circle-k-pro-logo.png"
-                alt="Circle K Pro"
-                width={160}
-                height={48}
-                className="w-32 h-auto brightness-0 invert"
-              />
-            </div>
+      {/* PREMIUM HERO SECTION */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-gray-50 via-off-white to-white border-b border-gray-200">
+        <div className="max-w-6xl mx-auto px-6 py-20">
+          <div className="text-center mb-12">
+            <h1 className="text-5xl md:text-6xl font-bold mb-4 text-off-black tracking-tight">
+              Fleet Fuel Solutions Proposal
+            </h1>
+            <div className="h-1 w-24 bg-gradient-to-r from-brand-orange to-dark-orange rounded-full mx-auto mb-8"></div>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
-            <p className="text-lg opacity-90 mb-2">Prepared for</p>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">{opportunityData.customerName}</h2>
-            <p className="text-lg opacity-75">{today}</p>
+          <div className="card max-w-3xl mx-auto text-center">
+            <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Prepared for</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-off-black">{opportunityData.customerName}</h2>
+            <p className="text-gray-600">{today}</p>
           </div>
         </div>
       </section>
@@ -134,7 +118,7 @@ function ProposalContent() {
         <section className="max-w-6xl mx-auto px-6 py-16">
           <h2 className="text-4xl font-bold text-dark-orange mb-8">Executive Summary</h2>
 
-          <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100 mb-8">
+          <div className="card mb-8">
             <p className="text-lg text-gray-700 leading-relaxed">
               Circle K Pro is pleased to present this comprehensive fleet fuel solutions proposal tailored to meet {opportunityData.customerName}'s operational needs. Our program offers significant cost savings, nationwide coverage at over 6,000 locations, and streamlined fleet management tools.
             </p>
@@ -144,26 +128,30 @@ function ProposalContent() {
           {(opportunityData.fleetSize || opportunityData.monthlyGallons) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               {opportunityData.fleetSize && (
-                <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-8 text-white shadow-lg">
-                  <div className="flex items-center gap-4 mb-4">
-                    <Users size={32} />
+                <div className="card hover:shadow-lg transition-all duration-300">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center flex-shrink-0">
+                      <Users size={28} className="text-white" />
+                    </div>
                     <div>
-                      <p className="text-emerald-100 text-sm uppercase tracking-wider">Fleet Size</p>
-                      <p className="text-5xl font-bold">{opportunityData.fleetSize}</p>
-                      <p className="text-emerald-100 text-lg">vehicles</p>
+                      <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-1">Fleet Size</p>
+                      <p className="text-4xl font-bold text-off-black">{opportunityData.fleetSize}</p>
+                      <p className="text-gray-600">vehicles</p>
                     </div>
                   </div>
                 </div>
               )}
 
               {opportunityData.monthlyGallons && (
-                <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-8 text-white shadow-lg">
-                  <div className="flex items-center gap-4 mb-4">
-                    <Fuel size={32} />
+                <div className="card hover:shadow-lg transition-all duration-300">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center flex-shrink-0">
+                      <Fuel size={28} className="text-white" />
+                    </div>
                     <div>
-                      <p className="text-emerald-100 text-sm uppercase tracking-wider">Monthly Fuel Usage</p>
-                      <p className="text-5xl font-bold">{Number(opportunityData.monthlyGallons).toLocaleString()}</p>
-                      <p className="text-emerald-100 text-lg">gallons</p>
+                      <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-1">Monthly Fuel Usage</p>
+                      <p className="text-4xl font-bold text-off-black">{Number(opportunityData.monthlyGallons).toLocaleString()}</p>
+                      <p className="text-gray-600">gallons</p>
                     </div>
                   </div>
                 </div>
@@ -182,10 +170,12 @@ function ProposalContent() {
               'No monthly fees on Fleet Card option',
               'U.S.-based customer support'
             ].map((benefit, index) => (
-              <div key={index} className="bg-gradient-to-br from-brand-orange to-dark-orange rounded-xl p-5 text-white shadow-md hover:shadow-lg transition-shadow">
+              <div key={index} className="card-interactive border-2 border-gray-200">
                 <div className="flex items-start gap-3">
-                  <CheckCircle2 size={24} className="flex-shrink-0 mt-0.5" />
-                  <p className="text-lg">{benefit}</p>
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-brand-orange to-dark-orange flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <CheckCircle2 size={16} className="text-white" />
+                  </div>
+                  <p className="text-base font-medium text-off-black">{benefit}</p>
                 </div>
               </div>
             ))}
@@ -195,52 +185,58 @@ function ProposalContent() {
 
       {/* PRICING SECTION */}
       {(sections.showEstimatedSavings || sections.showPerGallonDiscount || sections.showTotalAnnualValue) && monthlySavings > 0 && (
-        <section className="bg-gradient-to-br from-gray-50 to-white py-16">
+        <section className="bg-gradient-to-br from-gray-50 to-white py-16 border-y border-gray-200">
           <div className="max-w-6xl mx-auto px-6">
             <h2 className="text-4xl font-bold text-dark-orange mb-8">Pricing Breakdown</h2>
 
-            {/* Main Pricing Box */}
+            {/* Main Pricing Box - Green Gradient */}
             {sections.showEstimatedSavings && (
-              <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-3xl p-10 text-white shadow-2xl mb-8">
-                <div className="flex items-start gap-4 mb-8">
-                  <div className="text-5xl">💰</div>
-                  <div>
-                    <h3 className="text-3xl font-bold mb-2">Estimated Fuel Savings</h3>
-                    <div className="h-1 w-24 bg-white/30 rounded"></div>
+              <div className="relative rounded-3xl p-10 mb-8 overflow-hidden shadow-2xl" style={{
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+              }}>
+                <div className="relative z-10">
+                  <div className="flex items-start gap-4 mb-8">
+                    <div className="text-5xl">💰</div>
+                    <div>
+                      <h3 className="text-3xl font-bold mb-2 text-white">Estimated Fuel Savings</h3>
+                      <div className="h-1 w-24 bg-white/30 rounded"></div>
+                    </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-                  <div>
-                    <p className="text-emerald-100 text-sm uppercase tracking-wider mb-2">Per Gallon</p>
-                    <p className="text-4xl font-bold">{perGallonDiscount.toFixed(2)}¢</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+                    <div>
+                      <p className="text-emerald-100 text-sm font-semibold uppercase tracking-wider mb-2">Per Gallon</p>
+                      <p className="text-5xl font-bold text-white">{perGallonDiscount.toFixed(2)}¢</p>
+                    </div>
+                    <div>
+                      <p className="text-emerald-100 text-sm font-semibold uppercase tracking-wider mb-2">Monthly Gallons</p>
+                      <p className="text-5xl font-bold text-white">{Number(monthlyGallons).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-emerald-100 text-sm font-semibold uppercase tracking-wider mb-2">Monthly Savings</p>
+                      <p className="text-5xl font-bold text-white">${monthlySavings.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-emerald-100 text-sm uppercase tracking-wider mb-2">Monthly Gallons</p>
-                    <p className="text-4xl font-bold">{Number(monthlyGallons).toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-emerald-100 text-sm uppercase tracking-wider mb-2">Monthly Savings</p>
-                    <p className="text-4xl font-bold">${monthlySavings.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
-                  </div>
-                </div>
 
-                <div className="pt-8 border-t border-white/20">
-                  <p className="text-emerald-100 text-lg uppercase tracking-wider mb-3">Annual Fuel Savings</p>
-                  <p className="text-6xl font-bold">${annualFuelSavings.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+                  <div className="pt-8 border-t border-white/20">
+                    <p className="text-emerald-100 text-lg font-semibold uppercase tracking-wider mb-3">Annual Fuel Savings</p>
+                    <p className="text-6xl md:text-7xl font-bold text-white">${annualFuelSavings.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+                  </div>
                 </div>
               </div>
             )}
 
             {/* Additional Savings */}
             {sections.showAdditionalSavings && opportunityData.additionalSavings && (
-              <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100 mb-8">
+              <div className="card mb-8">
                 <h3 className="text-2xl font-bold text-dark-orange mb-6">Additional Cost Savings</h3>
                 <div className="space-y-4">
                   {opportunityData.additionalSavings.split('\n').filter(line => line.trim()).map((item, index) => (
-                    <div key={index} className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center text-white text-sm font-bold">✓</div>
-                      <p className="text-lg text-gray-700">{item.trim()}</p>
+                    <div key={index} className="flex items-start gap-3 pb-4 border-b border-gray-100 last:border-0">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center">
+                        <CheckCircle2 size={14} className="text-white" />
+                      </div>
+                      <p className="text-base text-gray-700">{item.trim()}</p>
                     </div>
                   ))}
                 </div>
@@ -249,26 +245,37 @@ function ProposalContent() {
 
             {/* Total Annual Value */}
             {sections.showTotalAnnualValue && totalAnnualValue > 0 && (
-              <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 rounded-3xl p-12 text-white shadow-2xl text-center">
-                <p className="text-2xl font-bold uppercase tracking-wider mb-4">Total Annual Value</p>
-                <div className="h-1 w-32 bg-white/30 rounded mx-auto mb-6"></div>
-                <p className="text-7xl font-bold">${totalAnnualValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+              <div className="relative rounded-3xl p-12 text-center overflow-hidden shadow-2xl" style={{
+                background: 'linear-gradient(135deg, #059669 0%, #047857 100%)'
+              }}>
+                <div className="relative z-10">
+                  <p className="text-xl font-bold uppercase tracking-wider mb-4 text-emerald-100">Total Annual Value</p>
+                  <div className="h-1 w-32 bg-white/30 rounded mx-auto mb-6"></div>
+                  <p className="text-6xl md:text-7xl font-bold text-white">${totalAnnualValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+                </div>
               </div>
             )}
           </div>
         </section>
       )}
 
-      {/* SELECTED PRODUCTS */}
+      {/* SELECTED PRODUCTS - Match UI Style Exactly */}
       {sections.solutionOverview && selectedProducts.length > 0 && (
         <section className="max-w-6xl mx-auto px-6 py-16">
           <h2 className="text-4xl font-bold text-dark-orange mb-8">Solution Overview</h2>
 
           <div className="space-y-6">
             {selectedProducts.map((product) => (
-              <div key={product.id} className="bg-gradient-to-br from-brand-orange to-dark-orange rounded-2xl p-8 text-white shadow-xl">
-                <h3 className="text-3xl font-bold mb-4">{product.name}</h3>
-                <p className="text-lg mb-6 opacity-95">{product.description}</p>
+              <div
+                key={product.id}
+                className="relative rounded-2xl p-8 overflow-hidden shadow-xl border-2 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1"
+                style={{
+                  background: 'linear-gradient(135deg, #ED8B00 0%, #D64303 100%)',
+                  borderColor: '#D64303'
+                }}
+              >
+                <h3 className="text-3xl font-bold mb-4 text-white">{product.name}</h3>
+                <p className="text-lg mb-6 text-white/95">{product.description}</p>
 
                 <div className="h-px w-full bg-white/20 my-6"></div>
 
@@ -278,7 +285,7 @@ function ProposalContent() {
                       <div className="flex-shrink-0 w-6 h-6 rounded-full bg-white flex items-center justify-center">
                         <CheckCircle2 size={16} className="text-dark-orange" />
                       </div>
-                      <p className="text-lg">{feature}</p>
+                      <p className="text-base text-white font-medium">{feature}</p>
                     </div>
                   ))}
                 </div>
@@ -290,42 +297,42 @@ function ProposalContent() {
 
       {/* COVERAGE ANALYSIS */}
       {sections.coverageAnalysis && addresses.length > 0 && (
-        <section className="bg-gradient-to-br from-gray-50 to-white py-16">
+        <section className="bg-gradient-to-br from-gray-50 to-white py-16 border-y border-gray-200">
           <div className="max-w-6xl mx-auto px-6">
             <h2 className="text-4xl font-bold text-dark-orange mb-8">Coverage Analysis</h2>
 
             <div className="space-y-8">
               {addresses.map((address, index) => (
                 address.geocoded && address.lat && address.lng && (
-                  <div key={index} className="bg-white rounded-2xl overflow-hidden shadow-lg border border-gray-100">
-                    <div className="bg-gradient-to-br from-brand-orange to-dark-orange p-6 text-white">
-                      <div className="flex items-center gap-3 mb-4">
-                        <MapPin size={24} />
-                        <h3 className="text-2xl font-bold">{address.formattedAddress || address.address}</h3>
+                  <div key={index} className="card overflow-hidden shadow-lg">
+                    <div className="relative rounded-2xl p-6 mb-6 overflow-hidden" style={{
+                      background: 'linear-gradient(135deg, #ED8B00 0%, #D64303 100%)'
+                    }}>
+                      <div className="flex items-center gap-3 mb-6">
+                        <MapPin size={24} className="text-white" />
+                        <h3 className="text-2xl font-bold text-white">{address.formattedAddress || address.address}</h3>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-                          <p className="text-white/80 text-sm uppercase tracking-wider mb-1">Within 5 miles</p>
-                          <p className="text-4xl font-bold">{address.coverage.within5mi}</p>
-                          <p className="text-white/80">locations</p>
+                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                          <p className="text-white/90 text-sm font-semibold uppercase tracking-wider mb-2">Within 5 miles</p>
+                          <p className="text-4xl font-bold text-white">{address.coverage.within5mi}</p>
+                          <p className="text-white/90 text-sm">locations</p>
                         </div>
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-                          <p className="text-white/80 text-sm uppercase tracking-wider mb-1">Within 10 miles</p>
-                          <p className="text-4xl font-bold">{address.coverage.within10mi}</p>
-                          <p className="text-white/80">locations</p>
+                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                          <p className="text-white/90 text-sm font-semibold uppercase tracking-wider mb-2">Within 10 miles</p>
+                          <p className="text-4xl font-bold text-white">{address.coverage.within10mi}</p>
+                          <p className="text-white/90 text-sm">locations</p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="p-6">
-                      <div className="relative h-96 rounded-xl overflow-hidden border-2 border-brand-orange/20">
-                        <MapComponent
-                          center={{ lat: address.lat, lng: address.lng }}
-                          stores={address.nearbyStores}
-                          height={384}
-                        />
-                      </div>
+                    <div className="relative h-96 rounded-xl overflow-hidden border-2 border-gray-200">
+                      <MapComponent
+                        center={{ lat: address.lat, lng: address.lng }}
+                        stores={address.nearbyStores}
+                        height={384}
+                      />
                     </div>
                   </div>
                 )
@@ -340,7 +347,7 @@ function ProposalContent() {
         <section className="max-w-6xl mx-auto px-6 py-16">
           <h2 className="text-4xl font-bold text-dark-orange mb-8">Terms and Conditions</h2>
 
-          <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+          <div className="card">
             <div className="space-y-4">
               {[
                 'This proposal is valid for 30 days from the date of issue.',
@@ -349,11 +356,11 @@ function ProposalContent() {
                 'Implementation timeline is subject to site surveys and approval.',
                 'All fees and charges are exclusive of applicable taxes.'
               ].map((term, index) => (
-                <div key={index} className="flex items-start gap-3 pb-4 border-b border-gray-100 last:border-0">
-                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-brand-orange flex items-center justify-center text-white text-sm">
+                <div key={index} className="flex items-start gap-4 pb-4 border-b border-gray-100 last:border-0">
+                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-brand-orange to-dark-orange flex items-center justify-center text-white text-sm font-bold">
                     {index + 1}
                   </div>
-                  <p className="text-lg text-gray-700">{term}</p>
+                  <p className="text-base text-gray-700 pt-0.5">{term}</p>
                 </div>
               ))}
             </div>
@@ -361,7 +368,7 @@ function ProposalContent() {
         </section>
       )}
 
-      {/* FOOTER */}
+      {/* FOOTER - Keep Perfect As Is */}
       <footer className="bg-gradient-to-br from-off-black to-gray-900 text-white py-12">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-8">
@@ -392,7 +399,7 @@ export default function ProposalPage() {
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-off-white to-white">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-brand-orange mx-auto mb-4"></div>
+          <div className="loading-spinner w-16 h-16 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading proposal...</p>
         </div>
       </div>
