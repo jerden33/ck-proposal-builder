@@ -181,28 +181,6 @@ function ProposalContent() {
               )}
             </div>
           )}
-
-          {/* Key Benefits */}
-          <h3 className="text-2xl font-bold text-off-black mb-6">Key Benefits</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[
-              'Save at least 10¢ per gallon automatically',
-              '6,000+ Circle K locations nationwide',
-              'Real-time fleet spend analytics',
-              'Easy fuel card management',
-              'No monthly fees on Fleet Card option',
-              'U.S.-based customer support'
-            ].map((benefit, index) => (
-              <div key={index} className="card-interactive border-2 border-gray-200">
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-brand-orange to-dark-orange flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <CheckCircle2 size={16} className="text-white" />
-                  </div>
-                  <p className="text-base font-medium text-off-black">{benefit}</p>
-                </div>
-              </div>
-            ))}
-          </div>
         </section>
       )}
 

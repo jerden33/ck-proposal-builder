@@ -16,9 +16,41 @@ BEGIN
 END;
 $$;
 
--- Grant execute permission to authenticated users
+-- Grant execute permission to authenticated and anonymous users
 GRANT EXECUTE ON FUNCTION increment_proposal_views(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION increment_proposal_views(TEXT) TO anon;
+
+-- Enable RLS on proposals table (if not already enabled)
+ALTER TABLE proposals ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Allow public read access to all proposals (for shareable links)
+CREATE POLICY "Public read access for proposals"
+ON proposals
+FOR SELECT
+TO anon, authenticated
+USING (true);
+
+-- Policy: Users can insert their own proposals
+CREATE POLICY "Users can insert own proposals"
+ON proposals
+FOR INSERT
+TO authenticated
+WITH CHECK (auth.uid() = user_id);
+
+-- Policy: Users can update their own proposals
+CREATE POLICY "Users can update own proposals"
+ON proposals
+FOR UPDATE
+TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+-- Policy: Users can delete their own proposals
+CREATE POLICY "Users can delete own proposals"
+ON proposals
+FOR DELETE
+TO authenticated
+USING (auth.uid() = user_id);
 
 -- Verify tables exist (should already be created):
 -- 1. profiles (id, email, full_name, is_admin, created_at)

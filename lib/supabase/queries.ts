@@ -95,7 +95,7 @@ export async function createProposal(proposalData: ProposalRecord['data']): Prom
 
   return {
     id,
-    url: `/proposal/${id}`
+    url: `/proposal?id=${id}`
   }
 }
 
