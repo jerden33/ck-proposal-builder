@@ -25,24 +25,19 @@ export function GenerateStep({ opportunityData, addresses, sections, products }:
   const handleGenerateProposal = async () => {
     setGenerating(true)
     try {
-      const response = await fetch('/api/proposals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          opportunityData,
-          addresses,
-          sections,
-          products
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to create proposal')
+      // Encode proposal data as base64 for URL
+      const proposalData = {
+        opportunityData,
+        addresses,
+        sections,
+        products
       }
+      const jsonString = JSON.stringify(proposalData)
+      const base64Data = btoa(encodeURIComponent(jsonString))
 
-      const { url } = await response.json()
-      const fullUrl = `${window.location.origin}${url}`
-      setProposalUrl(fullUrl)
+      // Create shareable URL with data in hash
+      const proposalUrl = `${window.location.origin}/proposal?data=${base64Data}`
+      setProposalUrl(proposalUrl)
     } catch (error) {
       console.error('Error generating proposal:', error)
       alert('Error generating proposal. Please try again.')
