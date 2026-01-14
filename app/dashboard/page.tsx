@@ -235,7 +235,7 @@ export default function DashboardPage() {
                 {/* Actions */}
                 <div className="grid grid-cols-2 gap-2">
                   <button
-                    onClick={() => window.open(`/proposal/${proposal.id}`, '_blank')}
+                    onClick={() => window.open(`/proposal?id=${proposal.id}`, '_blank')}
                     className="btn-secondary text-sm flex items-center justify-center gap-2"
                   >
                     <ExternalLink size={14} />

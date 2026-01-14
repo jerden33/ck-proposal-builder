@@ -155,7 +155,7 @@ export async function duplicateProposal(id: string): Promise<{ id: string; url: 
 
   return {
     id: newId,
-    url: `/proposal/${newId}`
+    url: `/proposal?id=${newId}`
   }
 }
 
