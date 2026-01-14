@@ -3,21 +3,48 @@
 export const products = [
   {
     id: 'fleet',
-    name: 'Fleet Fuel Cards',
+    name: 'Circle K Pro Fleet Card',
     description: 'Circle K network only with 6,000+ locations nationwide',
-    features: ['10¢+ per gallon savings', 'No monthly fees', 'Real-time reporting', 'PIN security']
+    features: [
+      'Real-time reporting and analytics',
+      'PIN security and fraud protection',
+      'Fuel-only restrictions available',
+      'U.S.-based customer support',
+      'Online account management',
+      'Customizable spending controls',
+      'No monthly fees',
+      'Mobile app access'
+    ]
   },
   {
     id: 'universal',
-    name: 'Universal Fleet Cards',
+    name: 'Circle K Pro Universal Card (WEX Network)',
     description: 'Multi-brand acceptance via WEX network',
-    features: ['Accepted at 90% of U.S. fuel sites', 'WEX network access', 'Broader coverage', 'Flexible controls']
+    features: [
+      'Accepted at 90% of U.S. fuel sites',
+      'WEX network access (95,000+ locations)',
+      'Broader geographic coverage',
+      'Flexible payment controls',
+      'Enhanced reporting tools',
+      'Multi-site acceptance',
+      'Driver ID and odometer capture',
+      'Fuel and maintenance purchases'
+    ]
   },
   {
     id: 'digital',
     name: 'Digital+',
     description: 'Mobile app and digital fleet management tools',
-    features: ['Mobile app access', 'Digital receipts', 'Live GPS tracking', 'Advanced analytics']
+    features: [
+      'Mobile app for drivers and managers',
+      'Digital receipts and expense tracking',
+      'Live GPS fleet tracking',
+      'Advanced analytics dashboard',
+      'Route optimization insights',
+      'Driver behavior monitoring',
+      'Automated reporting',
+      'Real-time alerts and notifications'
+    ]
   }
 ]
 
@@ -31,6 +58,7 @@ export interface OpportunityData {
   contactEmail: string
   contactPhone: string
   selectedProducts: string[]
+  customProductFeatures: { [productId: string]: string[] }
   fleetSize: string
   monthlyGallons: string
   closeDate: string

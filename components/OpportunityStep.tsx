@@ -1,22 +1,43 @@
 'use client'
 
+import { useState } from 'react'
 import { OpportunityData, products as productList } from '@/lib/types'
-import { Check } from 'lucide-react'
+import { Check, X, Plus, ChevronDown, ChevronUp } from 'lucide-react'
 
 interface OpportunityStepProps {
   data: OpportunityData
   products: typeof productList
   updateOpportunity: (field: keyof OpportunityData, value: string | string[]) => void
   toggleProduct: (productId: string) => void
+  addProductFeature: (productId: string) => void
+  removeProductFeature: (productId: string, index: number) => void
+  updateProductFeature: (productId: string, index: number, value: string) => void
 }
 
-export function OpportunityStep({ data, products, updateOpportunity, toggleProduct }: OpportunityStepProps) {
+export function OpportunityStep({
+  data,
+  products,
+  updateOpportunity,
+  toggleProduct,
+  addProductFeature,
+  removeProductFeature,
+  updateProductFeature
+}: OpportunityStepProps) {
+  const [expandedProducts, setExpandedProducts] = useState<{ [key: string]: boolean }>({})
+
+  const toggleExpanded = (productId: string) => {
+    setExpandedProducts(prev => ({
+      ...prev,
+      [productId]: !prev[productId]
+    }))
+  }
+
   return (
     <div className="space-y-6 stagger-children">
       {/* Customer Information */}
       <div className="card">
         <h2 className="text-2xl font-bold mb-6">Customer information</h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
             <label className="input-label">Company name</label>
@@ -28,7 +49,7 @@ export function OpportunityStep({ data, products, updateOpportunity, toggleProdu
               className="input-field"
             />
           </div>
-          
+
           <div>
             <label className="input-label">Industry</label>
             <input
@@ -40,7 +61,7 @@ export function OpportunityStep({ data, products, updateOpportunity, toggleProdu
             />
           </div>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-5">
           <div>
             <label className="input-label">Primary contact</label>
@@ -52,7 +73,7 @@ export function OpportunityStep({ data, products, updateOpportunity, toggleProdu
               className="input-field"
             />
           </div>
-          
+
           <div>
             <label className="input-label">Email</label>
             <input
@@ -63,7 +84,7 @@ export function OpportunityStep({ data, products, updateOpportunity, toggleProdu
               className="input-field"
             />
           </div>
-          
+
           <div>
             <label className="input-label">Phone</label>
             <input
@@ -81,44 +102,132 @@ export function OpportunityStep({ data, products, updateOpportunity, toggleProdu
       <div className="card">
         <h2 className="text-2xl font-bold mb-3">Product selection</h2>
         <p className="text-gray-600 mb-6">Select one or more products for this opportunity</p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {products.map(product => (
-            <div
-              key={product.id}
-              onClick={() => toggleProduct(product.id)}
-              className={`product-card ${data.selectedProducts.includes(product.id) ? 'selected' : ''}`}
-            >
-              <div className="flex items-start justify-between mb-4">
-                <h3 className="font-bold text-lg leading-tight">{product.name}</h3>
-                <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${
-                  data.selectedProducts.includes(product.id) 
-                    ? 'bg-dark-orange border-dark-orange' 
-                    : 'border-ck-grey'
-                }`}>
-                  {data.selectedProducts.includes(product.id) && (
-                    <Check size={16} className="text-white" />
-                  )}
+
+        <div className="space-y-6">
+          {products.map(product => {
+            const isSelected = data.selectedProducts.includes(product.id)
+            const isExpanded = expandedProducts[product.id]
+            const customFeatures = data.customProductFeatures[product.id] || []
+
+            return (
+              <div key={product.id} className="border-2 border-gray-200 rounded-xl overflow-hidden transition-all">
+                {/* Product Card Header */}
+                <div
+                  onClick={() => toggleProduct(product.id)}
+                  className={`p-6 cursor-pointer transition-all ${
+                    isSelected
+                      ? 'bg-gradient-to-br from-brand-orange to-dark-orange text-white'
+                      : 'bg-white hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <h3 className={`font-bold text-xl leading-tight ${isSelected ? 'text-white' : 'text-off-black'}`}>
+                      {product.name}
+                    </h3>
+                    <div className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                      isSelected
+                        ? 'bg-white border-white'
+                        : 'border-gray-300'
+                    }`}>
+                      {isSelected && (
+                        <Check size={18} className="text-dark-orange" />
+                      )}
+                    </div>
+                  </div>
+                  <p className={`text-sm leading-relaxed ${isSelected ? 'text-white/90' : 'text-gray-600'}`}>
+                    {product.description}
+                  </p>
                 </div>
+
+                {/* Feature Editor - Only show if selected */}
+                {isSelected && (
+                  <div className="border-t-2 border-gray-200">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleExpanded(product.id)
+                      }}
+                      className="w-full px-6 py-4 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
+                    >
+                      <span className="font-semibold text-off-black">
+                        {isExpanded ? 'Hide' : 'Customize'} Product Features
+                      </span>
+                      {isExpanded ? (
+                        <ChevronUp size={20} className="text-gray-600" />
+                      ) : (
+                        <ChevronDown size={20} className="text-gray-600" />
+                      )}
+                    </button>
+
+                    {isExpanded && (
+                      <div className="p-6 bg-white space-y-4">
+                        {/* Tip */}
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                          <p className="text-sm text-blue-800">
+                            <strong>💡 Tip:</strong> Don't include pricing or discount amounts here. Use the pricing section below for discounts and cost savings.
+                          </p>
+                        </div>
+
+                        {/* Feature List */}
+                        <div className="space-y-3">
+                          {customFeatures.map((feature, index) => (
+                            <div key={index} className="flex items-start gap-3">
+                              <span className="text-brand-orange font-bold text-lg mt-1">•</span>
+                              <input
+                                type="text"
+                                value={feature}
+                                onChange={(e) => updateProductFeature(product.id, index, e.target.value)}
+                                placeholder="Enter feature..."
+                                className="flex-1 input-field"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  removeProductFeature(product.id, index)
+                                }}
+                                className="flex-shrink-0 w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 flex items-center justify-center transition-colors mt-1"
+                                title="Remove feature"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Add Feature Button */}
+                        {customFeatures.length < 10 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              addProductFeature(product.id)
+                            }}
+                            className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-brand-orange hover:bg-orange-50 transition-all flex items-center justify-center gap-2 text-gray-600 hover:text-brand-orange font-medium"
+                          >
+                            <Plus size={18} />
+                            Add Feature
+                          </button>
+                        )}
+
+                        {customFeatures.length >= 10 && (
+                          <p className="text-sm text-gray-500 text-center">
+                            Maximum of 10 features reached
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              <p className="text-sm text-gray-600 mb-4 leading-relaxed">{product.description}</p>
-              <ul className="space-y-2">
-                {product.features.map((feature, idx) => (
-                  <li key={idx} className="text-sm flex items-start gap-2">
-                    <span className="text-brand-orange font-bold mt-0.5">✓</span>
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
       {/* Deal Details */}
       <div className="card">
         <h2 className="text-2xl font-bold mb-6">Deal details</h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div>
             <label className="input-label">Fleet size</label>
@@ -131,7 +240,7 @@ export function OpportunityStep({ data, products, updateOpportunity, toggleProdu
             />
             <p className="text-xs text-gray-500 mt-1">Number of vehicles</p>
           </div>
-          
+
           <div>
             <label className="input-label">Monthly gallons</label>
             <input
@@ -143,7 +252,7 @@ export function OpportunityStep({ data, products, updateOpportunity, toggleProdu
             />
             <p className="text-xs text-gray-500 mt-1">Estimated monthly fuel usage</p>
           </div>
-          
+
           <div>
             <label className="input-label">Target close date</label>
             <input

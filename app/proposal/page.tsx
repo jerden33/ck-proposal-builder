@@ -265,32 +265,35 @@ function ProposalContent() {
           <h2 className="text-4xl font-bold text-dark-orange mb-8">Solution Overview</h2>
 
           <div className="space-y-6">
-            {selectedProducts.map((product) => (
-              <div
-                key={product.id}
-                className="relative rounded-2xl p-8 overflow-hidden shadow-xl border-2 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1"
-                style={{
-                  background: 'linear-gradient(135deg, #ED8B00 0%, #D64303 100%)',
-                  borderColor: '#D64303'
-                }}
-              >
-                <h3 className="text-3xl font-bold mb-4 text-white">{product.name}</h3>
-                <p className="text-lg mb-6 text-white/95">{product.description}</p>
+            {selectedProducts.map((product) => {
+              const customFeatures = opportunityData.customProductFeatures[product.id] || product.features
+              return (
+                <div
+                  key={product.id}
+                  className="relative rounded-2xl p-8 overflow-hidden shadow-xl border-2 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1"
+                  style={{
+                    background: 'linear-gradient(135deg, #ED8B00 0%, #D64303 100%)',
+                    borderColor: '#D64303'
+                  }}
+                >
+                  <h3 className="text-3xl font-bold mb-4 text-white">{product.name}</h3>
+                  <p className="text-lg mb-6 text-white/95">{product.description}</p>
 
-                <div className="h-px w-full bg-white/20 my-6"></div>
+                  <div className="h-px w-full bg-white/20 my-6"></div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {product.features.map((feature, index) => (
-                    <div key={index} className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-white flex items-center justify-center">
-                        <CheckCircle2 size={16} className="text-dark-orange" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {customFeatures.map((feature, index) => (
+                      <div key={index} className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-white flex items-center justify-center">
+                          <CheckCircle2 size={16} className="text-dark-orange" />
+                        </div>
+                        <p className="text-base text-white font-medium">{feature}</p>
                       </div>
-                      <p className="text-base text-white font-medium">{feature}</p>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </section>
       )}

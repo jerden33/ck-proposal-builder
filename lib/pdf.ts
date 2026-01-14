@@ -442,7 +442,8 @@ export async function generateProposalPDF(
       if (index > 0) yPos += 12
 
       const descSplit = pdf.splitTextToSize(product.description, pageWidth - 2 * margin - 28)
-      const featureCount = product.features.length
+      const customFeatures = opportunityData.customProductFeatures[product.id] || product.features
+      const featureCount = customFeatures.length
       const productTileHeight = 36 + descSplit.length * 6 + featureCount * 8
 
       checkPageBreak(productTileHeight + 12)
@@ -476,7 +477,7 @@ export async function generateProposalPDF(
       yPos += 6
 
       // Features with styled checkmarks
-      product.features.forEach(feature => {
+      customFeatures.forEach(feature => {
         // White checkmark circle with slight shadow
         pdf.setFillColor(255, 255, 255)
         pdf.setGState(pdf.GState({ opacity: 0.3 }))

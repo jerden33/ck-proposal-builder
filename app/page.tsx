@@ -19,6 +19,7 @@ export default function Home() {
     contactEmail: '',
     contactPhone: '',
     selectedProducts: [],
+    customProductFeatures: {},
     fleetSize: '',
     monthlyGallons: '',
     closeDate: '',
@@ -56,11 +57,69 @@ export default function Home() {
   }
 
   const toggleProduct = (productId: string) => {
+    setOpportunityData(prev => {
+      const isSelected = prev.selectedProducts.includes(productId)
+
+      if (isSelected) {
+        // Remove product and its custom features
+        const { [productId]: _, ...restFeatures } = prev.customProductFeatures
+        return {
+          ...prev,
+          selectedProducts: prev.selectedProducts.filter(id => id !== productId),
+          customProductFeatures: restFeatures
+        }
+      } else {
+        // Add product and initialize with default features
+        const product = products.find(p => p.id === productId)
+        return {
+          ...prev,
+          selectedProducts: [...prev.selectedProducts, productId],
+          customProductFeatures: {
+            ...prev.customProductFeatures,
+            [productId]: product ? [...product.features] : []
+          }
+        }
+      }
+    })
+  }
+
+  const updateProductFeatures = (productId: string, features: string[]) => {
     setOpportunityData(prev => ({
       ...prev,
-      selectedProducts: prev.selectedProducts.includes(productId)
-        ? prev.selectedProducts.filter(id => id !== productId)
-        : [...prev.selectedProducts, productId]
+      customProductFeatures: {
+        ...prev.customProductFeatures,
+        [productId]: features
+      }
+    }))
+  }
+
+  const addProductFeature = (productId: string) => {
+    setOpportunityData(prev => ({
+      ...prev,
+      customProductFeatures: {
+        ...prev.customProductFeatures,
+        [productId]: [...(prev.customProductFeatures[productId] || []), '']
+      }
+    }))
+  }
+
+  const removeProductFeature = (productId: string, index: number) => {
+    setOpportunityData(prev => ({
+      ...prev,
+      customProductFeatures: {
+        ...prev.customProductFeatures,
+        [productId]: prev.customProductFeatures[productId].filter((_, i) => i !== index)
+      }
+    }))
+  }
+
+  const updateProductFeature = (productId: string, index: number, value: string) => {
+    setOpportunityData(prev => ({
+      ...prev,
+      customProductFeatures: {
+        ...prev.customProductFeatures,
+        [productId]: prev.customProductFeatures[productId].map((f, i) => i === index ? value : f)
+      }
     }))
   }
 
@@ -210,11 +269,14 @@ export default function Home() {
           <div className="lg:col-span-2">
             <div className="space-y-6">
               {currentStep === 1 && (
-                <OpportunityStep 
+                <OpportunityStep
                   data={opportunityData}
                   products={products}
                   updateOpportunity={updateOpportunity}
                   toggleProduct={toggleProduct}
+                  addProductFeature={addProductFeature}
+                  removeProductFeature={removeProductFeature}
+                  updateProductFeature={updateProductFeature}
                 />
               )}
               
