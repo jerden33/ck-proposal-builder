@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Image from 'next/image'
 import { MapPin, TrendingUp, Users, Fuel, CheckCircle2, Mail, Phone, MapIcon } from 'lucide-react'
-import { MapContainer } from '@/components/MapContainer'
+import { MapComponent } from '@/components/MapComponent'
 import type { OpportunityData, Address, ProposalSections, Product } from '@/lib/types'
 
 interface ProposalData {
@@ -321,10 +321,10 @@ export default function ProposalPage() {
 
                     <div className="p-6">
                       <div className="relative h-96 rounded-xl overflow-hidden border-2 border-brand-orange/20">
-                        <MapContainer
+                        <MapComponent
                           center={{ lat: address.lat, lng: address.lng }}
-                          nearbyStores={address.nearbyStores}
-                          className="h-full"
+                          stores={address.nearbyStores}
+                          height={384}
                         />
                       </div>
                     </div>
