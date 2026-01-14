@@ -1,16 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { OpportunityStep } from '@/components/OpportunityStep'
 import { CoverageStep } from '@/components/CoverageStep'
 import { ConfigureStep } from '@/components/ConfigureStep'
 import { GenerateStep } from '@/components/GenerateStep'
 import { PreviewPanel } from '@/components/PreviewPanel'
 import { StepIndicator } from '@/components/StepIndicator'
+import { Navbar } from '@/components/Navbar'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { products, OpportunityData, Address, ProposalSections } from '@/lib/types'
+import { products as defaultProducts, OpportunityData, Address, ProposalSections, Product } from '@/lib/types'
+import { getProductsConfig } from '@/lib/supabase/queries'
 
 export default function Home() {
+  const [products, setProducts] = useState<Product[]>(defaultProducts)
+  const [loadingProducts, setLoadingProducts] = useState(true)
   const [currentStep, setCurrentStep] = useState(1)
   const [opportunityData, setOpportunityData] = useState<OpportunityData>({
     customerName: '',
@@ -51,6 +55,30 @@ export default function Home() {
     { number: 3, name: 'Configure' },
     { number: 4, name: 'Generate' }
   ]
+
+  useEffect(() => {
+    async function loadProductsFromDB() {
+      try {
+        const productsConfig = await getProductsConfig()
+        if (productsConfig.length > 0) {
+          const mappedProducts: Product[] = productsConfig.map(config => ({
+            id: config.id,
+            name: config.name,
+            description: config.description,
+            features: config.default_features
+          }))
+          setProducts(mappedProducts)
+        }
+      } catch (error) {
+        console.error('Error loading products:', error)
+        // Keep using default products on error
+      } finally {
+        setLoadingProducts(false)
+      }
+    }
+
+    loadProductsFromDB()
+  }, [])
 
   const updateOpportunity = (field: keyof OpportunityData, value: string | string[]) => {
     setOpportunityData(prev => ({ ...prev, [field]: value }))
@@ -247,12 +275,25 @@ export default function Home() {
     }
   }
 
+  if (loadingProducts) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-off-white to-white">
+        <div className="text-center">
+          <div className="loading-spinner w-16 h-16 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <header className="mb-10 fade-in">
-          <h1 className="text-5xl font-bold text-off-black mb-3 tracking-tight">
+    <>
+      <Navbar />
+      <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <header className="mb-10 fade-in">
+            <h1 className="text-5xl font-bold text-off-black mb-3 tracking-tight">
             Proposal builder
           </h1>
           <p className="text-lg text-gray-600">
@@ -347,5 +388,6 @@ export default function Home() {
         </div>
       </div>
     </div>
+    </>
   )
 }

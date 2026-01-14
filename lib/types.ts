@@ -97,3 +97,44 @@ export interface ProposalSections {
   showAdditionalSavings: boolean
   showTotalAnnualValue: boolean
 }
+
+// Database Types
+export interface UserProfile {
+  id: string
+  email: string
+  full_name: string | null
+  is_admin: boolean
+  created_at: string
+}
+
+export interface ProposalRecord {
+  id: string
+  user_id: string
+  customer_name: string
+  status: 'draft' | 'shared' | 'archived'
+  created_at: string
+  updated_at: string
+  last_viewed_at: string | null
+  view_count: number
+  data: {
+    opportunityData: OpportunityData
+    addresses: Address[]
+    sections: ProposalSections
+    products: Product[]
+  }
+}
+
+export interface ProductConfig {
+  id: string
+  name: string
+  description: string
+  default_features: string[]
+  display_order: number
+}
+
+export interface AppSetting {
+  id: string
+  key: string
+  value: string
+  updated_at: string
+}

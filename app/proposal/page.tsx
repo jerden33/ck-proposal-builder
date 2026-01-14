@@ -1,10 +1,11 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { MapPin, TrendingUp, Users, Fuel, CheckCircle2 } from 'lucide-react'
 import { MapComponent } from '@/components/MapComponent'
+import { getProposal, incrementProposalViews } from '@/lib/supabase/queries'
 import type { OpportunityData, Address, ProposalSections, Product } from '@/lib/types'
 
 interface ProposalData {
@@ -16,28 +17,50 @@ interface ProposalData {
 
 function ProposalContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [data, setData] = useState<ProposalData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    try {
-      const encodedData = searchParams.get('data')
-      if (!encodedData) {
-        throw new Error('No proposal data found')
+    const proposalId = searchParams.get('id')
+
+    // Redirect old URL format to new format
+    if (!proposalId && searchParams.get('data')) {
+      // Old format with base64 data - redirect to login
+      router.push('/login')
+      return
+    }
+
+    async function loadProposal() {
+      if (!proposalId) {
+        setError('No proposal ID provided')
+        setLoading(false)
+        return
       }
 
-      // Decode base64 and parse JSON
-      const jsonString = decodeURIComponent(atob(encodedData))
-      const proposalData = JSON.parse(jsonString)
-      setData(proposalData)
-    } catch (err) {
-      console.error('Error loading proposal:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load proposal')
-    } finally {
-      setLoading(false)
+      try {
+        const proposal = await getProposal(proposalId)
+        if (!proposal) {
+          setError('Proposal not found')
+          setLoading(false)
+          return
+        }
+
+        setData(proposal.data)
+
+        // Increment view count (fire and forget)
+        incrementProposalViews(proposalId).catch(console.error)
+      } catch (err) {
+        console.error('Error loading proposal:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load proposal')
+      } finally {
+        setLoading(false)
+      }
     }
-  }, [searchParams])
+
+    loadProposal()
+  }, [searchParams, router])
 
   if (loading) {
     return (

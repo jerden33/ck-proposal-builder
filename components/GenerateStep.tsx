@@ -25,18 +25,25 @@ export function GenerateStep({ opportunityData, addresses, sections, products }:
   const handleGenerateProposal = async () => {
     setGenerating(true)
     try {
-      // Encode proposal data as base64 for URL
+      // Import the createProposal function dynamically
+      const { createProposal } = await import('@/lib/supabase/queries')
+
+      // Save proposal to database
       const proposalData = {
         opportunityData,
         addresses,
         sections,
         products
       }
-      const jsonString = JSON.stringify(proposalData)
-      const base64Data = btoa(encodeURIComponent(jsonString))
 
-      // Create shareable URL with data in hash
-      const proposalUrl = `${window.location.origin}/proposal?data=${base64Data}`
+      const result = await createProposal(proposalData)
+
+      if (!result) {
+        throw new Error('Failed to create proposal')
+      }
+
+      // Create shareable URL with clean ID
+      const proposalUrl = `${window.location.origin}/proposal?id=${result.id}`
       setProposalUrl(proposalUrl)
     } catch (error) {
       console.error('Error generating proposal:', error)
