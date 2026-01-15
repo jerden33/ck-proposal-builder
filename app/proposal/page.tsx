@@ -329,52 +329,55 @@ function ProposalContent() {
               return (
                 <div
                   key={product.id}
-                  className="bg-white rounded-xl border-2 border-[#FED7AA] border-l-4 border-l-[#ED8B00] p-8 transition-shadow hover:shadow-lg"
+                  className="bg-white rounded-xl border-2 border-[#FED7AA] border-l-4 border-l-[#ED8B00] overflow-hidden transition-shadow hover:shadow-lg"
                   style={{ boxShadow: 'var(--shadow-md)' }}
                 >
-                  {/* Product Image or Placeholder - Float Right */}
-                  <div className="float-right ml-6 mb-4">
+                  {/* Product Image or Placeholder - Full Width at Top */}
+                  <div className="w-full h-[400px] relative">
                     {productImage ? (
                       <Image
                         src={productImage}
                         alt={product.name}
-                        width={240}
-                        height={160}
-                        className="rounded-lg shadow-md"
+                        fill
+                        className="object-cover"
                         unoptimized
                       />
                     ) : (
-                      /* Elegant Placeholder */
-                      <div className="w-[240px] h-[160px] bg-gradient-to-br from-[#FFF7ED] to-[#FFEDD5] rounded-lg border-2 border-dashed border-[#FED7AA] flex items-center justify-center">
+                      /* Elegant Placeholder - 600x400 equivalent, 3:2 ratio */
+                      <div className="w-full h-full bg-gradient-to-br from-[#FFF7ED] to-[#FFEDD5] border-b-2 border-dashed border-[#FED7AA] flex items-center justify-center">
                         <div className="text-center">
-                          <ImageIcon size={32} className="text-[#ED8B00]/40 mx-auto mb-2" />
-                          <p className="text-xs text-gray-400 font-medium">Product Image</p>
+                          <ImageIcon size={48} className="text-[#ED8B00]/40 mx-auto mb-3" />
+                          <p className="text-sm text-gray-400 font-medium">Product Image</p>
+                          <p className="text-xs text-gray-400 mt-1">600×400px recommended</p>
                         </div>
                       </div>
                     )}
                   </div>
 
-                  {/* Product Name - Orange */}
-                  <h3 className="text-2xl font-bold mb-2 text-[#D64303]">
-                    {product.name}
-                  </h3>
+                  {/* Product Content */}
+                  <div className="p-8">
+                    {/* Product Name - Orange */}
+                    <h3 className="text-2xl font-bold mb-2 text-[#D64303]">
+                      {product.name}
+                    </h3>
 
-                  {/* Description - Medium Gray */}
-                  <p className="text-gray-600 mb-6">
-                    {product.description}
-                  </p>
+                    {/* Description - Medium Gray */}
+                    <p className="text-gray-600 mb-6">
+                      {product.description}
+                    </p>
 
-                  {/* Features - Checkmarks */}
-                  <ul className="space-y-3 clear-both">
-                    {customFeatures.map((feature, index) => (
-                      <li key={index} className="flex items-start text-gray-700">
-                        <svg className="w-5 h-5 text-[#ED8B00] mr-3 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
+                    {/* Features - Checkmarks */}
+                    <ul className="space-y-3">
+                      {customFeatures.map((feature, index) => (
+                        <li key={index} className="flex items-start text-gray-700">
+                          <svg className="w-5 h-5 text-[#ED8B00] mr-3 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
               )
             })}
