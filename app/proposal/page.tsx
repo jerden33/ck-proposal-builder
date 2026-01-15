@@ -332,9 +332,9 @@ function ProposalContent() {
                   className="bg-white rounded-xl border-2 border-[#FED7AA] border-l-4 border-l-[#ED8B00] p-8 transition-shadow hover:shadow-lg"
                   style={{ boxShadow: 'var(--shadow-md)' }}
                 >
-                  {/* Product Image - Float Right */}
-                  {productImage && (
-                    <div className="float-right ml-6 mb-4">
+                  {/* Product Image or Placeholder - Float Right */}
+                  <div className="float-right ml-6 mb-4">
+                    {productImage ? (
                       <Image
                         src={productImage}
                         alt={product.name}
@@ -343,8 +343,16 @@ function ProposalContent() {
                         className="rounded-lg shadow-md"
                         unoptimized
                       />
-                    </div>
-                  )}
+                    ) : (
+                      /* Elegant Placeholder */
+                      <div className="w-[240px] h-[160px] bg-gradient-to-br from-[#FFF7ED] to-[#FFEDD5] rounded-lg border-2 border-dashed border-[#FED7AA] flex items-center justify-center">
+                        <div className="text-center">
+                          <ImageIcon size={32} className="text-[#ED8B00]/40 mx-auto mb-2" />
+                          <p className="text-xs text-gray-400 font-medium">Product Image</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Product Name - Orange */}
                   <h3 className="text-2xl font-bold mb-2 text-[#D64303]">
