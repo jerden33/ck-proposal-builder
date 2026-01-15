@@ -3,10 +3,10 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { MapPin, TrendingUp, Users, Fuel, CheckCircle2 } from 'lucide-react'
+import { MapPin, TrendingUp, Users, Fuel, CheckCircle2, ImageIcon } from 'lucide-react'
 import { MapComponent } from '@/components/MapComponent'
-import { getProposal, incrementProposalViews } from '@/lib/supabase/queries'
-import type { OpportunityData, Address, ProposalSections, Product } from '@/lib/types'
+import { getProposal, incrementProposalViews, getImageSettings } from '@/lib/supabase/queries'
+import type { OpportunityData, Address, ProposalSections, Product, ImageSettings } from '@/lib/types'
 
 interface ProposalData {
   opportunityData: OpportunityData
@@ -19,6 +19,11 @@ function ProposalContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [data, setData] = useState<ProposalData | null>(null)
+  const [imageSettings, setImageSettings] = useState<ImageSettings>({
+    product_images: { fleet: null, universal: null, digital: null },
+    hero_image: null,
+    feature_icons: {}
+  })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -40,7 +45,11 @@ function ProposalContent() {
       }
 
       try {
-        const proposal = await getProposal(proposalId)
+        const [proposal, images] = await Promise.all([
+          getProposal(proposalId),
+          getImageSettings()
+        ])
+
         if (!proposal) {
           setError('Proposal not found')
           setLoading(false)
@@ -48,6 +57,7 @@ function ProposalContent() {
         }
 
         setData(proposal.data)
+        setImageSettings(images)
 
         // Increment view count (fire and forget)
         incrementProposalViews(proposalId).catch(console.error)
@@ -119,21 +129,55 @@ function ProposalContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-off-white to-white">
       {/* PREMIUM HERO SECTION */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-gray-50 via-off-white to-white border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-6 py-20">
-          <div className="text-center mb-12">
-            <h1 className="text-5xl md:text-6xl font-bold mb-4 text-off-black tracking-tight">
-              Fleet Fuel Solutions Proposal
-            </h1>
-            <div className="h-1 w-24 bg-gradient-to-r from-brand-orange to-dark-orange rounded-full mx-auto mb-8"></div>
-          </div>
+      <section className="relative overflow-hidden border-b border-gray-200">
+        {/* Hero Image Background */}
+        {imageSettings.hero_image ? (
+          <div className="relative h-[500px]">
+            <Image
+              src={imageSettings.hero_image}
+              alt="Hero"
+              fill
+              className="object-cover"
+              unoptimized
+            />
+            {/* Dark overlay for text readability */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70"></div>
 
-          <div className="card max-w-3xl mx-auto text-center">
-            <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Prepared for</p>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-off-black">{opportunityData.customerName}</h2>
-            <p className="text-gray-600">{today}</p>
+            {/* Content overlay */}
+            <div className="relative z-10 max-w-6xl mx-auto px-6 py-20 h-full flex flex-col justify-center">
+              <div className="text-center mb-12">
+                <h1 className="text-5xl md:text-6xl font-bold mb-4 text-white tracking-tight drop-shadow-lg">
+                  Fleet Fuel Solutions Proposal
+                </h1>
+                <div className="h-1 w-24 bg-gradient-to-r from-brand-orange to-dark-orange rounded-full mx-auto mb-8"></div>
+              </div>
+
+              <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 max-w-3xl mx-auto text-center shadow-2xl">
+                <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Prepared for</p>
+                <h2 className="text-3xl md:text-4xl font-bold mb-4 text-off-black">{opportunityData.customerName}</h2>
+                <p className="text-gray-600">{today}</p>
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          /* Default hero without image */
+          <div className="bg-gradient-to-br from-gray-50 via-off-white to-white">
+            <div className="max-w-6xl mx-auto px-6 py-20">
+              <div className="text-center mb-12">
+                <h1 className="text-5xl md:text-6xl font-bold mb-4 text-off-black tracking-tight">
+                  Fleet Fuel Solutions Proposal
+                </h1>
+                <div className="h-1 w-24 bg-gradient-to-r from-brand-orange to-dark-orange rounded-full mx-auto mb-8"></div>
+              </div>
+
+              <div className="card max-w-3xl mx-auto text-center">
+                <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Prepared for</p>
+                <h2 className="text-3xl md:text-4xl font-bold mb-4 text-off-black">{opportunityData.customerName}</h2>
+                <p className="text-gray-600">{today}</p>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* EXECUTIVE SUMMARY */}
@@ -268,29 +312,59 @@ function ProposalContent() {
           <div className="space-y-6">
             {selectedProducts.map((product) => {
               const customFeatures = opportunityData.customProductFeatures[product.id] || product.features
+              const productImage = imageSettings.product_images[product.id as keyof typeof imageSettings.product_images]
+
               return (
                 <div
                   key={product.id}
-                  className="relative rounded-2xl p-8 overflow-hidden shadow-xl border-2 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1"
+                  className="relative rounded-2xl overflow-hidden shadow-xl border-2 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1"
                   style={{
                     background: 'linear-gradient(135deg, #ED8B00 0%, #D64303 100%)',
                     borderColor: '#D64303'
                   }}
                 >
-                  <h3 className="text-3xl font-bold mb-4 text-white">{product.name}</h3>
-                  <p className="text-lg mb-6 text-white/95">{product.description}</p>
-
-                  <div className="h-px w-full bg-white/20 my-6"></div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {customFeatures.map((feature, index) => (
-                      <div key={index} className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-white flex items-center justify-center">
-                          <CheckCircle2 size={16} className="text-dark-orange" />
+                  {/* Product Image Section */}
+                  {productImage ? (
+                    <div className="relative w-full h-64 md:h-80">
+                      <Image
+                        src={productImage}
+                        alt={product.name}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                      {/* Gradient overlay for smooth transition to content */}
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-dark-orange/80"></div>
+                    </div>
+                  ) : (
+                    /* Elegant placeholder when no image */
+                    <div className="relative w-full h-64 md:h-80 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm border-b-2 border-white/20 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4">
+                          <ImageIcon size={36} className="text-white/60" />
                         </div>
-                        <p className="text-base text-white font-medium">{feature}</p>
+                        <p className="text-white/40 text-sm font-medium">Product Image</p>
                       </div>
-                    ))}
+                    </div>
+                  )}
+
+                  {/* Product Content */}
+                  <div className="p-8">
+                    <h3 className="text-3xl font-bold mb-4 text-white">{product.name}</h3>
+                    <p className="text-lg mb-6 text-white/95">{product.description}</p>
+
+                    <div className="h-px w-full bg-white/20 my-6"></div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {customFeatures.map((feature, index) => (
+                        <div key={index} className="flex items-start gap-3">
+                          <div className="flex-shrink-0 w-6 h-6 rounded-full bg-white flex items-center justify-center">
+                            <CheckCircle2 size={16} className="text-dark-orange" />
+                          </div>
+                          <p className="text-base text-white font-medium">{feature}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )

@@ -3,18 +3,24 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { getUserProfile, getProductsConfig, updateProductConfig, getAppSettings, updateAppSetting } from '@/lib/supabase/queries'
-import type { UserProfile, ProductConfig, AppSetting } from '@/lib/types'
-import { ArrowLeft, Save, Plus, X, Settings as SettingsIcon } from 'lucide-react'
+import { getUserProfile, getProductsConfig, updateProductConfig, getAppSettings, updateAppSetting, getImageSettings, updateProductImage, updateHeroImage } from '@/lib/supabase/queries'
+import type { UserProfile, ProductConfig, AppSetting, ImageSettings } from '@/lib/types'
+import { ArrowLeft, Save, Plus, X, Settings as SettingsIcon, ImageIcon } from 'lucide-react'
+import { ImageUploader } from '@/components/ImageUploader'
 
 export default function AdminPage() {
   const router = useRouter()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [products, setProducts] = useState<ProductConfig[]>([])
   const [appSettings, setAppSettings] = useState<AppSetting[]>([])
+  const [imageSettings, setImageSettings] = useState<ImageSettings>({
+    product_images: { fleet: null, universal: null, digital: null },
+    hero_image: null,
+    feature_icons: {}
+  })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState<'products' | 'settings'>('products')
+  const [activeTab, setActiveTab] = useState<'products' | 'images' | 'settings'>('products')
 
   useEffect(() => {
     loadData()
@@ -31,13 +37,15 @@ export default function AdminPage() {
 
     setProfile(userProfile)
 
-    const [productsData, settingsData] = await Promise.all([
+    const [productsData, settingsData, imagesData] = await Promise.all([
       getProductsConfig(),
-      getAppSettings()
+      getAppSettings(),
+      getImageSettings()
     ])
 
     setProducts(productsData)
     setAppSettings(settingsData)
+    setImageSettings(imagesData)
     setLoading(false)
   }
 
@@ -110,6 +118,51 @@ export default function AdminPage() {
     }
   }
 
+  const handleProductImageChange = async (productId: 'fleet' | 'universal' | 'digital', url: string | null) => {
+    try {
+      // Update local state optimistically
+      setImageSettings(prev => ({
+        ...prev,
+        product_images: {
+          ...prev.product_images,
+          [productId]: url
+        }
+      }))
+
+      // Save to database
+      const success = await updateProductImage(productId, url)
+      if (!success) {
+        throw new Error('Failed to save image')
+      }
+    } catch (error) {
+      console.error('Error updating product image:', error)
+      alert('Error saving image. Please try again.')
+      // Reload data to reset state
+      loadData()
+    }
+  }
+
+  const handleHeroImageChange = async (url: string | null) => {
+    try {
+      // Update local state optimistically
+      setImageSettings(prev => ({
+        ...prev,
+        hero_image: url
+      }))
+
+      // Save to database
+      const success = await updateHeroImage(url)
+      if (!success) {
+        throw new Error('Failed to save hero image')
+      }
+    } catch (error) {
+      console.error('Error updating hero image:', error)
+      alert('Error saving hero image. Please try again.')
+      // Reload data to reset state
+      loadData()
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-off-white to-white">
@@ -171,6 +224,20 @@ export default function AdminPage() {
           >
             Product Configuration
             {activeTab === 'products' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-orange"></div>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('images')}
+            className={`pb-4 px-2 font-semibold transition-colors relative ${
+              activeTab === 'images'
+                ? 'text-brand-orange'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Image Library
+            {activeTab === 'images' && (
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-orange"></div>
             )}
           </button>
@@ -279,6 +346,81 @@ export default function AdminPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Images Tab */}
+        {activeTab === 'images' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-off-black mb-2">Image Library</h2>
+                <p className="text-gray-600">
+                  Upload and manage images used throughout proposals
+                </p>
+              </div>
+            </div>
+
+            {/* Product Card Images */}
+            <div className="card">
+              <div className="mb-6">
+                <h3 className="text-xl font-bold text-off-black mb-2">Product Card Images</h3>
+                <p className="text-sm text-gray-600">
+                  These images appear on product cards in proposals. Recommended size: 600×400px (3:2 ratio)
+                </p>
+              </div>
+
+              <div className="space-y-8">
+                {/* Fleet Card Image */}
+                <ImageUploader
+                  currentImageUrl={imageSettings.product_images.fleet}
+                  onImageChange={(url) => handleProductImageChange('fleet', url)}
+                  folder="products"
+                  label="Circle K Pro Fleet Card"
+                  recommendedSize="600×400px"
+                  aspectRatio="3:2"
+                />
+
+                {/* Universal Card Image */}
+                <ImageUploader
+                  currentImageUrl={imageSettings.product_images.universal}
+                  onImageChange={(url) => handleProductImageChange('universal', url)}
+                  folder="products"
+                  label="Circle K Pro Universal Card (WEX Network)"
+                  recommendedSize="600×400px"
+                  aspectRatio="3:2"
+                />
+
+                {/* Digital+ Image */}
+                <ImageUploader
+                  currentImageUrl={imageSettings.product_images.digital}
+                  onImageChange={(url) => handleProductImageChange('digital', url)}
+                  folder="products"
+                  label="Digital+"
+                  recommendedSize="600×400px"
+                  aspectRatio="3:2"
+                />
+              </div>
+            </div>
+
+            {/* Hero Image */}
+            <div className="card">
+              <div className="mb-6">
+                <h3 className="text-xl font-bold text-off-black mb-2">Hero Image</h3>
+                <p className="text-sm text-gray-600">
+                  Optional banner image displayed at the top of proposals. Recommended size: 1920×600px (16:5 ratio)
+                </p>
+              </div>
+
+              <ImageUploader
+                currentImageUrl={imageSettings.hero_image}
+                onImageChange={handleHeroImageChange}
+                folder="hero"
+                label="Proposal Hero Image"
+                recommendedSize="1920×600px"
+                aspectRatio="16:5"
+              />
+            </div>
           </div>
         )}
 

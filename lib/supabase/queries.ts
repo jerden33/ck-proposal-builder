@@ -266,3 +266,114 @@ export async function updateAppSetting(key: string, value: string): Promise<bool
 
   return true
 }
+
+// Image Settings Helpers
+export async function getImageSettings(): Promise<import('@/lib/types').ImageSettings> {
+  const supabase = createClient()
+
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('key, value')
+    .in('key', ['product_images', 'hero_image', 'feature_icons'])
+
+  if (error) {
+    console.error('Error fetching image settings:', error)
+    return {
+      product_images: { fleet: null, universal: null, digital: null },
+      hero_image: null,
+      feature_icons: {}
+    }
+  }
+
+  const settings: any = {}
+  data?.forEach(item => {
+    try {
+      settings[item.key] = JSON.parse(item.value)
+    } catch {
+      settings[item.key] = item.value
+    }
+  })
+
+  return {
+    product_images: settings.product_images || { fleet: null, universal: null, digital: null },
+    hero_image: settings.hero_image || null,
+    feature_icons: settings.feature_icons || {}
+  }
+}
+
+export async function updateProductImage(productId: string, imageUrl: string | null): Promise<boolean> {
+  const supabase = createClient()
+  const user = await getCurrentUser()
+
+  if (!user) return false
+
+  // Check if user is admin
+  const profile = await getUserProfile()
+  if (!profile?.is_admin) {
+    console.error('User is not authorized to update product images')
+    return false
+  }
+
+  // Get current product_images setting
+  const { data: currentSetting } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'product_images')
+    .single()
+
+  let productImages: any = { fleet: null, universal: null, digital: null }
+  if (currentSetting) {
+    try {
+      productImages = JSON.parse(currentSetting.value)
+    } catch {
+      // Keep default
+    }
+  }
+
+  // Update the specific product
+  productImages[productId] = imageUrl
+
+  const { error } = await supabase
+    .from('app_settings')
+    .update({
+      value: JSON.stringify(productImages),
+      updated_at: new Date().toISOString()
+    })
+    .eq('key', 'product_images')
+
+  if (error) {
+    console.error('Error updating product image:', error)
+    return false
+  }
+
+  return true
+}
+
+export async function updateHeroImage(imageUrl: string | null): Promise<boolean> {
+  const supabase = createClient()
+  const user = await getCurrentUser()
+
+  if (!user) return false
+
+  // Check if user is admin
+  const profile = await getUserProfile()
+  if (!profile?.is_admin) {
+    console.error('User is not authorized to update hero image')
+    return false
+  }
+
+  const { error } = await supabase
+    .from('app_settings')
+    .update({
+      value: JSON.stringify(imageUrl),
+      updated_at: new Date().toISOString()
+    })
+    .eq('key', 'hero_image')
+
+  if (error) {
+    console.error('Error updating hero image:', error)
+    return false
+  }
+
+  return true
+}

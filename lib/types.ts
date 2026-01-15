@@ -138,3 +138,15 @@ export interface AppSetting {
   value: string
   updated_at: string
 }
+
+export interface ProductImages {
+  fleet: string | null
+  universal: string | null
+  digital: string | null
+}
+
+export interface ImageSettings {
+  product_images: ProductImages
+  hero_image: string | null
+  feature_icons: Record<string, string>
+}

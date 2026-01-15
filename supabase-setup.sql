@@ -100,5 +100,8 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO app_settings (key, value)
 VALUES
   ('footer_text', 'Professional Fleet Fuel Solutions'),
-  ('terms_conditions', 'Standard Circle K Pro terms and conditions apply.')
+  ('terms_conditions', 'Standard Circle K Pro terms and conditions apply.'),
+  ('product_images', '{"fleet": null, "universal": null, "digital": null}'),
+  ('hero_image', 'null'),
+  ('feature_icons', '{}')
 ON CONFLICT (key) DO NOTHING;
