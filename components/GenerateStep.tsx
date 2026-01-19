@@ -43,7 +43,8 @@ export function GenerateStep({ opportunityData, addresses, sections, products }:
       }
 
       // Create shareable URL with clean ID
-      const proposalUrl = `${window.location.origin}/proposal?id=${result.id}`
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+      const proposalUrl = `${baseUrl}/proposal?id=${result.id}`
       setProposalUrl(proposalUrl)
     } catch (error) {
       console.error('Error generating proposal:', error)
