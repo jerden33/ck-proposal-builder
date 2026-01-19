@@ -302,50 +302,69 @@ export async function getImageSettings(): Promise<import('@/lib/types').ImageSet
 }
 
 export async function updateProductImage(productId: string, imageUrl: string | null): Promise<boolean> {
+  console.log('[updateProductImage] START - productId:', productId, 'imageUrl:', imageUrl)
+
   const supabase = createClient()
   const user = await getCurrentUser()
 
-  if (!user) return false
+  console.log('[updateProductImage] Current user:', user?.id)
 
-  // Check if user is admin
-  const profile = await getUserProfile()
-  if (!profile?.is_admin) {
-    console.error('User is not authorized to update product images')
+  if (!user) {
+    console.error('[updateProductImage] FAIL - No user found')
     return false
   }
 
+  // Check if user is admin
+  const profile = await getUserProfile()
+  console.log('[updateProductImage] User profile:', { id: profile?.id, email: profile?.email, is_admin: profile?.is_admin })
+
+  if (!profile?.is_admin) {
+    console.error('[updateProductImage] FAIL - User is not admin')
+    return false
+  }
+
+  console.log('[updateProductImage] Fetching current product_images from database...')
+
   // Get current product_images setting
-  const { data: currentSetting } = await supabase
+  const { data: currentSetting, error: fetchError } = await supabase
     .from('app_settings')
     .select('value')
     .eq('key', 'product_images')
     .single()
 
+  console.log('[updateProductImage] Current setting:', currentSetting, 'Fetch error:', fetchError)
+
   let productImages: any = { fleet: null, universal: null, digital: null }
   if (currentSetting) {
     try {
       productImages = JSON.parse(currentSetting.value)
-    } catch {
-      // Keep default
+      console.log('[updateProductImage] Parsed existing images:', productImages)
+    } catch (e) {
+      console.error('[updateProductImage] Failed to parse JSON:', e)
     }
   }
 
   // Update the specific product
   productImages[productId] = imageUrl
+  console.log('[updateProductImage] Updated images object:', productImages)
+
+  const stringified = JSON.stringify(productImages)
+  console.log('[updateProductImage] Stringified for database:', stringified)
 
   const { error } = await supabase
     .from('app_settings')
     .update({
-      value: JSON.stringify(productImages),
+      value: stringified,
       updated_at: new Date().toISOString()
     })
     .eq('key', 'product_images')
 
   if (error) {
-    console.error('Error updating product image:', error)
+    console.error('[updateProductImage] FAIL - Database update error:', error)
     return false
   }
 
+  console.log('[updateProductImage] SUCCESS - Image URL saved to database!')
   return true
 }
 
