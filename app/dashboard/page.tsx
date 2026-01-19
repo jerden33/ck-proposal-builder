@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { getUserProfile, getUserProposals, archiveProposal, duplicateProposal } from '@/lib/supabase/queries'
+import { getUserProfile, getUserProposals, archiveProposal, duplicateProposal, deleteProposal } from '@/lib/supabase/queries'
 import type { UserProfile, ProposalRecord } from '@/lib/types'
-import { Plus, Search, FileText, Eye, Copy, Archive, Settings, LogOut, Calendar, ExternalLink } from 'lucide-react'
+import { Plus, Search, FileText, Eye, Copy, Archive, Settings, LogOut, Calendar, ExternalLink, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 
 export default function DashboardPage() {
@@ -52,6 +52,24 @@ export default function DashboardPage() {
     if (result) {
       await loadData()
       router.push(`/?edit=${result.id}`)
+    }
+  }
+
+  const handleDelete = async (id: string, customerName: string) => {
+    // Only admins can delete
+    if (!profile?.is_admin) {
+      alert('Only administrators can permanently delete proposals.')
+      return
+    }
+
+    const confirmMessage = `⚠️ WARNING: This will PERMANENTLY DELETE this proposal!\n\nCustomer: ${customerName}\n\nThis action CANNOT be undone. Are you absolutely sure?`
+    if (confirm(confirmMessage)) {
+      const success = await deleteProposal(id)
+      if (success) {
+        await loadData()
+      } else {
+        alert('Failed to delete proposal. Please check console for errors.')
+      }
     }
   }
 
@@ -258,6 +276,16 @@ export default function DashboardPage() {
                   >
                     <Archive size={14} />
                     Archive
+                  </button>
+                )}
+
+                {profile?.is_admin && (
+                  <button
+                    onClick={() => handleDelete(proposal.id, proposal.customer_name)}
+                    className="w-full mt-2 py-2 text-sm text-red-600 hover:text-white hover:bg-red-600 rounded-lg transition-colors flex items-center justify-center gap-2 border border-red-200"
+                  >
+                    <Trash2 size={14} />
+                    Delete Permanently
                   </button>
                 )}
               </div>

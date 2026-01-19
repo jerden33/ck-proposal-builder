@@ -52,6 +52,19 @@ FOR DELETE
 TO authenticated
 USING (auth.uid() = user_id);
 
+-- Policy: Admins can delete any proposal
+CREATE POLICY "Admins can delete any proposal"
+ON proposals
+FOR DELETE
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.is_admin = true
+  )
+);
+
 -- Enable RLS on app_settings table
 ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
 

@@ -126,6 +126,35 @@ export async function archiveProposal(id: string): Promise<boolean> {
   return updateProposal(id, { status: 'archived' })
 }
 
+export async function deleteProposal(id: string): Promise<boolean> {
+  const supabase = createClient()
+  const user = await getCurrentUser()
+
+  if (!user) {
+    console.error('User not authenticated')
+    return false
+  }
+
+  // Check if user is admin
+  const profile = await getUserProfile()
+  if (!profile?.is_admin) {
+    console.error('User is not authorized to delete proposals')
+    return false
+  }
+
+  const { error } = await supabase
+    .from('proposals')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    console.error('Error deleting proposal:', error)
+    return false
+  }
+
+  return true
+}
+
 export async function duplicateProposal(id: string): Promise<{ id: string; url: string } | null> {
   const supabase = createClient()
   const user = await getCurrentUser()
