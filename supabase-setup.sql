@@ -52,6 +52,62 @@ FOR DELETE
 TO authenticated
 USING (auth.uid() = user_id);
 
+-- Enable RLS on app_settings table
+ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Allow public read access to app_settings (for proposal display)
+CREATE POLICY "Public read access for app_settings"
+ON app_settings
+FOR SELECT
+TO anon, authenticated
+USING (true);
+
+-- Policy: Admin users can insert app_settings
+CREATE POLICY "Admins can insert app_settings"
+ON app_settings
+FOR INSERT
+TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.is_admin = true
+  )
+);
+
+-- Policy: Admin users can update app_settings
+CREATE POLICY "Admins can update app_settings"
+ON app_settings
+FOR UPDATE
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.is_admin = true
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.is_admin = true
+  )
+);
+
+-- Policy: Admin users can delete app_settings
+CREATE POLICY "Admins can delete app_settings"
+ON app_settings
+FOR DELETE
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.is_admin = true
+  )
+);
+
 -- Verify tables exist (should already be created):
 -- 1. profiles (id, email, full_name, is_admin, created_at)
 -- 2. proposals (id, user_id, customer_name, status, created_at, updated_at, last_viewed_at, view_count, data)
