@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import { DM_Sans, Space_Grotesk } from 'next/font/google'
 import './globals.css'
 
@@ -32,22 +33,16 @@ export default function RootLayout({
         
         {/* Circle K Pro Logo - Bottom Right */}
         <div className="fixed bottom-8 right-8 z-50 pointer-events-none">
-          <svg width="140" height="48" viewBox="0 0 140 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <g opacity="0.9">
-              {/* CIRCLE K */}
-              <text x="6" y="32" fill="#ED8B00" fontSize="26" fontWeight="700" fontFamily="Space Grotesk, sans-serif">
-                CIRCLE K
-              </text>
-              {/* pro */}
-              <text x="102" y="36" fill="#ED8B00" fontSize="18" fontWeight="500" fontFamily="Space Grotesk, sans-serif">
-                pro
-              </text>
-              {/* TM */}
-              <text x="130" y="24" fill="#ED8B00" fontSize="10" fontWeight="400">
-                ™
-              </text>
-            </g>
-          </svg>
+          <div className="bg-white/90 backdrop-blur-sm rounded-lg px-4 py-3 shadow-lg border border-gray-100">
+            <Image
+              src="/circle-k-pro-logo.png"
+              alt="Circle K Pro"
+              width={160}
+              height={48}
+              priority
+              className="w-40 h-auto"
+            />
+          </div>
         </div>
       </body>
     </html>
