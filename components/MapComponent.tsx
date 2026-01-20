@@ -46,6 +46,8 @@ export function MapComponent({ center, stores, height = 400 }: MapComponentProps
   useEffect(() => {
     if (!map.current || !mapLoaded) return
 
+    console.log(`[MapComponent] Rendering map with ${stores.length} stores`)
+
     // Clear existing markers
     const markers = document.querySelectorAll('.mapboxgl-marker')
     markers.forEach(marker => marker.remove())
