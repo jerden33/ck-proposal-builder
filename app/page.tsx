@@ -192,9 +192,9 @@ export default function Home() {
       const result = await geocodeAddress(address.address)
       
       if (result) {
-        // Find nearby stores - get stores within 25 miles to ensure we have at least 100
-        const nearbyStores = findStoresWithinRadius(result.coordinates, 25)
-        console.log(`[Coverage Analysis] Found ${nearbyStores.length} stores within 25 miles`)
+        // Find nearby stores - get stores within 200 miles for comprehensive map display
+        const nearbyStores = findStoresWithinRadius(result.coordinates, 200)
+        console.log(`[Coverage Analysis] Found ${nearbyStores.length} stores within 200 miles`)
 
         // Add distance to each store and limit to nearest 100
         const storesWithDistance = nearbyStores

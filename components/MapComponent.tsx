@@ -103,14 +103,31 @@ export function MapComponent({ center, stores, height = 400 }: MapComponentProps
       }
     })
 
-    // Fit bounds to show all markers
+    // Fit bounds to show nearby markers only (within 15 miles for initial zoom)
+    // All stores are plotted, but we zoom to show the immediate region
     if (stores.length > 0 && map.current) {
       const bounds = new mapboxgl.LngLatBounds()
       bounds.extend([center.lng, center.lat])
-      stores.forEach(store => {
+
+      // Only include stores within 15 miles for zoom calculation
+      const nearbyStoresForZoom = stores.filter(store => {
+        if (!store.distance) return true // Include if no distance property
+        return store.distance <= 15
+      })
+
+      console.log(`[MapComponent] Fitting bounds to ${nearbyStoresForZoom.length} stores within 15 miles (of ${stores.length} total plotted)`)
+
+      nearbyStoresForZoom.forEach(store => {
         bounds.extend([store.coordinates.lng, store.coordinates.lat])
       })
-      map.current.fitBounds(bounds, { padding: 50, maxZoom: 13 })
+
+      // If we have nearby stores, fit to them. Otherwise, use a default zoom
+      if (nearbyStoresForZoom.length > 0) {
+        map.current.fitBounds(bounds, { padding: 50, maxZoom: 13 })
+      } else {
+        map.current.setCenter([center.lng, center.lat])
+        map.current.setZoom(10)
+      }
     } else if (map.current) {
       map.current.setCenter([center.lng, center.lat])
       map.current.setZoom(11)

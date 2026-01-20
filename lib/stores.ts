@@ -14,6 +14,7 @@ export interface CircleKStore {
   status?: string
   truckAccessible?: boolean
   numTruckLanes?: number
+  distance?: number // Distance from center point in miles (added when calculating nearby stores)
 }
 
 let storeData: CircleKStore[] = []
