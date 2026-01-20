@@ -793,24 +793,24 @@ export async function generateProposalPDF(
       const statBoxWidth = (pageWidth - 2 * margin - 10) / 2
       const statBoxHeight = 32
 
-      // Within 5 miles stat
+      // Within 2 miles stat
       drawOrangeGradientTile(margin, yPos, statBoxWidth, statBoxHeight, 6)
 
       pdf.setFontSize(10)
       pdf.setTextColor(255, 255, 255)
       pdf.setFont('helvetica', 'normal')
       pdf.setGState(pdf.GState({ opacity: 0.9 }))
-      pdf.text('Within 5 miles', margin + 10, yPos + 10)
+      pdf.text('Within 2 miles', margin + 10, yPos + 10)
       pdf.setGState(pdf.GState({ opacity: 1 }))
 
       pdf.setFontSize(22)
       pdf.setFont('helvetica', 'bold')
-      pdf.text(`${address.coverage.within5mi}`, margin + 10, yPos + 22)
+      pdf.text(`${address.coverage.within2mi}`, margin + 10, yPos + 22)
 
       pdf.setFontSize(11)
       pdf.setFont('helvetica', 'normal')
       pdf.setGState(pdf.GState({ opacity: 0.9 }))
-      pdf.text('locations', margin + 10 + pdf.getTextWidth(`${address.coverage.within5mi}`) + 3, yPos + 22)
+      pdf.text('locations', margin + 10 + pdf.getTextWidth(`${address.coverage.within2mi}`) + 3, yPos + 22)
       pdf.setGState(pdf.GState({ opacity: 1 }))
 
       // Within 10 miles stat

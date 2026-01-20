@@ -411,10 +411,10 @@ function ProposalContent() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="bg-white rounded-xl border border-[#FED7AA] p-4 text-center">
                           <div className="text-4xl font-bold text-[#ED8B00] mb-1">
-                            {address.coverage.within5mi}
+                            {address.coverage.within2mi}
                           </div>
                           <div className="text-sm text-gray-600 uppercase tracking-wide">
-                            Within 5 Miles
+                            Within 2 Miles
                           </div>
                         </div>
                         <div className="bg-white rounded-xl border border-[#FED7AA] p-4 text-center">

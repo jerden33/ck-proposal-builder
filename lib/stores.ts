@@ -105,21 +105,21 @@ function toRad(degrees: number): number {
  * Get coverage statistics for a location
  */
 export function getCoverageStats(center: Coordinates): {
-  within5mi: number
+  within2mi: number
   within10mi: number
   within25mi: number
-  truckAccessible5mi: number
+  truckAccessible2mi: number
   truckAccessible10mi: number
 } {
-  const within5 = findStoresWithinRadius(center, 5)
+  const within2 = findStoresWithinRadius(center, 2)
   const within10 = findStoresWithinRadius(center, 10)
   const within25 = findStoresWithinRadius(center, 25)
-  
+
   return {
-    within5mi: within5.length,
+    within2mi: within2.length,
     within10mi: within10.length,
     within25mi: within25.length,
-    truckAccessible5mi: within5.filter(s => s.truckAccessible).length,
+    truckAccessible2mi: within2.filter(s => s.truckAccessible).length,
     truckAccessible10mi: within10.filter(s => s.truckAccessible).length
   }
 }

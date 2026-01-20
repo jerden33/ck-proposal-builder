@@ -76,7 +76,7 @@ export interface Address {
   formattedAddress?: string
   nearbyStores: any[]
   coverage: {
-    within5mi: number
+    within2mi: number
     within10mi: number
   }
   analyzing?: boolean
