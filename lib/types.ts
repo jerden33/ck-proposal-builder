@@ -104,6 +104,7 @@ export interface UserProfile {
   email: string
   full_name: string | null
   is_admin: boolean
+  is_super_admin: boolean
   created_at: string
 }
 

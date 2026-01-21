@@ -56,8 +56,8 @@ export default function DashboardPage() {
   }
 
   const handleDelete = async (id: string, customerName: string) => {
-    // Only admins can delete
-    if (!profile?.is_admin) {
+    // Only admins and super admins can delete
+    if (!profile?.is_admin && !profile?.is_super_admin) {
       alert('Only administrators can permanently delete proposals.')
       return
     }
@@ -111,10 +111,12 @@ export default function DashboardPage() {
             <div className="flex items-center gap-3">
               <div className="text-right mr-4">
                 <p className="text-sm font-semibold text-off-black">{profile?.full_name || profile?.email}</p>
-                <p className="text-xs text-gray-500">{profile?.is_admin ? 'Administrator' : 'User'}</p>
+                <p className="text-xs text-gray-500">
+                  {profile?.is_super_admin ? 'Super Administrator' : profile?.is_admin ? 'Administrator' : 'User'}
+                </p>
               </div>
 
-              {profile?.is_admin && (
+              {(profile?.is_admin || profile?.is_super_admin) && (
                 <button
                   onClick={() => router.push('/admin')}
                   className="btn-secondary flex items-center gap-2"
@@ -237,8 +239,8 @@ export default function DashboardPage() {
                   {proposal.customer_name}
                 </h3>
 
-                {/* Show proposal owner for admins */}
-                {profile?.is_admin && proposal.profiles && (
+                {/* Show proposal owner for super admins only */}
+                {profile?.is_super_admin && proposal.profiles && (
                   <div className="flex items-center gap-1 text-xs text-gray-500 mb-3 bg-gray-50 px-2 py-1 rounded">
                     <User size={12} />
                     <span className="font-medium">Created by:</span>
@@ -288,7 +290,7 @@ export default function DashboardPage() {
                   </button>
                 )}
 
-                {profile?.is_admin && (
+                {(profile?.is_admin || profile?.is_super_admin) && (
                   <button
                     onClick={() => handleDelete(proposal.id, proposal.customer_name)}
                     className="w-full mt-2 py-2 text-sm text-red-600 hover:text-white hover:bg-red-600 rounded-lg transition-colors flex items-center justify-center gap-2 border border-red-200"

@@ -2,11 +2,50 @@
 
 ## Overview
 
-By default, users can only see their own proposals. This guide will help you create a **Super Admin** role that can view and manage ALL proposals from all users in the system.
+The application now has a three-tier permission system:
+
+- **Regular Users**: Can only see their own proposals
+- **Admins** (`is_admin = true`): Can access admin panel, manage settings, but only see their own proposals
+- **Super Admins** (`is_super_admin = true`): Can see ALL proposals from all users + Full admin access
 
 ---
 
-## Option 1: Use Existing `is_admin` Flag (Recommended)
+## Setup Instructions
+
+### Step 1: Add Super Admin Column to Database
+
+Run this SQL in **Supabase SQL Editor**:
+
+```sql
+-- Add the is_super_admin column
+ALTER TABLE profiles
+ADD COLUMN IF NOT EXISTS is_super_admin BOOLEAN DEFAULT false;
+
+-- Create an index for better query performance
+CREATE INDEX IF NOT EXISTS idx_profiles_is_super_admin ON profiles(is_super_admin);
+
+-- Make yourself a super admin (replace with your actual email)
+UPDATE profiles
+SET is_super_admin = true
+WHERE email = 'your-email@company.com';
+
+-- Verify the change
+SELECT
+  id,
+  email,
+  full_name,
+  is_admin,
+  is_super_admin,
+  created_at
+FROM profiles
+WHERE email = 'your-email@company.com';
+```
+
+Or run the provided SQL file: `add-super-admin-column.sql`
+
+---
+
+## Option 1: Use Separate `is_super_admin` Column (IMPLEMENTED)
 
 The simplest approach is to treat all admins as super admins who can see all proposals.
 

@@ -36,10 +36,10 @@ export async function getUserProposals(): Promise<ProposalRecord[]> {
 
   if (!user) return []
 
-  // Check if user is admin (admins can see all proposals)
+  // Check if user is super admin (only super admins can see all proposals)
   const profile = await getUserProfile()
 
-  // Build query with user profile join (for displaying owner info to admins)
+  // Build query with user profile join (for displaying owner info to super admins)
   const query = supabase
     .from('proposals')
     .select(`
@@ -51,8 +51,8 @@ export async function getUserProposals(): Promise<ProposalRecord[]> {
     `)
     .order('updated_at', { ascending: false })
 
-  // If not admin, filter to only user's proposals
-  if (!profile?.is_admin) {
+  // Only super admins can see all proposals, everyone else sees only their own
+  if (!profile?.is_super_admin) {
     query.eq('user_id', user.id)
   }
 
