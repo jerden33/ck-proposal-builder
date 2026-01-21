@@ -50,36 +50,49 @@ export async function getUserProposals(): Promise<ProposalRecord[]> {
     is_super_admin: profile?.is_super_admin
   })
 
-  // Build query - try simpler approach without specifying FK name
-  const query = supabase
+  // Build query - fetch proposals WITHOUT join to avoid FK dependency
+  let query = supabase
     .from('proposals')
-    .select(`
-      *,
-      profiles (
-        email,
-        full_name
-      )
-    `)
+    .select('*')
     .order('updated_at', { ascending: false })
 
   // Only super admins can see all proposals, everyone else sees only their own
   if (!profile?.is_super_admin) {
     console.log('[getUserProposals] User is NOT super admin, filtering to own proposals only')
-    query.eq('user_id', user.id)
+    query = query.eq('user_id', user.id)
   } else {
     console.log('[getUserProposals] User IS super admin, fetching ALL proposals')
   }
 
-  const { data, error } = await query
+  const { data: proposals, error } = await query
 
   if (error) {
     console.error('[getUserProposals] Error fetching proposals:', error)
     return []
   }
 
-  console.log('[getUserProposals] Found', data?.length || 0, 'proposals')
+  console.log('[getUserProposals] Found', proposals?.length || 0, 'proposals')
 
-  return data || []
+  // If super admin and we have proposals, fetch user profiles separately
+  if (profile?.is_super_admin && proposals && proposals.length > 0) {
+    const userIds = [...new Set(proposals.map(p => p.user_id))]
+
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, email, full_name')
+      .in('id', userIds)
+
+    // Create a map of profiles
+    const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || [])
+
+    // Attach profile data to each proposal
+    return proposals.map(proposal => ({
+      ...proposal,
+      profiles: profilesMap.get(proposal.user_id) || null
+    })) as ProposalRecord[]
+  }
+
+  return (proposals || []) as ProposalRecord[]
 }
 
 export async function getProposal(id: string): Promise<ProposalRecord | null> {
