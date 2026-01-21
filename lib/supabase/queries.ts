@@ -75,7 +75,7 @@ export async function getUserProposals(): Promise<ProposalRecord[]> {
 
   // If super admin and we have proposals, fetch user profiles separately
   if (profile?.is_super_admin && proposals && proposals.length > 0) {
-    const userIds = [...new Set(proposals.map(p => p.user_id))]
+    const userIds = Array.from(new Set(proposals.map(p => p.user_id)))
 
     const { data: profilesData } = await supabase
       .from('profiles')
