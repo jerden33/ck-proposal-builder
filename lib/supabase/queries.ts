@@ -50,12 +50,12 @@ export async function getUserProposals(): Promise<ProposalRecord[]> {
     is_super_admin: profile?.is_super_admin
   })
 
-  // Build query with user profile join (for displaying owner info to super admins)
+  // Build query - try simpler approach without specifying FK name
   const query = supabase
     .from('proposals')
     .select(`
       *,
-      profiles!proposals_user_id_fkey (
+      profiles (
         email,
         full_name
       )
