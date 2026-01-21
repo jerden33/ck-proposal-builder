@@ -34,10 +34,21 @@ export async function getUserProposals(): Promise<ProposalRecord[]> {
   const supabase = createClient()
   const user = await getCurrentUser()
 
-  if (!user) return []
+  console.log('[getUserProposals] Current user:', user?.id, user?.email)
+
+  if (!user) {
+    console.log('[getUserProposals] No user found, returning empty array')
+    return []
+  }
 
   // Check if user is super admin (only super admins can see all proposals)
   const profile = await getUserProfile()
+  console.log('[getUserProposals] User profile:', {
+    id: profile?.id,
+    email: profile?.email,
+    is_admin: profile?.is_admin,
+    is_super_admin: profile?.is_super_admin
+  })
 
   // Build query with user profile join (for displaying owner info to super admins)
   const query = supabase
@@ -53,15 +64,20 @@ export async function getUserProposals(): Promise<ProposalRecord[]> {
 
   // Only super admins can see all proposals, everyone else sees only their own
   if (!profile?.is_super_admin) {
+    console.log('[getUserProposals] User is NOT super admin, filtering to own proposals only')
     query.eq('user_id', user.id)
+  } else {
+    console.log('[getUserProposals] User IS super admin, fetching ALL proposals')
   }
 
   const { data, error } = await query
 
   if (error) {
-    console.error('Error fetching proposals:', error)
+    console.error('[getUserProposals] Error fetching proposals:', error)
     return []
   }
+
+  console.log('[getUserProposals] Found', data?.length || 0, 'proposals')
 
   return data || []
 }
