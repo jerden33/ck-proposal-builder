@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getUserProfile, getUserProposals, archiveProposal, duplicateProposal, deleteProposal } from '@/lib/supabase/queries'
 import type { UserProfile, ProposalRecord } from '@/lib/types'
-import { Plus, Search, FileText, Eye, Copy, Archive, Settings, LogOut, Calendar, ExternalLink, Trash2 } from 'lucide-react'
+import { Plus, Search, FileText, Eye, Copy, Archive, Settings, LogOut, Calendar, ExternalLink, Trash2, User } from 'lucide-react'
 import Image from 'next/image'
 
 export default function DashboardPage() {
@@ -236,6 +236,15 @@ export default function DashboardPage() {
                 <h3 className="text-xl font-bold text-off-black mb-2 line-clamp-2">
                   {proposal.customer_name}
                 </h3>
+
+                {/* Show proposal owner for admins */}
+                {profile?.is_admin && proposal.profiles && (
+                  <div className="flex items-center gap-1 text-xs text-gray-500 mb-3 bg-gray-50 px-2 py-1 rounded">
+                    <User size={12} />
+                    <span className="font-medium">Created by:</span>
+                    <span>{proposal.profiles.full_name || proposal.profiles.email}</span>
+                  </div>
+                )}
 
                 {/* Dates */}
                 <div className="space-y-1 mb-6">

@@ -122,6 +122,10 @@ export interface ProposalRecord {
     sections: ProposalSections
     products: Product[]
   }
+  profiles?: {
+    email: string
+    full_name: string | null
+  }
 }
 
 export interface ProductConfig {
