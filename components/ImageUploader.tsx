@@ -19,8 +19,8 @@ export function ImageUploader({
   onImageChange,
   folder,
   label,
-  recommendedSize = '600x400px',
-  aspectRatio = '3:2'
+  recommendedSize = '600x338px',
+  aspectRatio = '16:9'
 }: ImageUploaderProps) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)

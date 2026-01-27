@@ -332,8 +332,8 @@ function ProposalContent() {
                   className="bg-white rounded-xl border-2 border-[#FED7AA] border-l-4 border-l-[#ED8B00] overflow-hidden transition-shadow hover:shadow-lg"
                   style={{ boxShadow: 'var(--shadow-md)' }}
                 >
-                  {/* Product Image or Placeholder - Full Width at Top with 3:2 Aspect Ratio */}
-                  <div className="w-full aspect-[3/2] relative">
+                  {/* Product Image or Placeholder - Full Width at Top with 16:9 Aspect Ratio */}
+                  <div className="w-full aspect-[16/9] relative">
                     {productImage ? (
                       <Image
                         src={productImage}
@@ -343,12 +343,12 @@ function ProposalContent() {
                         unoptimized
                       />
                     ) : (
-                      /* Elegant Placeholder - 600x400 equivalent, 3:2 ratio */
+                      /* Elegant Placeholder - 600x338 equivalent, 16:9 ratio */
                       <div className="w-full h-full bg-gradient-to-br from-[#FFF7ED] to-[#FFEDD5] border-b-2 border-dashed border-[#FED7AA] flex items-center justify-center">
                         <div className="text-center">
                           <ImageIcon size={48} className="text-[#ED8B00]/40 mx-auto mb-3" />
                           <p className="text-sm text-gray-400 font-medium">Product Image</p>
-                          <p className="text-xs text-gray-400 mt-1">600×400px (3:2 ratio)</p>
+                          <p className="text-xs text-gray-400 mt-1">600×338px (16:9 ratio)</p>
                         </div>
                       </div>
                     )}

@@ -366,7 +366,7 @@ export default function AdminPage() {
               <div className="mb-6">
                 <h3 className="text-xl font-bold text-off-black mb-2">Product Card Images</h3>
                 <p className="text-sm text-gray-600">
-                  These images appear on product cards in proposals. Recommended size: 600×400px (3:2 ratio)
+                  These images appear on product cards in proposals. Recommended size: 600×338px (16:9 ratio)
                 </p>
               </div>
 
@@ -377,8 +377,8 @@ export default function AdminPage() {
                   onImageChange={(url) => handleProductImageChange('fleet', url)}
                   folder="products"
                   label="Circle K Pro Fleet Card"
-                  recommendedSize="600×400px"
-                  aspectRatio="3:2"
+                  recommendedSize="600×338px"
+                  aspectRatio="16:9"
                 />
 
                 {/* Universal Card Image */}
@@ -387,8 +387,8 @@ export default function AdminPage() {
                   onImageChange={(url) => handleProductImageChange('universal', url)}
                   folder="products"
                   label="Circle K Pro Universal Card (WEX Network)"
-                  recommendedSize="600×400px"
-                  aspectRatio="3:2"
+                  recommendedSize="600×338px"
+                  aspectRatio="16:9"
                 />
 
                 {/* Digital+ Image */}
@@ -397,8 +397,8 @@ export default function AdminPage() {
                   onImageChange={(url) => handleProductImageChange('digital', url)}
                   folder="products"
                   label="Digital+"
-                  recommendedSize="600×400px"
-                  aspectRatio="3:2"
+                  recommendedSize="600×338px"
+                  aspectRatio="16:9"
                 />
               </div>
             </div>
