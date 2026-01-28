@@ -58,6 +58,9 @@ function ProposalContent() {
 
         setData(proposal.data)
         setImageSettings(images)
+        console.log('[ProposalPage] Image settings loaded:', images)
+        console.log('[ProposalPage] Hero image URL:', images.hero_image)
+        console.log('[ProposalPage] Product images:', images.product_images)
 
         // Increment view count (fire and forget)
         incrementProposalViews(proposalId).catch(console.error)
