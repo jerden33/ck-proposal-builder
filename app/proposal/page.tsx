@@ -131,48 +131,34 @@ function ProposalContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-[#FFF7ED]/30 to-white">
-      {/* SOPHISTICATED HERO SECTION */}
-      <section className="relative overflow-hidden border-b-4 border-[#ED8B00]">
-        {imageSettings.hero_image ? (
-          /* Hero with Image */
+      {/* HERO IMAGE - Full prominence */}
+      {imageSettings.hero_image && (
+        <section className="relative overflow-hidden border-b-4 border-[#ED8B00]">
           <div className="relative h-[400px]">
             <Image
               src={imageSettings.hero_image}
               alt="Hero"
               fill
-              className="object-cover opacity-20"
+              className="object-cover"
               unoptimized
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-[#FFF7ED] to-white/95"></div>
+          </div>
+        </section>
+      )}
 
-            <div className="relative z-10 max-w-6xl mx-auto px-8 py-12 h-full flex flex-col justify-center">
-              <h1 className="text-4xl font-bold text-[#D64303] mb-2">
-                Fleet Fuel Solutions Proposal
-              </h1>
-              <p className="text-xl text-gray-600 mb-4">
-                Prepared for {opportunityData.customerName}
-              </p>
-              <p className="text-sm text-gray-500">
-                {today} • Circle K Pro
-              </p>
-            </div>
-          </div>
-        ) : (
-          /* Hero without Image - Clean & Minimal */
-          <div className="bg-gradient-to-b from-[#FFF7ED] to-white py-12">
-            <div className="max-w-6xl mx-auto px-8">
-              <h1 className="text-4xl font-bold text-[#D64303] mb-2">
-                Fleet Fuel Solutions Proposal
-              </h1>
-              <p className="text-xl text-gray-600 mb-4">
-                Prepared for {opportunityData.customerName}
-              </p>
-              <p className="text-sm text-gray-500">
-                {today} • Circle K Pro
-              </p>
-            </div>
-          </div>
-        )}
+      {/* TITLE SECTION - Below hero, above content */}
+      <section className="bg-gradient-to-b from-[#FFF7ED] to-white py-12 border-b border-gray-200">
+        <div className="max-w-6xl mx-auto px-8">
+          <h1 className="text-4xl font-bold text-[#D64303] mb-2">
+            Fleet Fuel Solutions Proposal
+          </h1>
+          <p className="text-xl text-gray-600 mb-4">
+            Prepared for {opportunityData.customerName}
+          </p>
+          <p className="text-sm text-gray-500">
+            {today} • Circle K Pro
+          </p>
+        </div>
       </section>
 
       {/* EXECUTIVE SUMMARY */}
