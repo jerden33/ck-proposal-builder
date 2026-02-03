@@ -99,7 +99,7 @@ export function PreviewPanel({ opportunityData, addresses, products }: PreviewPa
           </div>
         </div>
         
-        <div>
+        <div className="pb-4 border-b border-gray-100">
           <div className="flex items-start gap-3">
             <MapPin size={18} className="text-brand-orange mt-0.5" />
             <div className="flex-1 min-w-0">
@@ -110,6 +110,45 @@ export function PreviewPanel({ opportunityData, addresses, products }: PreviewPa
             </div>
           </div>
         </div>
+
+        {/* Pricing Summary */}
+        {(opportunityData.perGallonDiscount || opportunityData.additionalSavings) && (
+          <div>
+            <div className="flex items-start gap-3">
+              <div className="w-[18px] h-[18px] flex items-center justify-center text-brand-orange mt-0.5 font-bold text-lg">$</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Pricing</p>
+                <div className="space-y-2">
+                  {opportunityData.perGallonDiscount && parseFloat(opportunityData.perGallonDiscount) > 0 && (
+                    <div>
+                      <p className="text-xs text-gray-500">Per gallon discount</p>
+                      <p className="font-semibold text-dark-orange">
+                        {parseFloat(opportunityData.perGallonDiscount).toFixed(2)}¢
+                      </p>
+                    </div>
+                  )}
+                  {opportunityData.perGallonDiscount && opportunityData.monthlyGallons &&
+                   parseFloat(opportunityData.perGallonDiscount) > 0 && parseFloat(opportunityData.monthlyGallons) > 0 && (
+                    <div>
+                      <p className="text-xs text-gray-500">Est. annual savings</p>
+                      <p className="font-semibold text-dark-orange">
+                        ${(parseFloat(opportunityData.perGallonDiscount) * parseFloat(opportunityData.monthlyGallons) * 12).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      </p>
+                    </div>
+                  )}
+                  {opportunityData.additionalSavings && opportunityData.additionalSavings.trim().length > 0 && (
+                    <div>
+                      <p className="text-xs text-gray-500">Additional savings</p>
+                      <p className="font-medium text-off-black text-sm">
+                        {opportunityData.additionalSavings.split('\n').length} item{opportunityData.additionalSavings.split('\n').length !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Status Badge */}

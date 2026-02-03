@@ -146,7 +146,7 @@ Vercel will automatically detect and redeploy (~2 minutes)
 
 For each analyzed address, you'll see:
 
-- **Within 5 miles**: Number of Circle K stores
+- **Within 2 miles**: Number of Circle K stores
 - **Within 10 miles**: Number of Circle K stores
 - **Distance**: Calculated in miles for each store
 - **Truck Accessible**: Indicated with ✓ when available
