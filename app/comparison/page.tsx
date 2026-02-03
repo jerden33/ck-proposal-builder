@@ -59,8 +59,8 @@ export default function ComparisonPage() {
   // Filter locations by proximity when search center changes
   useEffect(() => {
     if (!searchCenter) {
-      setFilteredCircleKStores(circleKStores);
-      setFilteredFedexLocations(fedexLocations);
+      setFilteredCircleKStores([]);
+      setFilteredFedexLocations([]);
       return;
     }
 
@@ -272,7 +272,7 @@ export default function ComparisonPage() {
           FedEx vs Circle K Distribution Network
         </h1>
         <p className="text-sm text-gray-600">
-          Comparing FedEx Ground Hubs with Circle K convenience stores
+          Comparing FedEx Freight Service Centers with Circle K convenience stores
         </p>
       </div>
 
@@ -345,7 +345,7 @@ export default function ComparisonPage() {
                 style={{ backgroundColor: '#EC6707' }}
               />
               <span className="text-sm">
-                Circle K ({searchCenter ? filteredCircleKStores.length.toLocaleString() : circleKStores.length.toLocaleString()})
+                Circle K {searchCenter && `(${filteredCircleKStores.length.toLocaleString()})`}
               </span>
             </div>
           </label>
@@ -363,7 +363,7 @@ export default function ComparisonPage() {
                 style={{ backgroundColor: '#4D148C' }}
               />
               <span className="text-sm">
-                FedEx Ground Hubs ({searchCenter ? filteredFedexLocations.length.toLocaleString() : fedexLocations.length.toLocaleString()})
+                FedEx Service Centers {searchCenter && `(${filteredFedexLocations.length.toLocaleString()})`}
               </span>
             </div>
           </label>
@@ -386,7 +386,7 @@ export default function ComparisonPage() {
               className="w-3 h-3 rounded-full border-2 border-white shadow"
               style={{ backgroundColor: '#4D148C' }}
             />
-            <span>FedEx Distribution</span>
+            <span>FedEx Service Center</span>
           </div>
         </div>
       </div>
@@ -394,34 +394,35 @@ export default function ComparisonPage() {
       {/* Stats Panel */}
       <div className="absolute bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 z-10 max-w-xs">
         <h3 className="font-bold mb-2">Network Statistics</h3>
-        <div className="space-y-1 text-sm">
-          <div className="flex justify-between">
-            <span className="text-gray-600">Circle K Locations:</span>
-            <span className="font-semibold">
-              {searchCenter ? filteredCircleKStores.length.toLocaleString() : circleKStores.length.toLocaleString()}
-            </span>
+        {!searchCenter ? (
+          <div className="text-sm text-gray-500 italic">
+            Search for a location to view network statistics
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">FedEx Ground Hubs:</span>
-            <span className="font-semibold">
-              {searchCenter ? filteredFedexLocations.length.toLocaleString() : fedexLocations.length.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex justify-between pt-2 border-t">
-            <span className="text-gray-600">Total Locations:</span>
-            <span className="font-semibold">
-              {searchCenter
-                ? (filteredCircleKStores.length + filteredFedexLocations.length).toLocaleString()
-                : (circleKStores.length + fedexLocations.length).toLocaleString()
-              }
-            </span>
-          </div>
-          {searchCenter && (
-            <div className="pt-2 border-t text-xs text-gray-500">
-              Filtered within {radiusMiles} miles
+        ) : (
+          <div className="space-y-1 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Circle K Locations:</span>
+              <span className="font-semibold">
+                {filteredCircleKStores.length.toLocaleString()}
+              </span>
             </div>
-          )}
-        </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">FedEx Service Centers:</span>
+              <span className="font-semibold">
+                {filteredFedexLocations.length.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex justify-between pt-2 border-t">
+              <span className="text-gray-600">Total Locations:</span>
+              <span className="font-semibold">
+                {(filteredCircleKStores.length + filteredFedexLocations.length).toLocaleString()}
+              </span>
+            </div>
+            <div className="pt-2 border-t text-xs text-gray-500">
+              Within {radiusMiles} miles of search area
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

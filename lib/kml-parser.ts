@@ -23,8 +23,8 @@ export async function parseFedexKML(): Promise<FedexLocation[]> {
     const categoryElement = folder.getElementsByTagName('name')[0];
     const category = categoryElement?.textContent || 'Unknown';
 
-    // Only process Ground Hubs
-    if (category !== 'Ground Hubs') {
+    // Only process Freight Service Centers
+    if (category !== 'Freight Service Centers') {
       continue;
     }
 
