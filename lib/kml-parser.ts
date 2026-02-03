@@ -9,7 +9,7 @@ export interface FedexLocation {
 }
 
 export async function parseFedexKML(): Promise<FedexLocation[]> {
-  const response = await fetch('/Fedex Distribution Network.kml');
+  const response = await fetch('/fedex-distribution-network.kml');
   const kmlText = await response.text();
 
   const parser = new DOMParser();
