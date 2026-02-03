@@ -118,20 +118,20 @@ async function main() {
   const locations = [];
   const folders = xmlDoc.getElementsByTagName('Folder');
 
-  console.log('🔍 Looking for Freight Service Centers...');
+  console.log('🔍 Looking for Ground Facilities...');
 
-  // Find the Freight Service Centers folder
+  // Find the Ground Facilities folder
   for (let i = 0; i < folders.length; i++) {
     const folder = folders[i];
     const categoryElement = folder.getElementsByTagName('name')[0];
     const category = categoryElement?.textContent || 'Unknown';
 
-    if (category !== 'Freight Service Centers') {
+    if (category !== 'Ground Facilities') {
       continue;
     }
 
     const placemarks = folder.getElementsByTagName('Placemark');
-    console.log(`✓ Found ${placemarks.length} Freight Service Centers`);
+    console.log(`✓ Found ${placemarks.length} Ground Facilities`);
     console.log('');
     console.log('Starting geocoding...');
     console.log('-'.repeat(60));
