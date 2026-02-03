@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
 const { DOMParser } = require('@xmldom/xmldom');
 
 // Load environment variables
@@ -15,27 +16,41 @@ if (!MAPBOX_TOKEN) {
   process.exit(1);
 }
 
-// Geocode an address using Mapbox
+// Geocode an address using Mapbox (with https module)
 async function geocodeAddress(address, city, state, zip) {
   const fullAddress = `${address}, ${city}, ${state} ${zip}, USA`;
   const encodedAddress = encodeURIComponent(fullAddress);
   const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodedAddress}.json?access_token=${MAPBOX_TOKEN}&country=US&limit=1`;
 
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
+  return new Promise((resolve) => {
+    https.get(url, (res) => {
+      let data = '';
 
-    if (data.features && data.features.length > 0) {
-      const [lng, lat] = data.features[0].center;
-      return { lat, lng };
-    }
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
 
-    console.warn(`  ⚠ Could not geocode: ${fullAddress}`);
-    return null;
-  } catch (error) {
-    console.error(`  ✗ Error geocoding ${fullAddress}:`, error.message);
-    return null;
-  }
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+
+          if (json.features && json.features.length > 0) {
+            const [lng, lat] = json.features[0].center;
+            resolve({ lat, lng });
+          } else {
+            console.warn(`  ⚠ Could not geocode: ${fullAddress}`);
+            resolve(null);
+          }
+        } catch (e) {
+          console.error(`  ✗ JSON parse error for ${fullAddress}:`, e.message);
+          resolve(null);
+        }
+      });
+    }).on('error', (err) => {
+      console.error(`  ✗ Request error for ${fullAddress}:`, err.message);
+      resolve(null);
+    });
+  });
 }
 
 // Add delay to avoid rate limiting
