@@ -96,8 +96,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ## 6. File Specifications
 
 ### Product Images
-- **Recommended size:** 600×400px
-- **Aspect ratio:** 3:2
+- **Recommended size:** 600×338px
+- **Aspect ratio:** 16:9
 - **Max file size:** 2MB
 - **Formats:** JPG, PNG, WebP, SVG
 

@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { getUserProfile, getUserProposals, archiveProposal, duplicateProposal } from '@/lib/supabase/queries'
+import { getUserProfile, getUserProposals, archiveProposal, duplicateProposal, deleteProposal } from '@/lib/supabase/queries'
 import type { UserProfile, ProposalRecord } from '@/lib/types'
-import { Plus, Search, FileText, Eye, Copy, Archive, Settings, LogOut, Calendar, ExternalLink } from 'lucide-react'
+import { Plus, Search, FileText, Eye, Copy, Archive, Settings, LogOut, Calendar, ExternalLink, Trash2, User } from 'lucide-react'
 import Image from 'next/image'
 
 export default function DashboardPage() {
@@ -55,6 +55,24 @@ export default function DashboardPage() {
     }
   }
 
+  const handleDelete = async (id: string, customerName: string) => {
+    // Only admins and super admins can delete
+    if (!profile?.is_admin && !profile?.is_super_admin) {
+      alert('Only administrators can permanently delete proposals.')
+      return
+    }
+
+    const confirmMessage = `⚠️ WARNING: This will PERMANENTLY DELETE this proposal!\n\nCustomer: ${customerName}\n\nThis action CANNOT be undone. Are you absolutely sure?`
+    if (confirm(confirmMessage)) {
+      const success = await deleteProposal(id)
+      if (success) {
+        await loadData()
+      } else {
+        alert('Failed to delete proposal. Please check console for errors.')
+      }
+    }
+  }
+
   const filteredProposals = proposals.filter(p => {
     const matchesSearch = p.customer_name.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesStatus = statusFilter === 'all' || p.status === statusFilter
@@ -75,7 +93,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-off-white to-white">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -93,10 +111,12 @@ export default function DashboardPage() {
             <div className="flex items-center gap-3">
               <div className="text-right mr-4">
                 <p className="text-sm font-semibold text-off-black">{profile?.full_name || profile?.email}</p>
-                <p className="text-xs text-gray-500">{profile?.is_admin ? 'Administrator' : 'User'}</p>
+                <p className="text-xs text-gray-500">
+                  {profile?.is_super_admin ? 'Super Administrator' : profile?.is_admin ? 'Administrator' : 'User'}
+                </p>
               </div>
 
-              {profile?.is_admin && (
+              {(profile?.is_admin || profile?.is_super_admin) && (
                 <button
                   onClick={() => router.push('/admin')}
                   className="btn-secondary flex items-center gap-2"
@@ -219,6 +239,15 @@ export default function DashboardPage() {
                   {proposal.customer_name}
                 </h3>
 
+                {/* Show proposal owner for super admins only */}
+                {profile?.is_super_admin && proposal.profiles && (
+                  <div className="flex items-center gap-1 text-xs text-gray-500 mb-3 bg-gray-50 px-2 py-1 rounded">
+                    <User size={12} />
+                    <span className="font-medium">Created by:</span>
+                    <span>{proposal.profiles.full_name || proposal.profiles.email}</span>
+                  </div>
+                )}
+
                 {/* Dates */}
                 <div className="space-y-1 mb-6">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -258,6 +287,16 @@ export default function DashboardPage() {
                   >
                     <Archive size={14} />
                     Archive
+                  </button>
+                )}
+
+                {(profile?.is_admin || profile?.is_super_admin) && (
+                  <button
+                    onClick={() => handleDelete(proposal.id, proposal.customer_name)}
+                    className="w-full mt-2 py-2 text-sm text-red-600 hover:text-white hover:bg-red-600 rounded-lg transition-colors flex items-center justify-center gap-2 border border-red-200"
+                  >
+                    <Trash2 size={14} />
+                    Delete Permanently
                   </button>
                 )}
               </div>

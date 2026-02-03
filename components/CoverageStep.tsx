@@ -90,8 +90,8 @@ export function CoverageStep({ addresses, addAddress, removeAddress, updateAddre
                       <div className="mt-5 pt-5 border-t border-gray-100">
                         <div className="grid grid-cols-2 gap-4 mb-5">
                           <div className="coverage-stat">
-                            <p className="text-sm text-gray-600 mb-1">Within 5 miles</p>
-                            <p className="coverage-number">{addr.coverage.within5mi}</p>
+                            <p className="text-sm text-gray-600 mb-1">Within 2 miles</p>
+                            <p className="coverage-number">{addr.coverage.within2mi}</p>
                             <p className="text-xs text-gray-500 mt-1">Circle K locations</p>
                           </div>
                           <div className="coverage-stat">
@@ -111,7 +111,7 @@ export function CoverageStep({ addresses, addAddress, removeAddress, updateAddre
                           <div className="mt-4">
                             <h4 className="font-semibold text-sm mb-3">Nearest locations (within 10 miles)</h4>
                             <div className="space-y-2 max-h-60 overflow-y-auto">
-                              {addr.nearbyStores.slice(0, 10).map((store: any, idx: number) => (
+                              {addr.nearbyStores.slice(0, 20).map((store: any, idx: number) => (
                                 <div key={idx} className="flex items-start gap-3 p-3 bg-off-white rounded-lg text-sm">
                                   <div className="w-6 h-6 rounded-full bg-brand-orange flex items-center justify-center flex-shrink-0 mt-0.5">
                                     <span className="text-white text-xs font-bold">{idx + 1}</span>

@@ -76,7 +76,7 @@ export interface Address {
   formattedAddress?: string
   nearbyStores: any[]
   coverage: {
-    within5mi: number
+    within2mi: number
     within10mi: number
   }
   analyzing?: boolean
@@ -104,6 +104,7 @@ export interface UserProfile {
   email: string
   full_name: string | null
   is_admin: boolean
+  is_super_admin: boolean
   created_at: string
 }
 
@@ -121,6 +122,10 @@ export interface ProposalRecord {
     addresses: Address[]
     sections: ProposalSections
     products: Product[]
+  }
+  profiles?: {
+    email: string
+    full_name: string | null
   }
 }
 

@@ -14,6 +14,7 @@ export interface CircleKStore {
   status?: string
   truckAccessible?: boolean
   numTruckLanes?: number
+  distance?: number // Distance from center point in miles (added when calculating nearby stores)
 }
 
 let storeData: CircleKStore[] = []
@@ -105,21 +106,26 @@ function toRad(degrees: number): number {
  * Get coverage statistics for a location
  */
 export function getCoverageStats(center: Coordinates): {
-  within5mi: number
+  within2mi: number
   within10mi: number
   within25mi: number
-  truckAccessible5mi: number
+  truckAccessible2mi: number
   truckAccessible10mi: number
 } {
-  const within5 = findStoresWithinRadius(center, 5)
+  console.log(`[getCoverageStats] Calculating for coordinates:`, center)
+  console.log(`[getCoverageStats] Total stores in database: ${storeData.length}`)
+
+  const within2 = findStoresWithinRadius(center, 2)
   const within10 = findStoresWithinRadius(center, 10)
   const within25 = findStoresWithinRadius(center, 25)
-  
+
+  console.log(`[getCoverageStats] Stores found: ${within2.length} within 2mi, ${within10.length} within 10mi, ${within25.length} within 25mi`)
+
   return {
-    within5mi: within5.length,
+    within2mi: within2.length,
     within10mi: within10.length,
     within25mi: within25.length,
-    truckAccessible5mi: within5.filter(s => s.truckAccessible).length,
+    truckAccessible2mi: within2.filter(s => s.truckAccessible).length,
     truckAccessible10mi: within10.filter(s => s.truckAccessible).length
   }
 }

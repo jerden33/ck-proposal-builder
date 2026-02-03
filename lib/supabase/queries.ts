@@ -34,20 +34,65 @@ export async function getUserProposals(): Promise<ProposalRecord[]> {
   const supabase = createClient()
   const user = await getCurrentUser()
 
-  if (!user) return []
+  console.log('[getUserProposals] Current user:', user?.id, user?.email)
 
-  const { data, error } = await supabase
-    .from('proposals')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('updated_at', { ascending: false })
-
-  if (error) {
-    console.error('Error fetching proposals:', error)
+  if (!user) {
+    console.log('[getUserProposals] No user found, returning empty array')
     return []
   }
 
-  return data || []
+  // Check if user is super admin (only super admins can see all proposals)
+  const profile = await getUserProfile()
+  console.log('[getUserProposals] User profile:', {
+    id: profile?.id,
+    email: profile?.email,
+    is_admin: profile?.is_admin,
+    is_super_admin: profile?.is_super_admin
+  })
+
+  // Build query - fetch proposals WITHOUT join to avoid FK dependency
+  let query = supabase
+    .from('proposals')
+    .select('*')
+    .order('updated_at', { ascending: false })
+
+  // Only super admins can see all proposals, everyone else sees only their own
+  if (!profile?.is_super_admin) {
+    console.log('[getUserProposals] User is NOT super admin, filtering to own proposals only')
+    query = query.eq('user_id', user.id)
+  } else {
+    console.log('[getUserProposals] User IS super admin, fetching ALL proposals')
+  }
+
+  const { data: proposals, error } = await query
+
+  if (error) {
+    console.error('[getUserProposals] Error fetching proposals:', error)
+    return []
+  }
+
+  console.log('[getUserProposals] Found', proposals?.length || 0, 'proposals')
+
+  // If super admin and we have proposals, fetch user profiles separately
+  if (profile?.is_super_admin && proposals && proposals.length > 0) {
+    const userIds = Array.from(new Set(proposals.map(p => p.user_id)))
+
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, email, full_name')
+      .in('id', userIds)
+
+    // Create a map of profiles
+    const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || [])
+
+    // Attach profile data to each proposal
+    return proposals.map(proposal => ({
+      ...proposal,
+      profiles: profilesMap.get(proposal.user_id) || null
+    })) as ProposalRecord[]
+  }
+
+  return (proposals || []) as ProposalRecord[]
 }
 
 export async function getProposal(id: string): Promise<ProposalRecord | null> {
@@ -124,6 +169,35 @@ export async function updateProposal(id: string, proposalData: Partial<ProposalR
 
 export async function archiveProposal(id: string): Promise<boolean> {
   return updateProposal(id, { status: 'archived' })
+}
+
+export async function deleteProposal(id: string): Promise<boolean> {
+  const supabase = createClient()
+  const user = await getCurrentUser()
+
+  if (!user) {
+    console.error('User not authenticated')
+    return false
+  }
+
+  // Check if user is admin
+  const profile = await getUserProfile()
+  if (!profile?.is_admin) {
+    console.error('User is not authorized to delete proposals')
+    return false
+  }
+
+  const { error } = await supabase
+    .from('proposals')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    console.error('Error deleting proposal:', error)
+    return false
+  }
+
+  return true
 }
 
 export async function duplicateProposal(id: string): Promise<{ id: string; url: string } | null> {
@@ -302,50 +376,69 @@ export async function getImageSettings(): Promise<import('@/lib/types').ImageSet
 }
 
 export async function updateProductImage(productId: string, imageUrl: string | null): Promise<boolean> {
+  console.log('[updateProductImage] START - productId:', productId, 'imageUrl:', imageUrl)
+
   const supabase = createClient()
   const user = await getCurrentUser()
 
-  if (!user) return false
+  console.log('[updateProductImage] Current user:', user?.id)
 
-  // Check if user is admin
-  const profile = await getUserProfile()
-  if (!profile?.is_admin) {
-    console.error('User is not authorized to update product images')
+  if (!user) {
+    console.error('[updateProductImage] FAIL - No user found')
     return false
   }
 
+  // Check if user is admin
+  const profile = await getUserProfile()
+  console.log('[updateProductImage] User profile:', { id: profile?.id, email: profile?.email, is_admin: profile?.is_admin })
+
+  if (!profile?.is_admin) {
+    console.error('[updateProductImage] FAIL - User is not admin')
+    return false
+  }
+
+  console.log('[updateProductImage] Fetching current product_images from database...')
+
   // Get current product_images setting
-  const { data: currentSetting } = await supabase
+  const { data: currentSetting, error: fetchError } = await supabase
     .from('app_settings')
     .select('value')
     .eq('key', 'product_images')
     .single()
 
+  console.log('[updateProductImage] Current setting:', currentSetting, 'Fetch error:', fetchError)
+
   let productImages: any = { fleet: null, universal: null, digital: null }
   if (currentSetting) {
     try {
       productImages = JSON.parse(currentSetting.value)
-    } catch {
-      // Keep default
+      console.log('[updateProductImage] Parsed existing images:', productImages)
+    } catch (e) {
+      console.error('[updateProductImage] Failed to parse JSON:', e)
     }
   }
 
   // Update the specific product
   productImages[productId] = imageUrl
+  console.log('[updateProductImage] Updated images object:', productImages)
+
+  const stringified = JSON.stringify(productImages)
+  console.log('[updateProductImage] Stringified for database:', stringified)
 
   const { error } = await supabase
     .from('app_settings')
     .update({
-      value: JSON.stringify(productImages),
+      value: stringified,
       updated_at: new Date().toISOString()
     })
     .eq('key', 'product_images')
 
   if (error) {
-    console.error('Error updating product image:', error)
+    console.error('[updateProductImage] FAIL - Database update error:', error)
     return false
   }
 
+  console.log('[updateProductImage] SUCCESS - Image URL saved to database!')
   return true
 }
 

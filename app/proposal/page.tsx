@@ -58,6 +58,9 @@ function ProposalContent() {
 
         setData(proposal.data)
         setImageSettings(images)
+        console.log('[ProposalPage] Image settings loaded:', images)
+        console.log('[ProposalPage] Hero image URL:', images.hero_image)
+        console.log('[ProposalPage] Product images:', images.product_images)
 
         // Increment view count (fire and forget)
         incrementProposalViews(proposalId).catch(console.error)
@@ -128,48 +131,34 @@ function ProposalContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-[#FFF7ED]/30 to-white">
-      {/* SOPHISTICATED HERO SECTION */}
-      <section className="relative overflow-hidden border-b-4 border-[#ED8B00]">
-        {imageSettings.hero_image ? (
-          /* Hero with Image */
+      {/* HERO IMAGE - Full prominence */}
+      {imageSettings.hero_image && (
+        <section className="relative overflow-hidden border-b-4 border-[#ED8B00]">
           <div className="relative h-[400px]">
             <Image
               src={imageSettings.hero_image}
               alt="Hero"
               fill
-              className="object-cover opacity-20"
+              className="object-cover"
               unoptimized
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-[#FFF7ED] to-white/95"></div>
+          </div>
+        </section>
+      )}
 
-            <div className="relative z-10 max-w-6xl mx-auto px-8 py-12 h-full flex flex-col justify-center">
-              <h1 className="text-4xl font-bold text-[#D64303] mb-2">
-                Fleet Fuel Solutions Proposal
-              </h1>
-              <p className="text-xl text-gray-600 mb-4">
-                Prepared for {opportunityData.customerName}
-              </p>
-              <p className="text-sm text-gray-500">
-                {today} • Circle K Pro
-              </p>
-            </div>
-          </div>
-        ) : (
-          /* Hero without Image - Clean & Minimal */
-          <div className="bg-gradient-to-b from-[#FFF7ED] to-white py-12">
-            <div className="max-w-6xl mx-auto px-8">
-              <h1 className="text-4xl font-bold text-[#D64303] mb-2">
-                Fleet Fuel Solutions Proposal
-              </h1>
-              <p className="text-xl text-gray-600 mb-4">
-                Prepared for {opportunityData.customerName}
-              </p>
-              <p className="text-sm text-gray-500">
-                {today} • Circle K Pro
-              </p>
-            </div>
-          </div>
-        )}
+      {/* TITLE SECTION - Below hero, above content */}
+      <section className="bg-gradient-to-b from-[#FFF7ED] to-white py-12 border-b border-gray-200">
+        <div className="max-w-6xl mx-auto px-8">
+          <h1 className="text-4xl font-bold text-[#D64303] mb-2">
+            Fleet Fuel Solutions Proposal
+          </h1>
+          <p className="text-xl text-gray-600 mb-4">
+            Prepared for {opportunityData.customerName}
+          </p>
+          <p className="text-sm text-gray-500">
+            {today} • Circle K Pro
+          </p>
+        </div>
       </section>
 
       {/* EXECUTIVE SUMMARY */}
@@ -332,8 +321,8 @@ function ProposalContent() {
                   className="bg-white rounded-xl border-2 border-[#FED7AA] border-l-4 border-l-[#ED8B00] overflow-hidden transition-shadow hover:shadow-lg"
                   style={{ boxShadow: 'var(--shadow-md)' }}
                 >
-                  {/* Product Image or Placeholder - Full Width at Top */}
-                  <div className="w-full h-[400px] relative">
+                  {/* Product Image or Placeholder - Full Width at Top with 16:9 Aspect Ratio */}
+                  <div className="w-full aspect-[16/9] relative">
                     {productImage ? (
                       <Image
                         src={productImage}
@@ -343,12 +332,12 @@ function ProposalContent() {
                         unoptimized
                       />
                     ) : (
-                      /* Elegant Placeholder - 600x400 equivalent, 3:2 ratio */
+                      /* Elegant Placeholder - 600x338 equivalent, 16:9 ratio */
                       <div className="w-full h-full bg-gradient-to-br from-[#FFF7ED] to-[#FFEDD5] border-b-2 border-dashed border-[#FED7AA] flex items-center justify-center">
                         <div className="text-center">
                           <ImageIcon size={48} className="text-[#ED8B00]/40 mx-auto mb-3" />
                           <p className="text-sm text-gray-400 font-medium">Product Image</p>
-                          <p className="text-xs text-gray-400 mt-1">600×400px recommended</p>
+                          <p className="text-xs text-gray-400 mt-1">600×338px (16:9 ratio)</p>
                         </div>
                       </div>
                     )}
@@ -411,10 +400,10 @@ function ProposalContent() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="bg-white rounded-xl border border-[#FED7AA] p-4 text-center">
                           <div className="text-4xl font-bold text-[#ED8B00] mb-1">
-                            {address.coverage.within5mi}
+                            {address.coverage.within2mi}
                           </div>
                           <div className="text-sm text-gray-600 uppercase tracking-wide">
-                            Within 5 Miles
+                            Within 2 Miles
                           </div>
                         </div>
                         <div className="bg-white rounded-xl border border-[#FED7AA] p-4 text-center">

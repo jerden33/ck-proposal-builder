@@ -154,10 +154,10 @@ export default function Home() {
   const addAddress = () => {
     setAddresses(prev => [...prev, { 
       id: Date.now(), 
-      address: '', 
+      address: '',
       geocoded: false,
       nearbyStores: [],
-      coverage: { within5mi: 0, within10mi: 0 }
+      coverage: { within2mi: 0, within10mi: 0 }
     }])
   }
 
@@ -192,17 +192,30 @@ export default function Home() {
       const result = await geocodeAddress(address.address)
       
       if (result) {
-        // Find nearby stores
-        const storesWithin10mi = findStoresWithinRadius(result.coordinates, 10)
-        
-        // Add distance to each store
-        const storesWithDistance = storesWithin10mi.map(store => ({
-          ...store,
-          distance: calculateDistanceHelper(result.coordinates, store.coordinates)
-        }))
+        // Find nearby stores - get stores within 200 miles for comprehensive map display
+        const nearbyStores = findStoresWithinRadius(result.coordinates, 200)
+        console.log(`[Coverage Analysis] Found ${nearbyStores.length} stores within 200 miles`)
+
+        // Add distance to each store and limit to nearest 100
+        const storesWithDistance = nearbyStores
+          .map(store => ({
+            ...store,
+            distance: calculateDistanceHelper(result.coordinates, store.coordinates)
+          }))
+          .sort((a, b) => a.distance - b.distance)
+          .slice(0, 100)
+
+        console.log(`[Coverage Analysis] Storing ${storesWithDistance.length} nearest stores for map display`)
+        console.log(`[Coverage Analysis] Distance range: ${storesWithDistance[0]?.distance.toFixed(2)} mi to ${storesWithDistance[storesWithDistance.length - 1]?.distance.toFixed(2)} mi`)
 
         // Get coverage stats
         const stats = getCoverageStats(result.coordinates)
+        console.log(`[Coverage Analysis] Coverage stats:`, stats)
+
+        // Count stores in nearbyStores within specific distances for verification
+        const storesIn2mi = storesWithDistance.filter(s => s.distance <= 2).length
+        const storesIn10mi = storesWithDistance.filter(s => s.distance <= 10).length
+        console.log(`[Coverage Analysis] Verification - stores in display list: ${storesIn2mi} within 2mi, ${storesIn10mi} within 10mi`)
 
         // Update address with results
         setAddresses(prev => prev.map(addr =>
@@ -214,7 +227,7 @@ export default function Home() {
             formattedAddress: result.formattedAddress,
             nearbyStores: storesWithDistance,
             coverage: {
-              within5mi: stats.within5mi,
+              within2mi: stats.within2mi,
               within10mi: stats.within10mi
             },
             analyzing: false

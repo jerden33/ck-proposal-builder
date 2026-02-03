@@ -30,20 +30,6 @@ export default function RootLayout({
     <html lang="en" className={`${dmSans.variable} ${spaceGrotesk.variable}`}>
       <body className={dmSans.className}>
         {children}
-        
-        {/* Circle K Pro Logo - Bottom Right */}
-        <div className="fixed bottom-8 right-8 z-50 pointer-events-none">
-          <div className="bg-white/90 backdrop-blur-sm rounded-lg px-4 py-3 shadow-lg border border-gray-100">
-            <Image
-              src="/circle-k-pro-logo.png"
-              alt="Circle K Pro"
-              width={160}
-              height={48}
-              priority
-              className="w-40 h-auto"
-            />
-          </div>
-        </div>
       </body>
     </html>
   )
