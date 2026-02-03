@@ -23,6 +23,11 @@ export async function parseFedexKML(): Promise<FedexLocation[]> {
     const categoryElement = folder.getElementsByTagName('name')[0];
     const category = categoryElement?.textContent || 'Unknown';
 
+    // Only process Ground Hubs
+    if (category !== 'Ground Hubs') {
+      continue;
+    }
+
     const placemarks = folder.getElementsByTagName('Placemark');
 
     for (let j = 0; j < placemarks.length; j++) {

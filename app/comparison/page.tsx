@@ -30,6 +30,110 @@ export default function ComparisonPage() {
   const [loading, setLoading] = useState(true);
   const circleKMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const fedexMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchCenter, setSearchCenter] = useState<[number, number] | null>(null);
+  const [radiusMiles, setRadiusMiles] = useState(100);
+  const [filteredCircleKStores, setFilteredCircleKStores] = useState<CircleKStore[]>([]);
+  const [filteredFedexLocations, setFilteredFedexLocations] = useState<FedexLocation[]>([]);
+
+  // Calculate distance between two coordinates in miles
+  const calculateDistance = (
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number
+  ): number => {
+    const R = 3959; // Earth's radius in miles
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  // Filter locations by proximity when search center changes
+  useEffect(() => {
+    if (!searchCenter) {
+      setFilteredCircleKStores(circleKStores);
+      setFilteredFedexLocations(fedexLocations);
+      return;
+    }
+
+    const [centerLng, centerLat] = searchCenter;
+
+    const filteredStores = circleKStores.filter((store) => {
+      const distance = calculateDistance(
+        centerLat,
+        centerLng,
+        store.coordinates.lat,
+        store.coordinates.lng
+      );
+      return distance <= radiusMiles;
+    });
+
+    const filteredFedex = fedexLocations.filter((location) => {
+      const distance = calculateDistance(
+        centerLat,
+        centerLng,
+        location.coordinates.lat,
+        location.coordinates.lng
+      );
+      return distance <= radiusMiles;
+    });
+
+    setFilteredCircleKStores(filteredStores);
+    setFilteredFedexLocations(filteredFedex);
+  }, [searchCenter, radiusMiles, circleKStores, fedexLocations]);
+
+  // Handle search
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      setSearchCenter(null);
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+          searchQuery
+        )}.json?access_token=${mapboxgl.accessToken}&country=US`
+      );
+      const data = await response.json();
+
+      if (data.features && data.features.length > 0) {
+        const [lng, lat] = data.features[0].center;
+        setSearchCenter([lng, lat]);
+
+        if (map.current) {
+          map.current.flyTo({
+            center: [lng, lat],
+            zoom: 8,
+            duration: 2000,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error searching location:', error);
+    }
+  };
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setSearchCenter(null);
+    if (map.current) {
+      map.current.flyTo({
+        center: [-98.5795, 39.8283],
+        zoom: 4,
+        duration: 2000,
+      });
+    }
+  };
 
   // Load data
   useEffect(() => {
@@ -83,7 +187,7 @@ export default function ComparisonPage() {
     circleKMarkersRef.current = [];
 
     if (showCircleK) {
-      circleKStores.forEach((store) => {
+      filteredCircleKStores.forEach((store) => {
         const el = document.createElement('div');
         el.className = 'circle-k-marker';
         el.style.backgroundColor = '#EC6707'; // Circle K orange
@@ -110,7 +214,7 @@ export default function ComparisonPage() {
         circleKMarkersRef.current.push(marker);
       });
     }
-  }, [circleKStores, showCircleK, loading]);
+  }, [filteredCircleKStores, showCircleK, loading]);
 
   // Add FedEx markers
   useEffect(() => {
@@ -121,7 +225,7 @@ export default function ComparisonPage() {
     fedexMarkersRef.current = [];
 
     if (showFedex) {
-      fedexLocations.forEach((location) => {
+      filteredFedexLocations.forEach((location) => {
         const el = document.createElement('div');
         el.className = 'fedex-marker';
         el.style.backgroundColor = '#4D148C'; // FedEx purple
@@ -147,7 +251,7 @@ export default function ComparisonPage() {
         fedexMarkersRef.current.push(marker);
       });
     }
-  }, [fedexLocations, showFedex, loading]);
+  }, [filteredFedexLocations, showFedex, loading]);
 
   if (loading) {
     return (
@@ -168,8 +272,59 @@ export default function ComparisonPage() {
           FedEx vs Circle K Distribution Network
         </h1>
         <p className="text-sm text-gray-600">
-          Comparing FedEx distribution locations with Circle K convenience stores
+          Comparing FedEx Ground Hubs with Circle K convenience stores
         </p>
+      </div>
+
+      {/* Search Panel */}
+      <div className="absolute top-32 left-4 bg-white rounded-lg shadow-lg p-4 max-w-md z-10">
+        <h2 className="font-bold mb-3">Search Location</h2>
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="Enter city, state, or zip code..."
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              onClick={handleSearch}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              Search
+            </button>
+          </div>
+          {searchCenter && (
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600">
+                Radius:
+                <input
+                  type="number"
+                  value={radiusMiles}
+                  onChange={(e) => setRadiusMiles(Number(e.target.value))}
+                  min="10"
+                  max="500"
+                  step="10"
+                  className="ml-2 w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                />
+                <span className="ml-1">miles</span>
+              </label>
+              <button
+                onClick={handleClearSearch}
+                className="ml-auto px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+          {searchCenter && (
+            <p className="text-xs text-gray-500">
+              Showing locations within {radiusMiles} miles of search area
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Controls Panel */}
@@ -190,7 +345,7 @@ export default function ComparisonPage() {
                 style={{ backgroundColor: '#EC6707' }}
               />
               <span className="text-sm">
-                Circle K ({circleKStores.length.toLocaleString()})
+                Circle K ({searchCenter ? filteredCircleKStores.length.toLocaleString() : circleKStores.length.toLocaleString()})
               </span>
             </div>
           </label>
@@ -208,7 +363,7 @@ export default function ComparisonPage() {
                 style={{ backgroundColor: '#4D148C' }}
               />
               <span className="text-sm">
-                FedEx ({fedexLocations.length.toLocaleString()})
+                FedEx Ground Hubs ({searchCenter ? filteredFedexLocations.length.toLocaleString() : fedexLocations.length.toLocaleString()})
               </span>
             </div>
           </label>
@@ -242,18 +397,30 @@ export default function ComparisonPage() {
         <div className="space-y-1 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-600">Circle K Locations:</span>
-            <span className="font-semibold">{circleKStores.length.toLocaleString()}</span>
+            <span className="font-semibold">
+              {searchCenter ? filteredCircleKStores.length.toLocaleString() : circleKStores.length.toLocaleString()}
+            </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">FedEx Locations:</span>
-            <span className="font-semibold">{fedexLocations.length.toLocaleString()}</span>
+            <span className="text-gray-600">FedEx Ground Hubs:</span>
+            <span className="font-semibold">
+              {searchCenter ? filteredFedexLocations.length.toLocaleString() : fedexLocations.length.toLocaleString()}
+            </span>
           </div>
           <div className="flex justify-between pt-2 border-t">
             <span className="text-gray-600">Total Locations:</span>
             <span className="font-semibold">
-              {(circleKStores.length + fedexLocations.length).toLocaleString()}
+              {searchCenter
+                ? (filteredCircleKStores.length + filteredFedexLocations.length).toLocaleString()
+                : (circleKStores.length + fedexLocations.length).toLocaleString()
+              }
             </span>
           </div>
+          {searchCenter && (
+            <div className="pt-2 border-t text-xs text-gray-500">
+              Filtered within {radiusMiles} miles
+            </div>
+          )}
         </div>
       </div>
     </div>
