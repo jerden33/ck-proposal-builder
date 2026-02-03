@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { parseFedexKML, FedexLocation } from '@/lib/kml-parser';
+import { loadFedexGroundLocations, FedexGroundLocation } from '@/lib/fedex-data';
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
 
@@ -24,7 +24,7 @@ export default function ComparisonPage() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [circleKStores, setCircleKStores] = useState<CircleKStore[]>([]);
-  const [fedexLocations, setFedexLocations] = useState<FedexLocation[]>([]);
+  const [fedexLocations, setFedexLocations] = useState<FedexGroundLocation[]>([]);
   const [showCircleK, setShowCircleK] = useState(true);
   const [showFedex, setShowFedex] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -34,7 +34,7 @@ export default function ComparisonPage() {
   const [searchCenter, setSearchCenter] = useState<[number, number] | null>(null);
   const [radiusMiles, setRadiusMiles] = useState(100);
   const [filteredCircleKStores, setFilteredCircleKStores] = useState<CircleKStore[]>([]);
-  const [filteredFedexLocations, setFilteredFedexLocations] = useState<FedexLocation[]>([]);
+  const [filteredFedexLocations, setFilteredFedexLocations] = useState<FedexGroundLocation[]>([]);
 
   // Calculate distance between two coordinates in miles
   const calculateDistance = (
@@ -146,7 +146,7 @@ export default function ComparisonPage() {
 
         const [stores, fedex] = await Promise.all([
           Promise.resolve(getStores()),
-          parseFedexKML(),
+          loadFedexGroundLocations(),
         ]);
 
         setCircleKStores(stores);
@@ -238,8 +238,12 @@ export default function ComparisonPage() {
 
         const popup = new mapboxgl.Popup({ offset: 15 }).setHTML(
           `<div style="font-family: sans-serif;">
-            <strong style="color: #4D148C;">FedEx ${location.category}</strong><br/>
-            ${location.name}
+            <strong style="color: #4D148C;">FedEx Ground</strong><br/>
+            ${location.name}<br/>
+            <span style="font-size: 12px; color: #666;">
+              ${location.address}<br/>
+              ${location.city}, ${location.state} ${location.zip}
+            </span>
           </div>`
         );
 
@@ -272,7 +276,7 @@ export default function ComparisonPage() {
           FedEx vs Circle K Distribution Network
         </h1>
         <p className="text-sm text-gray-600">
-          Comparing FedEx Freight Service Centers with Circle K convenience stores
+          Comparing FedEx Ground locations with Circle K convenience stores
         </p>
       </div>
 
@@ -363,7 +367,7 @@ export default function ComparisonPage() {
                 style={{ backgroundColor: '#4D148C' }}
               />
               <span className="text-sm">
-                FedEx Service Centers {searchCenter && `(${filteredFedexLocations.length.toLocaleString()})`}
+                FedEx Ground {searchCenter && `(${filteredFedexLocations.length.toLocaleString()})`}
               </span>
             </div>
           </label>
@@ -386,7 +390,7 @@ export default function ComparisonPage() {
               className="w-3 h-3 rounded-full border-2 border-white shadow"
               style={{ backgroundColor: '#4D148C' }}
             />
-            <span>FedEx Service Center</span>
+            <span>FedEx Ground</span>
           </div>
         </div>
       </div>
@@ -407,7 +411,7 @@ export default function ComparisonPage() {
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">FedEx Service Centers:</span>
+              <span className="text-gray-600">FedEx Ground:</span>
               <span className="font-semibold">
                 {filteredFedexLocations.length.toLocaleString()}
               </span>
