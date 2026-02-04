@@ -166,7 +166,7 @@ export default function ComparisonPage() {
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/light-v11',
+      style: 'mapbox://styles/mapbox/streets-v12',
       center: [-98.5795, 39.8283], // Center of USA
       zoom: 4,
     });
