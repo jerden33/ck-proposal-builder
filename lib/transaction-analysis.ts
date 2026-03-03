@@ -388,7 +388,7 @@ function buildMapData(
     geocodedGallons: 0,
   }
 
-  for (const [key, agg] of cityMap) {
+  for (const [key, agg] of Array.from(cityMap)) {
     const coord = geocodedCoords.get(key)
     if (!coord) continue
 
