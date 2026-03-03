@@ -5,6 +5,7 @@
 
 export interface FuelingTransaction {
   transDate: string
+  transTime?: string      // HH:MM if source includes a timestamp
   stationCity: string
   stationState: string
   gallons: number
@@ -247,9 +248,15 @@ export function parseFleetCSV(content: string): ParseResult {
     const rawAmount = col(cols, colIdx['amount']).replace(/[$,]/g, '')
     const amount = parseFloat(rawAmount) || 0
 
-    // Date: strip time portion if datetime
+    // Date: separate date from time when datetime field is present
     const rawDate = col(cols, colIdx['date'])
     const transDate = rawDate.split(' ')[0].split('T')[0]
+    const rawTimePart = rawDate.includes('T')
+      ? rawDate.split('T')[1]
+      : rawDate.includes(' ') ? rawDate.split(' ')[1] : ''
+    const transTime = rawTimePart && rawTimePart.includes(':')
+      ? rawTimePart.substring(0, 5)
+      : undefined
 
     const stationBrand = col(cols, colIdx['stationBrand'])
     const stationName = col(cols, colIdx['stationName'])
@@ -267,6 +274,7 @@ export function parseFleetCSV(content: string): ParseResult {
 
     transactions.push({
       transDate,
+      transTime,
       stationCity: col(cols, colIdx['city']),
       stationState: col(cols, colIdx['state']),
       gallons,

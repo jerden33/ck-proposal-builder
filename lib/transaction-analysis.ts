@@ -49,6 +49,46 @@ export interface VehicleSummary {
   ckGallons: number
   ckTransactions: number
   ckSharePct: number
+  capturableGallons: number   // non-CK gallons where CK exists in same ZIP
+  topCompetitorBrand: string  // competitor brand with most gallons for this vehicle
+  avgDaysBetweenFills: number // avg days between transaction dates (0 if < 2 fills)
+}
+
+export interface HourlyBucket {
+  hour: number   // 0–23
+  gallons: number
+  transactions: number
+  ckGallons: number
+}
+
+export interface DayOfWeekBucket {
+  day: number    // 0=Sun … 6=Sat
+  dayName: string
+  gallons: number
+  transactions: number
+  ckGallons: number
+}
+
+export interface VehicleSegment {
+  segment: 'ck-loyal' | 'mixed' | 'mostly-competitor' | 'never-ck'
+  label: string
+  description: string
+  color: string
+  count: number
+  gallons: number
+  unitNumbers: string[]
+}
+
+export interface FraudFlag {
+  type: 'high-gallons' | 'multi-fill' | 'ppg-outlier' | 'state-hop'
+  severity: 'high' | 'medium'
+  unitNumber: string
+  transDate: string
+  description: string
+  gallons: number
+  amount: number
+  stationCity: string
+  stationState: string
 }
 
 export interface FuelTypeSummary {
@@ -112,6 +152,12 @@ export interface TransactionSummary {
   topCompetitorLocations: LocationSummary[]
   fuelTypeBreakdown: FuelTypeSummary[]
   vehicleBreakdown: VehicleSummary[]
+  // Behavioral / timing
+  hasTimeData: boolean
+  hourlyBreakdown: HourlyBucket[]    // empty if no time data
+  dayOfWeekBreakdown: DayOfWeekBucket[]
+  vehicleSegments: VehicleSegment[]
+  fraudFlags: FraudFlag[]
   // Map data — populated after geocoding
   mapPoints: MapPoint[]
   proximityBreakdown: ProximityBreakdown | null
@@ -174,6 +220,155 @@ export function buildCKZipSet(stores: Array<{ zip: string }>): Set<string> {
     if (zip.length === 5) zips.add(zip)
   }
   return zips
+}
+
+// ─── Behavioural / timing helpers ─────────────────────────────────────────────
+
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+function buildHourlyBreakdown(transactions: FuelingTransaction[]): HourlyBucket[] {
+  const buckets: HourlyBucket[] = Array.from({ length: 24 }, (_, h) => ({
+    hour: h, gallons: 0, transactions: 0, ckGallons: 0,
+  }))
+  for (const t of transactions) {
+    if (!t.transTime) continue
+    const h = parseInt(t.transTime.split(':')[0])
+    if (isNaN(h) || h < 0 || h > 23) continue
+    buckets[h].gallons += t.gallons
+    buckets[h].transactions++
+    if (t.isCircleK) buckets[h].ckGallons += t.gallons
+  }
+  return buckets
+}
+
+function buildDayOfWeekBreakdown(transactions: FuelingTransaction[]): DayOfWeekBucket[] {
+  const buckets: DayOfWeekBucket[] = Array.from({ length: 7 }, (_, d) => ({
+    day: d, dayName: DAY_NAMES[d], gallons: 0, transactions: 0, ckGallons: 0,
+  }))
+  for (const t of transactions) {
+    if (!t.transDate) continue
+    const d = new Date(t.transDate + 'T00:00:00')
+    if (isNaN(d.getTime())) continue
+    const dow = d.getDay()
+    buckets[dow].gallons += t.gallons
+    buckets[dow].transactions++
+    if (t.isCircleK) buckets[dow].ckGallons += t.gallons
+  }
+  return buckets
+}
+
+function buildVehicleSegments(vehicleBreakdown: VehicleSummary[]): VehicleSegment[] {
+  const defs: { segment: VehicleSegment['segment']; label: string; description: string; color: string; test: (v: VehicleSummary) => boolean }[] = [
+    { segment: 'ck-loyal',          label: 'CK Loyal',         description: '≥ 70% of gallons at Circle K',       color: '#16a34a', test: v => v.ckSharePct >= 70 },
+    { segment: 'mixed',             label: 'Mixed',             description: '20–69% at Circle K',                 color: '#3b82f6', test: v => v.ckSharePct >= 20 },
+    { segment: 'mostly-competitor', label: 'Mostly Competitor', description: '1–19% at Circle K',                  color: '#f59e0b', test: v => v.ckSharePct > 0 },
+    { segment: 'never-ck',          label: 'Never CK',          description: '0% at Circle K',                     color: '#dc2626', test: v => v.ckSharePct === 0 },
+  ]
+  return defs.map(def => {
+    const matched = vehicleBreakdown.filter(def.test)
+    return {
+      segment: def.segment,
+      label: def.label,
+      description: def.description,
+      color: def.color,
+      count: matched.length,
+      gallons: matched.reduce((s, v) => s + v.gallons, 0),
+      unitNumbers: matched.map(v => v.unitNumber),
+    }
+  })
+}
+
+function detectFraudFlags(transactions: FuelingTransaction[]): FraudFlag[] {
+  const flags: FraudFlag[] = []
+
+  // 1. High gallons per fill (standard diesel tank ≈ 150 gal; flag > 200)
+  for (const t of transactions) {
+    if (t.gallons >= 200) {
+      flags.push({
+        type: 'high-gallons',
+        severity: t.gallons >= 300 ? 'high' : 'medium',
+        unitNumber: t.unitNumber || 'Unknown',
+        transDate: t.transDate,
+        description: `Single fill of ${t.gallons.toFixed(0)} gal — exceeds typical tank capacity`,
+        gallons: t.gallons,
+        amount: t.amount,
+        stationCity: t.stationCity,
+        stationState: t.stationState,
+      })
+    }
+  }
+
+  // 2. Multi-fill same vehicle same day (≥ 3 fills)
+  const byUnitDate = new Map<string, FuelingTransaction[]>()
+  for (const t of transactions) {
+    const key = `${t.unitNumber || 'Unknown'}|${t.transDate}`
+    const arr = byUnitDate.get(key) ?? []
+    arr.push(t)
+    byUnitDate.set(key, arr)
+  }
+  for (const [key, fills] of Array.from(byUnitDate)) {
+    if (fills.length < 3) continue
+    const [unit, date] = key.split('|')
+    const totalGal = fills.reduce((s, t) => s + t.gallons, 0)
+    flags.push({
+      type: 'multi-fill',
+      severity: fills.length >= 4 ? 'high' : 'medium',
+      unitNumber: unit,
+      transDate: date,
+      description: `${fills.length} fills in one day totaling ${totalGal.toFixed(0)} gal`,
+      gallons: totalGal,
+      amount: fills.reduce((s, t) => s + t.amount, 0),
+      stationCity: fills[0].stationCity,
+      stationState: fills[0].stationState,
+    })
+  }
+
+  // 3. PPG outlier (only when spend data is present)
+  const ppgValues = transactions
+    .filter(t => t.gallons > 5 && t.amount > 0)
+    .map(t => t.amount / t.gallons)
+    .sort((a, b) => a - b)
+  if (ppgValues.length > 10) {
+    const medianPPG = ppgValues[Math.floor(ppgValues.length / 2)]
+    for (const t of transactions) {
+      if (t.gallons <= 5 || t.amount <= 0) continue
+      const ppg = t.amount / t.gallons
+      if (ppg > medianPPG * 2.5 || ppg < 1.0) {
+        flags.push({
+          type: 'ppg-outlier',
+          severity: 'medium',
+          unitNumber: t.unitNumber || 'Unknown',
+          transDate: t.transDate,
+          description: `$${ppg.toFixed(2)}/gal vs fleet median $${medianPPG.toFixed(2)}/gal`,
+          gallons: t.gallons,
+          amount: t.amount,
+          stationCity: t.stationCity,
+          stationState: t.stationState,
+        })
+      }
+    }
+  }
+
+  // 4. State hop — same vehicle in 2+ states on same day
+  for (const [key, fills] of Array.from(byUnitDate)) {
+    const states = new Set(fills.map(t => t.stationState).filter(Boolean))
+    if (states.size < 2) continue
+    const [unit, date] = key.split('|')
+    flags.push({
+      type: 'state-hop',
+      severity: 'high',
+      unitNumber: unit,
+      transDate: date,
+      description: `Vehicle in ${states.size} states on same day: ${Array.from(states).join(', ')}`,
+      gallons: fills.reduce((s, t) => s + t.gallons, 0),
+      amount: fills.reduce((s, t) => s + t.amount, 0),
+      stationCity: fills[0].stationCity,
+      stationState: fills[0].stationState,
+    })
+  }
+
+  // Deduplicate: if a multi-fill and state-hop fire for the same (unit, date), keep both but flag once
+  return flags.sort((a, b) => (a.severity === 'high' ? 0 : 1) - (b.severity === 'high' ? 0 : 1))
 }
 
 // ─── Core analysis ────────────────────────────────────────────────────────────
@@ -306,25 +501,70 @@ export function analyzeTransactions(
   }
   const fuelTypeBreakdown = Array.from(fuelMap.values()).sort((a, b) => b.gallons - a.gallons)
 
-  // Vehicle breakdown
-  const vehicleMap = new Map<string, VehicleSummary>()
+  // Vehicle breakdown — include capturable gallons, top competitor brand, avg fill frequency
+  type VehicleAcc = Omit<VehicleSummary, 'ckSharePct' | 'topCompetitorBrand' | 'avgDaysBetweenFills'> & {
+    competitorBrandGallons: Map<string, number>
+    fillDates: string[]
+  }
+  const vehicleMap = new Map<string, VehicleAcc>()
   for (const t of transactions) {
     const unit = t.unitNumber || 'Unknown'
     const existing = vehicleMap.get(unit) ?? {
       unitNumber: unit,
       driverCity: t.driverCity,
-      transactions: 0, gallons: 0, spend: 0, ckGallons: 0, ckTransactions: 0, ckSharePct: 0,
+      transactions: 0, gallons: 0, spend: 0, ckGallons: 0, ckTransactions: 0,
+      capturableGallons: 0,
+      competitorBrandGallons: new Map(),
+      fillDates: [],
     }
-    existing.transactions++; existing.gallons += t.gallons; existing.spend += t.amount
-    if (t.isCircleK) { existing.ckGallons += t.gallons; existing.ckTransactions++ }
+    existing.transactions++
+    existing.gallons += t.gallons
+    existing.spend += t.amount
+    if (t.transDate) existing.fillDates.push(t.transDate)
+    if (t.isCircleK) {
+      existing.ckGallons += t.gallons
+      existing.ckTransactions++
+    } else {
+      if (ckZipSet.has(t.zipCode)) existing.capturableGallons += t.gallons
+      const brand = t.stationBrand || 'Unknown'
+      existing.competitorBrandGallons.set(brand, (existing.competitorBrandGallons.get(brand) ?? 0) + t.gallons)
+    }
     vehicleMap.set(unit, existing)
   }
-  const vehicleBreakdown = Array.from(vehicleMap.values())
-    .map(v => ({ ...v, ckSharePct: v.gallons > 0 ? (v.ckGallons / v.gallons) * 100 : 0 }))
-    .sort((a, b) => b.gallons - a.gallons)
+  const vehicleBreakdown: VehicleSummary[] = Array.from(vehicleMap.values()).map(v => {
+    // top competitor brand
+    let topBrand = ''; let topGal = 0
+    for (const [brand, gal] of Array.from(v.competitorBrandGallons)) {
+      if (gal > topGal) { topGal = gal; topBrand = brand }
+    }
+    // avg days between fills
+    const uniqueDates = Array.from(new Set(v.fillDates))
+      .map(d => new Date(d + 'T00:00:00'))
+      .filter(d => !isNaN(d.getTime()))
+      .sort((a, b) => a.getTime() - b.getTime())
+    const avgDaysBetweenFills = uniqueDates.length < 2 ? 0
+      : (uniqueDates[uniqueDates.length - 1].getTime() - uniqueDates[0].getTime())
+        / (1000 * 60 * 60 * 24) / (uniqueDates.length - 1)
+    return {
+      unitNumber: v.unitNumber, driverCity: v.driverCity,
+      transactions: v.transactions, gallons: v.gallons, spend: v.spend,
+      ckGallons: v.ckGallons, ckTransactions: v.ckTransactions,
+      ckSharePct: v.gallons > 0 ? (v.ckGallons / v.gallons) * 100 : 0,
+      capturableGallons: v.capturableGallons,
+      topCompetitorBrand: topBrand ? normalizeBrandName(topBrand) : '—',
+      avgDaysBetweenFills: Math.round(avgDaysBetweenFills * 10) / 10,
+    }
+  }).sort((a, b) => b.gallons - a.gallons)
 
   // Map points + proximity breakdown (requires geocoding)
   const { mapPoints, proximityBreakdown } = buildMapData(transactions, geocodedCoords, ckStores, totalGallons, geocodedAddresses)
+
+  // Behavioural / timing
+  const hasTimeData = transactions.some(t => !!t.transTime)
+  const hourlyBreakdown = buildHourlyBreakdown(transactions)
+  const dayOfWeekBreakdown = buildDayOfWeekBreakdown(transactions)
+  const vehicleSegments = buildVehicleSegments(vehicleBreakdown)
+  const fraudFlags = detectFraudFlags(transactions)
 
   return {
     totalTransactions, totalGallons, totalSpend, uniqueVehicles, uniqueStations, uniqueStates,
@@ -335,6 +575,11 @@ export function analyzeTransactions(
     topCompetitorLocations,
     fuelTypeBreakdown,
     vehicleBreakdown,
+    hasTimeData,
+    hourlyBreakdown,
+    dayOfWeekBreakdown,
+    vehicleSegments,
+    fraudFlags,
     mapPoints,
     proximityBreakdown,
   }
@@ -470,6 +715,11 @@ function createEmptySummary(): TransactionSummary {
     topCompetitorLocations: [],
     fuelTypeBreakdown: [],
     vehicleBreakdown: [],
+    hasTimeData: false,
+    hourlyBreakdown: [],
+    dayOfWeekBreakdown: [],
+    vehicleSegments: [],
+    fraudFlags: [],
     mapPoints: [],
     proximityBreakdown: null,
   }
