@@ -226,6 +226,20 @@ export function buildCKZipSet(stores: Array<{ zip: string }>): Set<string> {
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
+/**
+ * Normalize a date string to "YYYY-MM-DD" so new Date() always parses it correctly.
+ * Handles "MM/DD/YYYY", "M/D/YYYY", and already-ISO "YYYY-MM-DD" forms.
+ */
+function toISODate(dateStr: string): string {
+  if (!dateStr) return ''
+  // Already ISO — just return as-is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
+  // US M/D/YYYY or MM/DD/YYYY
+  const mdy = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (mdy) return `${mdy[3]}-${mdy[1].padStart(2, '0')}-${mdy[2].padStart(2, '0')}`
+  return dateStr  // unknown format — let Date() try
+}
+
 function buildHourlyBreakdown(transactions: FuelingTransaction[]): HourlyBucket[] {
   const buckets: HourlyBucket[] = Array.from({ length: 24 }, (_, h) => ({
     hour: h, gallons: 0, transactions: 0, ckGallons: 0,
@@ -247,7 +261,7 @@ function buildDayOfWeekBreakdown(transactions: FuelingTransaction[]): DayOfWeekB
   }))
   for (const t of transactions) {
     if (!t.transDate) continue
-    const d = new Date(t.transDate + 'T00:00:00')
+    const d = new Date(toISODate(t.transDate) + 'T00:00:00')
     if (isNaN(d.getTime())) continue
     const dow = d.getDay()
     buckets[dow].gallons += t.gallons
@@ -539,7 +553,7 @@ export function analyzeTransactions(
     }
     // avg days between fills
     const uniqueDates = Array.from(new Set(v.fillDates))
-      .map(d => new Date(d + 'T00:00:00'))
+      .map(d => new Date(toISODate(d) + 'T00:00:00'))
       .filter(d => !isNaN(d.getTime()))
       .sort((a, b) => a.getTime() - b.getTime())
     const avgDaysBetweenFills = uniqueDates.length < 2 ? 0
