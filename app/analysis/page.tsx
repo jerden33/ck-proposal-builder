@@ -395,8 +395,9 @@ export default function AnalysisPage() {
 
       // Geocode individual station addresses and reclassify any that land on a CK store
       const CK_MATCH_MILES = 0.1
+      let geocodedAddrs = new Map<string, { lat: number; lng: number }>()
       if (uniqueAddresses.length > 0 && ckStoreCoords.length > 0) {
-        const geocodedAddrs = await geocodeAddresses(
+        geocodedAddrs = await geocodeAddresses(
           uniqueAddresses,
           process.env.NEXT_PUBLIC_MAPBOX_TOKEN,
           (done) => setGeocodingProgress({ done: geoDone + done, total: totalGeoItems })
@@ -416,6 +417,7 @@ export default function AnalysisPage() {
       const enrichedResult = analyzeTransactions(transactions, ckZipSet, {
         detectedFormat: fmt,
         geocodedCoords,
+        geocodedAddresses: geocodedAddrs,
         ckStores: ckStoreCoords,
       })
       setSummary(enrichedResult)

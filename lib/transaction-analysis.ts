@@ -3,7 +3,7 @@
 import type { FuelingTransaction } from './transaction-parser'
 import { normalizeBrandName } from './transaction-parser'
 import type { GeocodedCoord } from './geocoding'
-import { geoKey } from './geocoding'
+import { geoKey, addrGeoKey } from './geocoding'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,7 +36,7 @@ export interface LocationSummary {
   transactions: number
   gallons: number
   spend: number
-  hasCKNearby: boolean       // CK store exists in same ZIP
+  hasCKNearby: boolean       // CK within 2 mi (geocoded) or same ZIP (fallback)
   nearestCKDistanceMi: number // -1 = not geocoded
 }
 
@@ -183,13 +183,14 @@ export function analyzeTransactions(
   ckZipSet: Set<string>,
   options?: {
     detectedFormat?: string
-    geocodedCoords?: Map<string, GeocodedCoord>  // key: geoKey(city, state)
+    geocodedCoords?: Map<string, GeocodedCoord>    // key: geoKey(city, state)
+    geocodedAddresses?: Map<string, GeocodedCoord> // key: addrGeoKey(addr, city, state)
     ckStores?: CKStoreCoord[]
   }
 ): TransactionSummary {
   if (transactions.length === 0) return createEmptySummary()
 
-  const { detectedFormat = 'Unknown', geocodedCoords, ckStores } = options ?? {}
+  const { detectedFormat = 'Unknown', geocodedCoords, geocodedAddresses, ckStores } = options ?? {}
 
   const totalTransactions = transactions.length
   const totalGallons = transactions.reduce((s, t) => s + t.gallons, 0)
@@ -280,12 +281,13 @@ export function analyzeTransactions(
     locMap.set(key, existing)
   }
 
-  // Enrich with geocoded distance
+  // Enrich with geocoded distance; update hasCKNearby to distance-based (≤2mi)
   if (geocodedCoords && ckStores) {
     for (const loc of Array.from(locMap.values())) {
       const coord = geocodedCoords.get(geoKey(loc.city, loc.state))
       if (coord) {
         loc.nearestCKDistanceMi = nearestCKDistance(coord.lat, coord.lng, ckStores)
+        loc.hasCKNearby = loc.nearestCKDistanceMi >= 0 && loc.nearestCKDistanceMi <= 2
       }
     }
   }
@@ -322,7 +324,7 @@ export function analyzeTransactions(
     .sort((a, b) => b.gallons - a.gallons)
 
   // Map points + proximity breakdown (requires geocoding)
-  const { mapPoints, proximityBreakdown } = buildMapData(transactions, geocodedCoords, ckStores, totalGallons)
+  const { mapPoints, proximityBreakdown } = buildMapData(transactions, geocodedCoords, ckStores, totalGallons, geocodedAddresses)
 
   return {
     totalTransactions, totalGallons, totalSpend, uniqueVehicles, uniqueStations, uniqueStates,
@@ -344,35 +346,37 @@ function buildMapData(
   transactions: FuelingTransaction[],
   geocodedCoords: Map<string, GeocodedCoord> | undefined,
   ckStores: CKStoreCoord[] | undefined,
-  totalGallons: number
+  totalGallons: number,
+  geocodedAddresses?: Map<string, GeocodedCoord>
 ): { mapPoints: MapPoint[]; proximityBreakdown: ProximityBreakdown | null } {
   if (!geocodedCoords || geocodedCoords.size === 0) {
     return { mapPoints: [], proximityBreakdown: null }
   }
 
-  // Aggregate transactions by city+state
-  type CityKey = string
-  const cityMap = new Map<CityKey, {
+  // Aggregate transactions by individual fueling station (not city)
+  type StationKey = string
+  const stationMap = new Map<StationKey, {
     gallons: number; transactions: number; spend: number
     ckGallons: number; brands: Set<string>; label: string
-    city: string; state: string
+    city: string; state: string; stationAddress: string
   }>()
 
   for (const t of transactions) {
-    const key = geoKey(t.stationCity, t.stationState)
-    const existing = cityMap.get(key) ?? {
+    const key = `${t.stationName}||${t.stationAddress}||${t.stationCity}||${t.stationState}`
+    const existing = stationMap.get(key) ?? {
       gallons: 0, transactions: 0, spend: 0, ckGallons: 0,
       brands: new Set(),
-      label: t.stationName || `${t.stationCity}, ${t.stationState}`,
+      label: t.stationName || t.stationAddress || `${t.stationCity}, ${t.stationState}`,
       city: t.stationCity,
       state: t.stationState,
+      stationAddress: t.stationAddress,
     }
     existing.gallons += t.gallons
     existing.transactions++
     existing.spend += t.amount
     if (t.isCircleK) existing.ckGallons += t.gallons
     if (t.stationBrand) existing.brands.add(t.stationBrand)
-    cityMap.set(key, existing)
+    stationMap.set(key, existing)
   }
 
   const mapPoints: MapPoint[] = []
@@ -388,8 +392,10 @@ function buildMapData(
     geocodedGallons: 0,
   }
 
-  for (const [key, agg] of Array.from(cityMap)) {
-    const coord = geocodedCoords.get(key)
+  for (const [, agg] of Array.from(stationMap)) {
+    // Prefer address-level coords (precise) over city centroid
+    const addrKey = addrGeoKey(agg.stationAddress, agg.city, agg.state)
+    const coord = geocodedAddresses?.get(addrKey) ?? geocodedCoords.get(geoKey(agg.city, agg.state))
     if (!coord) continue
 
     const dist = ckStores ? nearestCKDistance(coord.lat, coord.lng, ckStores) : -1
@@ -403,7 +409,7 @@ function buildMapData(
       spend: agg.spend,
       isCircleK: allCK,
       hasMixedBrands: agg.brands.size > 1,
-      label: `${agg.city}, ${agg.state}`,
+      label: agg.label,
       city: agg.city,
       state: agg.state,
       nearestCKDistanceMi: dist,
