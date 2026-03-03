@@ -21,6 +21,7 @@ import { parseFleetCSV } from '@/lib/transaction-parser'
 import {
   analyzeTransactions,
   buildCKZipSet,
+  nearestCKDistance,
   fmtGallons,
   fmtDollars,
   fmtPct,
@@ -29,7 +30,7 @@ import {
   type BrandSummary,
   type CKStoreCoord,
 } from '@/lib/transaction-analysis'
-import { geocodeLocations, geoKey } from '@/lib/geocoding'
+import { geocodeLocations, geocodeAddresses, geoKey, addrGeoKey } from '@/lib/geocoding'
 import type { CKStorePin } from '@/components/FuelingMap'
 
 // Dynamically import the map (Mapbox can't SSR)
@@ -364,18 +365,54 @@ export default function AnalysisPage() {
           return { city, state }
         })
 
+      // Collect unique station addresses for non-CK transactions (for CK matching)
+      const nonCKAddrKeys = new Set<string>()
+      for (const t of transactions) {
+        if (!t.isCircleK && t.stationAddress && t.stationCity && t.stationState) {
+          nonCKAddrKeys.add(addrGeoKey(t.stationAddress, t.stationCity, t.stationState))
+        }
+      }
+      const uniqueAddresses = Array.from(nonCKAddrKeys).map(k => {
+        const parts = k.split('|')
+        const state = parts[parts.length - 1]
+        const city = parts[parts.length - 2]
+        const address = parts.slice(0, parts.length - 2).join('|')
+        return { address, city, state }
+      })
+
       if (uniqueLocations.length === 0 || !process.env.NEXT_PUBLIC_MAPBOX_TOKEN) return
 
+      const totalGeoItems = uniqueLocations.length + uniqueAddresses.length
       setGeocodingInProgress(true)
-      setGeocodingProgress({ done: 0, total: uniqueLocations.length })
+      setGeocodingProgress({ done: 0, total: totalGeoItems })
+      let geoDone = 0
 
       const geocodedCoords = await geocodeLocations(
         uniqueLocations,
         process.env.NEXT_PUBLIC_MAPBOX_TOKEN,
-        (done, total) => setGeocodingProgress({ done, total })
+        (done) => { geoDone = done; setGeocodingProgress({ done: geoDone, total: totalGeoItems }) }
       )
 
-      // Re-run analysis with geocoded coordinates
+      // Geocode individual station addresses and reclassify any that land on a CK store
+      const CK_MATCH_MILES = 0.1
+      if (uniqueAddresses.length > 0 && ckStoreCoords.length > 0) {
+        const geocodedAddrs = await geocodeAddresses(
+          uniqueAddresses,
+          process.env.NEXT_PUBLIC_MAPBOX_TOKEN,
+          (done) => setGeocodingProgress({ done: geoDone + done, total: totalGeoItems })
+        )
+        for (const t of transactions) {
+          if (t.isCircleK || !t.stationAddress) continue
+          const coord = geocodedAddrs.get(addrGeoKey(t.stationAddress, t.stationCity, t.stationState))
+          if (!coord) continue
+          const dist = nearestCKDistance(coord.lat, coord.lng, ckStoreCoords)
+          if (dist >= 0 && dist <= CK_MATCH_MILES) {
+            t.isCircleK = true
+          }
+        }
+      }
+
+      // Re-run analysis with geocoded coordinates (and any reclassified CK transactions)
       const enrichedResult = analyzeTransactions(transactions, ckZipSet, {
         detectedFormat: fmt,
         geocodedCoords,
