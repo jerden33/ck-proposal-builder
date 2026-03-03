@@ -34,9 +34,16 @@ export interface ParseResult {
 
 const FIELD_ALIASES: Record<string, string[]> = {
   date: [
-    'trans date', 'date', 'transaction date', 'trans datetime',
-    'transaction datetime', 'posting date', 'post date', 'tran date',
-    'service date', 'fill date', 'invoice date', 'sale date',
+    // Combined datetime fields first — avoids grabbing a date-only column when
+    // a richer combined column (e.g. "Trans DateTime") is present in the same file
+    'trans datetime', 'transaction datetime',
+    'trans date', 'date', 'transaction date', 'posting date', 'post date',
+    'tran date', 'service date', 'fill date', 'invoice date', 'sale date',
+  ],
+  // Separate time column — used as fallback when the date column has no time
+  time: [
+    'transaction time', 'trans time', 'tran time',
+    'service time', 'fill time', 'time',
   ],
   city: [
     'station city', 'city', 'site city', 'location city', 'trans city',
@@ -210,6 +217,17 @@ function col(cols: string[], idx: number | undefined): string {
   return cols[idx].trim()
 }
 
+/** Convert "HH:MM" + optional "AM"/"PM" suffix to 24-hour "HH:MM" */
+function to24h(hhmm: string, ampm: string): string {
+  const [hStr, mStr] = hhmm.split(':')
+  let h = parseInt(hStr, 10)
+  if (isNaN(h) || !mStr) return hhmm
+  const pm = ampm.toUpperCase() === 'PM'
+  if (pm && h !== 12) h += 12
+  if (!pm && h === 12) h = 0
+  return `${String(h).padStart(2, '0')}:${mStr}`
+}
+
 // ─── Main parser ──────────────────────────────────────────────────────────────
 
 export function parseFleetCSV(content: string): ParseResult {
@@ -251,12 +269,27 @@ export function parseFleetCSV(content: string): ParseResult {
     // Date: separate date from time when datetime field is present
     const rawDate = col(cols, colIdx['date'])
     const transDate = rawDate.split(' ')[0].split('T')[0]
-    const rawTimePart = rawDate.includes('T')
-      ? rawDate.split('T')[1]
-      : rawDate.includes(' ') ? rawDate.split(' ')[1] : ''
-    const transTime = rawTimePart && rawTimePart.includes(':')
-      ? rawTimePart.substring(0, 5)
-      : undefined
+
+    let transTime: string | undefined
+    if (rawDate.includes('T')) {
+      // ISO: "2024-01-15T14:32:00"
+      const t = rawDate.split('T')[1]
+      if (t) transTime = t.substring(0, 5)
+    } else {
+      // Space-separated: "01/06/2026 04:44:00 PM" → parts ["01/06/2026","04:44:00","PM"]
+      const parts = rawDate.split(' ')
+      if (parts.length >= 2 && parts[1].includes(':')) {
+        transTime = to24h(parts[1].substring(0, 5), parts[2] ?? '')
+      }
+    }
+    // Fallback: separate "Transaction Time" column (e.g. "04:44:00 PM" or "16:44")
+    if (!transTime) {
+      const rawTimeCol = col(cols, colIdx['time'])
+      if (rawTimeCol && rawTimeCol.includes(':')) {
+        const tParts = rawTimeCol.trim().split(' ')
+        transTime = to24h(tParts[0].substring(0, 5), tParts[1] ?? '')
+      }
+    }
 
     const stationBrand = col(cols, colIdx['stationBrand'])
     const stationName = col(cols, colIdx['stationName'])
