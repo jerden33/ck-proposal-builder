@@ -121,7 +121,7 @@ export function analyzeTransactions(
   const totalSpend = transactions.reduce((s, t) => s + t.amount, 0)
   const uniqueVehicles = new Set(transactions.map(t => t.unitNumber)).size
   const uniqueStations = new Set(transactions.map(t => `${t.stationName}||${t.zipCode}`)).size
-  const uniqueStates = [...new Set(transactions.map(t => t.stationState).filter(Boolean))].sort()
+  const uniqueStates = Array.from(new Set(transactions.map(t => t.stationState).filter(Boolean))).sort()
 
   // Date range
   const dates = transactions.map(t => parseDate(t.transDate)).filter((d): d is Date => d !== null)
@@ -150,7 +150,7 @@ export function analyzeTransactions(
     existing.spend += t.amount
     brandMap.set(brand, existing)
   }
-  const brandBreakdown = [...brandMap.values()].sort((a, b) => b.gallons - a.gallons)
+  const brandBreakdown = Array.from(brandMap.values()).sort((a, b) => b.gallons - a.gallons)
 
   // CK capture analysis
   const captured = { transactions: 0, gallons: 0, spend: 0 }
@@ -198,7 +198,7 @@ export function analyzeTransactions(
     }
     stateMap.set(state, existing)
   }
-  const stateBreakdown = [...stateMap.values()]
+  const stateBreakdown = Array.from(stateMap.values())
     .map(s => ({ ...s, ckSharePct: s.gallons > 0 ? (s.ckGallons / s.gallons) * 100 : 0 }))
     .sort((a, b) => b.gallons - a.gallons)
 
@@ -224,7 +224,7 @@ export function analyzeTransactions(
     existing.spend += t.amount
     locMap.set(key, existing)
   }
-  const topCompetitorLocations = [...locMap.values()]
+  const topCompetitorLocations = Array.from(locMap.values())
     .sort((a, b) => b.gallons - a.gallons)
     .slice(0, 25)
 
@@ -238,7 +238,7 @@ export function analyzeTransactions(
     existing.spend += t.amount
     fuelMap.set(type, existing)
   }
-  const fuelTypeBreakdown = [...fuelMap.values()].sort((a, b) => b.gallons - a.gallons)
+  const fuelTypeBreakdown = Array.from(fuelMap.values()).sort((a, b) => b.gallons - a.gallons)
 
   // Vehicle breakdown
   const vehicleMap = new Map<string, VehicleSummary>()
@@ -263,7 +263,7 @@ export function analyzeTransactions(
     }
     vehicleMap.set(unit, existing)
   }
-  const vehicleBreakdown = [...vehicleMap.values()]
+  const vehicleBreakdown = Array.from(vehicleMap.values())
     .map(v => ({ ...v, ckSharePct: v.gallons > 0 ? (v.ckGallons / v.gallons) * 100 : 0 }))
     .sort((a, b) => b.gallons - a.gallons)
 
