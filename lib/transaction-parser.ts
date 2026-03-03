@@ -107,9 +107,18 @@ export const BRAND_DISPLAY_NAMES: Record<string, string> = {
   'CIRCLE K': 'Circle K',
   'SPEEDWAY': 'Speedway',
   'EXXONMOB': 'ExxonMobil',
+  'EXXONMOBIL': 'ExxonMobil',
   'EXXON': 'ExxonMobil',
+  'MOBIL': 'Mobil',
   'BP PRODU': 'BP',
   'BP': 'BP',
+  'CHEVRON': 'Chevron',
+  'TEXACO': 'Texaco',
+  'ARCO': 'Arco',
+  'GULF': 'Gulf',
+  'CONOCO': 'Conoco',
+  'VALERO': 'Valero',
+  'SINCLAIR': 'Sinclair',
   'KWIK TRI': 'Kwik Trip',
   'KWIK TRIP': 'Kwik Trip',
   'MARATHON': 'Marathon',
@@ -118,6 +127,7 @@ export const BRAND_DISPLAY_NAMES: Record<string, string> = {
   'UNBRANDE': 'Unbranded',
   'UNBRANDED': 'Unbranded',
   "CASEY'S": "Casey's",
+  'CASEYS': "Casey's",
   'ROYAL FA': 'Royal Farms',
   'ROYAL FARMS': 'Royal Farms',
   'SHEETZ': 'Sheetz',
@@ -154,11 +164,38 @@ export const BRAND_DISPLAY_NAMES: Record<string, string> = {
   'TA': 'TravelCenters of America',
   'AMBEST': 'AmBest',
   'TUCKER': 'Tucker',
+  'CENEX': 'Cenex',
+  'KWIK STAR': 'Kwik Star',
+  'CASEY': "Casey's",
+  'MAVERICK': 'Maverick',
+  'STRIPES': 'Stripes',
+  'FAS MART': 'Fas Mart',
+  'FASMART': 'Fas Mart',
+  'MAPCO': 'Mapco',
+  'CIRCLE B': 'Circle B',
 }
 
 export function normalizeBrandName(raw: string): string {
   const upper = raw.trim().toUpperCase()
   return BRAND_DISPLAY_NAMES[upper] ?? titleCase(raw.trim())
+}
+
+/**
+ * When no dedicated brand column is present (e.g. RCPA format), try to infer
+ * the brand from the station name by matching known brand prefixes.
+ * "CHEVRON 0207755" → "Chevron", "CIRCLE K #12345" → "Circle K"
+ */
+export function inferBrandFromName(stationName: string): string {
+  if (!stationName) return ''
+  const upper = stationName.trim().toUpperCase()
+  // Sort keys longest-first so "CIRCLE K" beats "CK", "BP AMOCO" beats "BP", etc.
+  const keys = Object.keys(BRAND_DISPLAY_NAMES).sort((a, b) => b.length - a.length)
+  for (const key of keys) {
+    if (upper === key || upper.startsWith(key + ' ') || upper.startsWith(key + '#') || upper.startsWith(key + '_')) {
+      return BRAND_DISPLAY_NAMES[key]
+    }
+  }
+  return ''
 }
 
 function titleCase(str: string): string {
@@ -291,9 +328,11 @@ export function parseFleetCSV(content: string): ParseResult {
       }
     }
 
-    const stationBrand = col(cols, colIdx['stationBrand'])
+    const stationBrandRaw = col(cols, colIdx['stationBrand'])
     const stationName = col(cols, colIdx['stationName'])
     const stationAddressRaw = col(cols, colIdx['stationAddress'])
+    // If no dedicated brand column, infer from station name (handles RCPA / no-brand formats)
+    const stationBrand = stationBrandRaw || inferBrandFromName(stationName)
     const isCircleK =
       stationBrand.toUpperCase().includes('CIRCLE K') ||
       stationName.toUpperCase().includes('CIRCLE K') ||
