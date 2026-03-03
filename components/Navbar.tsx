@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { getUserProfile } from '@/lib/supabase/queries'
 import type { UserProfile } from '@/lib/types'
-import { Settings, LogOut, LayoutDashboard } from 'lucide-react'
+import { Settings, LogOut, LayoutDashboard, BarChart2 } from 'lucide-react'
 
 export function Navbar() {
   const router = useRouter()
@@ -43,7 +43,7 @@ export function Navbar() {
               className="w-32 h-auto"
             />
             <div className="h-8 w-px bg-gray-300"></div>
-            <h1 className="text-xl font-bold text-off-black">Proposal Builder</h1>
+            <h1 className="text-xl font-bold text-off-black">Circle K Pro</h1>
           </div>
 
           <div className="flex items-center gap-3">
@@ -51,6 +51,14 @@ export function Navbar() {
               <p className="text-sm font-semibold text-off-black">{profile.full_name || profile.email}</p>
               <p className="text-xs text-gray-500">{profile.is_admin ? 'Administrator' : 'User'}</p>
             </div>
+
+            <button
+              onClick={() => router.push('/analysis')}
+              className="btn-secondary flex items-center gap-2"
+            >
+              <BarChart2 size={18} />
+              Transaction Analysis
+            </button>
 
             <button
               onClick={() => router.push('/dashboard')}
