@@ -58,6 +58,15 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'gallons', 'quantity', 'gal', 'volume', 'fuel quantity', 'qty',
     'fuel gallons', 'net gallons', 'amount gallons', 'total gallons',
     'fuel volume',
+    // RCPA format uses "Unit/Gallons" (normalizeKey strips the slash → "unitgallons")
+    'unit/gallons', 'units/gallons', 'unit gallons', 'units gallons',
+    'net qty', 'net quantity', 'billed quantity', 'billed qty',
+  ],
+  // Price-per-unit/gallon — used to derive total amount when no amount column exists
+  ppu: [
+    'ppu', 'ppu/amount', 'price per unit', 'price per gallon',
+    'unit price', 'ppg', 'ppu/gal', 'cost per gallon', 'price/gal',
+    'cost/gal', 'retail price',
   ],
   fuelType: [
     'epa fuel type purchased', 'epa fuel type', 'fuel type', 'product type',
@@ -291,6 +300,7 @@ export function parseFleetCSV(content: string): ParseResult {
   if (headerJoined.includes('station brand name')) detectedFormat = 'WEX'
   else if (headerJoined.includes('posting date') || headerJoined.includes('post date')) detectedFormat = 'WEX / Fleet One'
   else if (headerJoined.includes('invoice date')) detectedFormat = 'Fuelman / Fleetcor'
+  else if (headerJoined.includes('unitgallons') || headerJoined.includes('unit/gallons')) detectedFormat = 'RCPA'
 
   for (let i = headerIdx + 1; i < rawLines.length; i++) {
     const line = rawLines[i].trim()
@@ -301,7 +311,12 @@ export function parseFleetCSV(content: string): ParseResult {
     if (gallons <= 0) continue  // skip summary/blank rows
 
     const rawAmount = col(cols, colIdx['amount']).replace(/[$,]/g, '')
-    const amount = parseFloat(rawAmount) || 0
+    let amount = parseFloat(rawAmount) || 0
+    // RCPA and some formats have no total-amount column — derive from PPU × gallons
+    if (amount === 0 && colIdx['ppu'] !== undefined) {
+      const ppuVal = parseFloat(col(cols, colIdx['ppu']).replace(/[$,]/g, '')) || 0
+      if (ppuVal > 0) amount = gallons * ppuVal
+    }
 
     // Date: separate date from time when datetime field is present
     const rawDate = col(cols, colIdx['date'])
