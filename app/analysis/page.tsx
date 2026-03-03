@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import * as XLSX from 'xlsx'
 import {
@@ -231,7 +231,45 @@ export default function AnalysisPage() {
   const [activeTab, setActiveTab] = useState<Tab>('brands')
   const [showAllBrands, setShowAllBrands] = useState(false)
   const [showAllVehicles, setShowAllVehicles] = useState(false)
+  const [restoredFromCache, setRestoredFromCache] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Restore last analysis from localStorage on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('ck-analysis-v1')
+      if (!raw) return
+      const saved = JSON.parse(raw)
+      if (!saved.summary) return
+      setSummary(saved.summary)
+      setFileName(saved.fileName ?? '')
+      setCustomerName(saved.customerName ?? '')
+      setDetectedFormat(saved.detectedFormat ?? '')
+      setMissingFields(saved.missingFields ?? [])
+      setRestoredFromCache(true)
+      // Re-load CK pins from static data
+      fetch('/stores-data.json')
+        .then(r => r.json())
+        .then((data) => {
+          const storeRecords: StoreRecord[] = data.stores ?? []
+          const pins: CKStorePin[] = storeRecords
+            .filter(s => s.coordinates?.lat && s.coordinates?.lng)
+            .map(s => ({
+              lat: s.coordinates.lat,
+              lng: s.coordinates.lng,
+              name: s.name,
+              city: s.city,
+              state: s.state,
+              zip: s.zip,
+              truckAccessible: s.truckAccessible,
+            }))
+          setCKStorePins(pins)
+        })
+        .catch(() => { /* non-fatal */ })
+    } catch {
+      // Corrupted cache — ignore
+    }
+  }, [])
 
   const processFile = useCallback(async (file: File) => {
     const isExcel = /\.(xlsx|xls|XLSX|XLS)$/.test(file.name)
@@ -308,6 +346,12 @@ export default function AnalysisPage() {
       setLoadingStep('Running analysis…')
       const result = analyzeTransactions(transactions, ckZipSet, { detectedFormat: fmt })
       setSummary(result)
+      setRestoredFromCache(false)
+      try {
+        localStorage.setItem('ck-analysis-v1', JSON.stringify({
+          summary: result, fileName: file.name, customerName, detectedFormat: fmt, missingFields: missingRequiredFields,
+        }))
+      } catch { /* storage full — ignore */ }
       setLoading(false)
 
       // 5. Background geocoding → re-run analysis with proximity data
@@ -338,6 +382,11 @@ export default function AnalysisPage() {
         ckStores: ckStoreCoords,
       })
       setSummary(enrichedResult)
+      try {
+        localStorage.setItem('ck-analysis-v1', JSON.stringify({
+          summary: enrichedResult, fileName: file.name, customerName, detectedFormat: fmt, missingFields: missingRequiredFields,
+        }))
+      } catch { /* storage full — ignore */ }
       setGeocodingInProgress(false)
       setGeocodingProgress(null)
 
@@ -370,6 +419,8 @@ export default function AnalysisPage() {
     setGeocodingInProgress(false)
     setGeocodingProgress(null)
     setCKStorePins([])
+    setRestoredFromCache(false)
+    try { localStorage.removeItem('ck-analysis-v1') } catch { /* ignore */ }
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -485,6 +536,9 @@ export default function AnalysisPage() {
                     <span className="text-xs bg-yellow-100 text-yellow-700 rounded px-2 py-0.5">
                       Missing: {missingFields.join(', ')}
                     </span>
+                  )}
+                  {restoredFromCache && (
+                    <span className="text-xs bg-blue-50 text-blue-600 rounded px-2 py-0.5">Restored from last session</span>
                   )}
                   {geocodingInProgress && geocodingProgress && (
                     <span className="text-xs bg-blue-50 text-blue-600 rounded px-2 py-0.5 flex items-center gap-1">

@@ -253,9 +253,11 @@ export function parseFleetCSV(content: string): ParseResult {
 
     const stationBrand = col(cols, colIdx['stationBrand'])
     const stationName = col(cols, colIdx['stationName'])
+    const stationAddressRaw = col(cols, colIdx['stationAddress'])
     const isCircleK =
       stationBrand.toUpperCase().includes('CIRCLE K') ||
-      stationName.toUpperCase().includes('CIRCLE K')
+      stationName.toUpperCase().includes('CIRCLE K') ||
+      stationAddressRaw.toUpperCase().includes('CIRCLE K')
 
     // fuelType: prefer dedicated field, fall back to productName
     const fuelType =
@@ -271,7 +273,7 @@ export function parseFleetCSV(content: string): ParseResult {
       fuelType,
       stationName,
       stationBrand,
-      stationAddress: col(cols, colIdx['stationAddress']),
+      stationAddress: stationAddressRaw,
       zipCode: normalizeZip(col(cols, colIdx['zipCode'])),
       unitNumber: col(cols, colIdx['unitNumber']),
       driverCity: col(cols, colIdx['driverCity']),
