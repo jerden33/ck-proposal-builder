@@ -15,6 +15,9 @@ import {
   ChevronDown,
   ChevronUp,
   Info,
+  Settings2,
+  DollarSign,
+  TrendingUp,
 } from 'lucide-react'
 import { Navbar } from '@/components/Navbar'
 import { parseFleetCSV } from '@/lib/transaction-parser'
@@ -48,6 +51,61 @@ interface StoreRecord {
   city: string
   state: string
   truckAccessible: boolean
+}
+
+// ─── Feature flags ─────────────────────────────────────────────────────────────
+
+type FeatureKey =
+  | 'brandBreakdown'
+  | 'geographic'
+  | 'competitorLocations'
+  | 'vehicles'
+  | 'mapView'
+  | 'fuelTypeSplit'
+  | 'savingsCalc'
+  | 'annualized'
+
+type FeatureFlags = Record<FeatureKey, boolean>
+
+const DEFAULT_FEATURES: FeatureFlags = {
+  brandBreakdown: true,
+  geographic: true,
+  competitorLocations: true,
+  vehicles: true,
+  mapView: true,
+  fuelTypeSplit: true,
+  savingsCalc: false,
+  annualized: false,
+}
+
+interface FeatureDef {
+  key: FeatureKey
+  label: string
+  desc: string
+  badge?: string
+}
+
+const FEATURE_DEFS: FeatureDef[] = [
+  { key: 'brandBreakdown',       label: 'Brand Breakdown',         desc: 'Gallons by network & brand' },
+  { key: 'geographic',           label: 'Geographic',              desc: 'State-level fueling & CK share' },
+  { key: 'competitorLocations',  label: 'Competitor Locations',    desc: 'Top non-CK stations ranked by gallons' },
+  { key: 'vehicles',             label: 'Vehicle Breakdown',       desc: 'Per-unit stats (needs Unit # column)' },
+  { key: 'mapView',              label: 'Map View',                desc: 'Interactive fueling location map' },
+  { key: 'fuelTypeSplit',        label: 'Fuel Type Split',         desc: 'Diesel vs. unleaded breakdown' },
+  { key: 'savingsCalc',          label: 'Savings Calculator',      desc: 'Estimated $ opportunity with a CK rebate', badge: 'New' },
+  { key: 'annualized',           label: 'Annualized View',         desc: 'Monthly & yearly projections from data window', badge: 'New' },
+]
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Compute approximate months spanned by the formatted date strings (e.g. "Jan 1, 2024") */
+function computeMonthSpan(dateRange: { start: string; end: string }): number {
+  if (!dateRange.start || !dateRange.end) return 1
+  const start = new Date(dateRange.start)
+  const end   = new Date(dateRange.end)
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return 1
+  const months = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30.44)
+  return Math.max(months, 0.5) // at least half a month to avoid divide-by-zero
 }
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
@@ -160,16 +218,16 @@ function OpportunityPanel({ analysis, totalGallons }: { analysis: TransactionSum
   )
 }
 
-// ─── Proximity stats panel (shown in Map tab) ─────────────────────────────────
+// ─── Proximity Panel (shown in Map tab) ───────────────────────────────────────
 
 function ProximityPanel({ prox, totalGallons }: { prox: NonNullable<TransactionSummary['proximityBreakdown']>; totalGallons: number }) {
   const rows = [
-    { label: 'Fueled at Circle K', gallons: prox.ckGallons, color: '#ED8B00', bg: 'bg-orange-50 border-orange-200', badge: 'text-orange-700' },
-    { label: 'Competitor — within 1 mile of CK', gallons: prox.within1mi.gallons, color: '#16a34a', bg: 'bg-green-50 border-green-200', badge: 'text-green-700', opportunity: true },
-    { label: 'Competitor — 1 – 2 miles of CK', gallons: prox.within2mi.gallons, color: '#22c55e', bg: 'bg-green-50 border-green-200', badge: 'text-green-600', opportunity: true },
-    { label: 'Competitor — 2 – 5 miles of CK', gallons: prox.within5mi.gallons, color: '#ca8a04', bg: 'bg-yellow-50 border-yellow-200', badge: 'text-yellow-700' },
-    { label: 'Competitor — 5 – 10 miles of CK', gallons: prox.within10mi.gallons, color: '#ea580c', bg: 'bg-orange-50 border-orange-200', badge: 'text-orange-600' },
-    { label: 'Beyond 10 miles of any CK', gallons: prox.beyond10mi.gallons, color: '#dc2626', bg: 'bg-red-50 border-red-200', badge: 'text-red-600' },
+    { label: 'Fueled at Circle K',               gallons: prox.ckGallons,          color: '#ED8B00', opportunity: false },
+    { label: 'Competitor — within 1 mile of CK', gallons: prox.within1mi.gallons,  color: '#16a34a', opportunity: true },
+    { label: 'Competitor — 1 – 2 miles of CK',   gallons: prox.within2mi.gallons,  color: '#22c55e', opportunity: true },
+    { label: 'Competitor — 2 – 5 miles of CK',   gallons: prox.within5mi.gallons,  color: '#ca8a04', opportunity: false },
+    { label: 'Competitor — 5 – 10 miles of CK',  gallons: prox.within10mi.gallons, color: '#ea580c', opportunity: false },
+    { label: 'Beyond 10 miles of any CK',         gallons: prox.beyond10mi.gallons, color: '#dc2626', opportunity: false },
   ]
 
   const opportunityGallons = prox.within1mi.gallons + prox.within2mi.gallons
@@ -191,7 +249,6 @@ function ProximityPanel({ prox, totalGallons }: { prox: NonNullable<TransactionS
           </div>
         )}
       </div>
-
       <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 overflow-hidden">
         {rows.map(row => {
           const pct = totalGallons > 0 ? (row.gallons / totalGallons) * 100 : 0
@@ -212,9 +269,288 @@ function ProximityPanel({ prox, totalGallons }: { prox: NonNullable<TransactionS
   )
 }
 
+// ─── Savings Calculator ────────────────────────────────────────────────────────
+
+function SavingsCalculatorPanel({
+  capturable,
+  months,
+}: {
+  capturable: { gallons: number; spend: number }
+  months: number
+}) {
+  const [rebateRate, setRebateRate] = useState(3)
+
+  const monthlyGal    = capturable.gallons / months
+  const annualGal     = monthlyGal * 12
+  const monthlySavings = monthlyGal * (rebateRate / 100)
+  const annualSavings  = annualGal  * (rebateRate / 100)
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-off-black px-6 py-4 flex items-center justify-between">
+        <div>
+          <h2 className="text-white font-bold text-lg">Savings Calculator</h2>
+          <p className="text-gray-400 text-sm mt-0.5">Estimated value of switching capturable gallons to Circle K</p>
+        </div>
+        <DollarSign className="text-brand-orange" size={26} />
+      </div>
+      <div className="p-6">
+        <div className="mb-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Circle K Rebate Rate
+          </label>
+          <div className="flex items-center gap-4">
+            <input
+              type="range"
+              min={0.5}
+              max={10}
+              step={0.5}
+              value={rebateRate}
+              onChange={e => setRebateRate(Number(e.target.value))}
+              className="flex-1 accent-brand-orange h-2 cursor-pointer"
+            />
+            <div className="shrink-0 flex items-center gap-1.5">
+              <input
+                type="number"
+                min={0}
+                max={20}
+                step={0.5}
+                value={rebateRate}
+                onChange={e => setRebateRate(Number(e.target.value))}
+                className="w-16 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-center font-bold focus:outline-none focus:ring-2 focus:ring-brand-orange"
+              />
+              <span className="text-sm text-gray-500 font-medium">¢/gal</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="rounded-xl bg-gray-50 border border-gray-200 p-4 text-center">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Opportunity Gallons</p>
+            <p className="text-2xl font-bold text-off-black">{fmtGallons(annualGal)}</p>
+            <p className="text-xs text-gray-400 mt-0.5">per year &nbsp;·&nbsp; {fmtGallons(monthlyGal)}/mo</p>
+          </div>
+          <div className="rounded-xl bg-green-50 border border-green-200 p-4 text-center">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Monthly Savings</p>
+            <p className="text-2xl font-bold text-green-600">{fmtDollars(monthlySavings)}</p>
+            <p className="text-xs text-gray-400 mt-0.5">at {rebateRate}¢/gal</p>
+          </div>
+          <div className="rounded-xl bg-green-50 border border-green-300 p-4 text-center">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Annual Savings</p>
+            <p className="text-2xl font-bold text-green-700">{fmtDollars(annualSavings)}</p>
+            <p className="text-xs text-gray-400 mt-0.5">projected per year</p>
+          </div>
+        </div>
+
+        <p className="mt-4 text-xs text-gray-400 flex items-start gap-1.5">
+          <Info size={12} className="shrink-0 mt-0.5" />
+          Based on {fmtGallons(capturable.gallons)} capturable gallons across {months.toFixed(1)} months of data, extrapolated to 12 months.
+          Assumes full conversion of gallons at non-CK stations where a CK location exists nearby.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ─── Annualized Projections ───────────────────────────────────────────────────
+
+function AnnualizedPanel({
+  summary,
+  months,
+}: {
+  summary: TransactionSummary
+  months: number
+}) {
+  const monthly = (n: number) => (months > 0 ? n / months : 0)
+  const annual  = (n: number) => monthly(n) * 12
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <TrendingUp size={16} className="text-brand-orange" />
+        <h3 className="font-bold text-off-black text-sm">Annualized Projections</h3>
+        <span className="text-xs text-gray-400">
+          {months.toFixed(1)} mo of data → extrapolated to 12 mo
+        </span>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-gray-50 rounded-xl p-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Total Gallons / Yr</p>
+          <p className="text-2xl font-bold text-off-black">{fmtGallons(annual(summary.totalGallons))}</p>
+          <p className="text-xs text-gray-400 mt-0.5">{fmtGallons(monthly(summary.totalGallons))} / mo</p>
+        </div>
+        <div className="bg-gray-50 rounded-xl p-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Total Spend / Yr</p>
+          <p className="text-2xl font-bold text-off-black">{fmtDollars(annual(summary.totalSpend))}</p>
+          <p className="text-xs text-gray-400 mt-0.5">{fmtDollars(monthly(summary.totalSpend))} / mo</p>
+        </div>
+        <div className="bg-orange-50 rounded-xl p-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">CK Gallons / Yr</p>
+          <p className="text-2xl font-bold text-brand-orange">{fmtGallons(annual(summary.ckCaptureAnalysis.captured.gallons))}</p>
+          <p className="text-xs text-gray-400 mt-0.5">{fmtGallons(monthly(summary.ckCaptureAnalysis.captured.gallons))} / mo</p>
+        </div>
+        <div className="bg-green-50 rounded-xl p-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Opportunity / Yr</p>
+          <p className="text-2xl font-bold text-green-600">{fmtGallons(annual(summary.ckCaptureAnalysis.capturable.gallons))}</p>
+          <p className="text-xs text-gray-400 mt-0.5">{fmtGallons(monthly(summary.ckCaptureAnalysis.capturable.gallons))} / mo</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Feature Selector (upload screen) ────────────────────────────────────────
+
+function FeatureSelector({
+  flags,
+  onChange,
+}: {
+  flags: FeatureFlags
+  onChange: (key: FeatureKey, val: boolean) => void
+}) {
+  return (
+    <div className="mb-5 bg-white rounded-xl border border-gray-200 p-4">
+      <div className="flex items-center gap-2 mb-1">
+        <Settings2 size={15} className="text-gray-500" />
+        <p className="text-sm font-semibold text-off-black">Analysis Modules</p>
+      </div>
+      <p className="text-xs text-gray-400 mb-3 ml-[23px]">
+        Choose what to include. You can change these after upload too.
+      </p>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+        {FEATURE_DEFS.map(def => (
+          <label key={def.key} className="flex items-start gap-2.5 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={flags[def.key]}
+              onChange={e => onChange(def.key, e.target.checked)}
+              className="accent-brand-orange w-4 h-4 mt-0.5 shrink-0"
+            />
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-medium text-off-black group-hover:text-brand-orange transition-colors">
+                  {def.label}
+                </span>
+                {def.badge && (
+                  <span className="text-xs bg-green-100 text-green-700 rounded px-1.5 py-0.5 font-semibold leading-none">
+                    {def.badge}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-gray-400 leading-tight mt-0.5">{def.desc}</p>
+            </div>
+          </label>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Feature Toggle Bar (results screen) ─────────────────────────────────────
+
+function FeatureToggleBar({
+  flags,
+  onChange,
+}: {
+  flags: FeatureFlags
+  onChange: (key: FeatureKey, val: boolean) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const activeCount = (Object.values(flags) as boolean[]).filter(Boolean).length
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Settings2 size={15} className="text-gray-400" />
+          <span className="text-sm font-semibold text-gray-700">Modules</span>
+          <span className="text-xs bg-gray-100 text-gray-500 rounded-full px-2 py-0.5">
+            {activeCount} of {FEATURE_DEFS.length} active
+          </span>
+        </div>
+        <button
+          onClick={() => setExpanded(v => !v)}
+          className="text-xs text-brand-orange hover:underline flex items-center gap-1 font-medium"
+        >
+          {expanded ? 'Collapse' : 'Edit'}
+          {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+      </div>
+
+      {/* Collapsed: clickable pills */}
+      {!expanded && (
+        <div className="flex flex-wrap gap-1.5">
+          {FEATURE_DEFS.map(def => (
+            <button
+              key={def.key}
+              onClick={() => onChange(def.key, !flags[def.key])}
+              title={def.desc}
+              className={`text-xs rounded-full px-3 py-1 font-medium transition-all ${
+                flags[def.key]
+                  ? 'bg-brand-orange text-white'
+                  : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+              }`}
+            >
+              {def.label}
+              {def.badge && !flags[def.key] && (
+                <span className="ml-1 text-green-500 font-semibold">· {def.badge}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Expanded: full grid with descriptions */}
+      {expanded && (
+        <div className="grid grid-cols-2 gap-x-6 gap-y-3 pt-1">
+          {FEATURE_DEFS.map(def => (
+            <label key={def.key} className="flex items-start gap-2.5 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={flags[def.key]}
+                onChange={e => onChange(def.key, e.target.checked)}
+                className="accent-brand-orange w-4 h-4 mt-0.5 shrink-0"
+              />
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-medium text-off-black group-hover:text-brand-orange transition-colors">
+                    {def.label}
+                  </span>
+                  {def.badge && (
+                    <span className="text-xs bg-green-100 text-green-700 rounded px-1.5 py-0.5 font-semibold leading-none">
+                      {def.badge}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 leading-tight mt-0.5">{def.desc}</p>
+              </div>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 type Tab = 'brands' | 'geographic' | 'locations' | 'vehicles' | 'map'
+
+const TAB_FEATURE_MAP: Record<Tab, FeatureKey> = {
+  brands:     'brandBreakdown',
+  geographic: 'geographic',
+  locations:  'competitorLocations',
+  vehicles:   'vehicles',
+  map:        'mapView',
+}
+
+const ALL_TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
+  { id: 'brands',     label: 'Brand Breakdown',          icon: <BarChart2 size={16} /> },
+  { id: 'geographic', label: 'Geographic',               icon: <MapPin size={16} /> },
+  { id: 'locations',  label: 'Top Competitor Locations', icon: <Fuel size={16} /> },
+  { id: 'vehicles',   label: 'Vehicles',                 icon: <Car size={16} /> },
+  { id: 'map',        label: 'Map View',                 icon: <MapPin size={16} /> },
+]
 
 export default function AnalysisPage() {
   const [isDragging, setIsDragging] = useState(false)
@@ -233,7 +569,12 @@ export default function AnalysisPage() {
   const [showAllBrands, setShowAllBrands] = useState(false)
   const [showAllVehicles, setShowAllVehicles] = useState(false)
   const [restoredFromCache, setRestoredFromCache] = useState(false)
+  const [featureFlags, setFeatureFlags] = useState<FeatureFlags>(DEFAULT_FEATURES)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const toggleFeature = useCallback((key: FeatureKey, val: boolean) => {
+    setFeatureFlags(prev => ({ ...prev, [key]: val }))
+  }, [])
 
   // Restore last analysis from localStorage on mount
   useEffect(() => {
@@ -247,6 +588,7 @@ export default function AnalysisPage() {
       setCustomerName(saved.customerName ?? '')
       setDetectedFormat(saved.detectedFormat ?? '')
       setMissingFields(saved.missingFields ?? [])
+      if (saved.featureFlags) setFeatureFlags({ ...DEFAULT_FEATURES, ...saved.featureFlags })
       setRestoredFromCache(true)
       // Re-load CK pins from static data
       fetch('/stores-data.json')
@@ -272,6 +614,25 @@ export default function AnalysisPage() {
     }
   }, [])
 
+  // Save feature flags to cache whenever they change (after initial load)
+  useEffect(() => {
+    if (!summary) return
+    try {
+      const raw = localStorage.getItem('ck-analysis-v1')
+      if (!raw) return
+      const saved = JSON.parse(raw)
+      localStorage.setItem('ck-analysis-v1', JSON.stringify({ ...saved, featureFlags }))
+    } catch { /* ignore */ }
+  }, [featureFlags, summary])
+
+  // Auto-fix activeTab when its feature gets disabled
+  useEffect(() => {
+    if (!featureFlags[TAB_FEATURE_MAP[activeTab]]) {
+      const fallback = ALL_TABS.find(t => featureFlags[TAB_FEATURE_MAP[t.id]])
+      if (fallback) setActiveTab(fallback.id)
+    }
+  }, [featureFlags, activeTab])
+
   const processFile = useCallback(async (file: File) => {
     const isExcel = /\.(xlsx|xls|XLSX|XLS)$/.test(file.name)
     const isCSV   = /\.(csv|CSV|txt|TXT)$/.test(file.name)
@@ -291,7 +652,6 @@ export default function AnalysisPage() {
       let content: string
 
       if (isExcel) {
-        // Convert first sheet to CSV using SheetJS
         const buffer = await file.arrayBuffer()
         const workbook = XLSX.read(buffer, { type: 'array' })
         const sheetName = workbook.SheetNames[0]
@@ -301,7 +661,7 @@ export default function AnalysisPage() {
         content = await file.text()
       }
 
-      // 2. Parse with flexible parser
+      // 2. Parse
       setLoadingStep('Detecting format and parsing transactions…')
       const parseResult = parseFleetCSV(content)
       const { transactions, detectedFormat: fmt, missingRequiredFields } = parseResult
@@ -348,11 +708,22 @@ export default function AnalysisPage() {
       const result = analyzeTransactions(transactions, ckZipSet, { detectedFormat: fmt })
       setSummary(result)
       setRestoredFromCache(false)
-      try {
-        localStorage.setItem('ck-analysis-v1', JSON.stringify({
-          summary: result, fileName: file.name, customerName, detectedFormat: fmt, missingFields: missingRequiredFields,
-        }))
-      } catch { /* storage full — ignore */ }
+
+      // Capture current flags at the time of upload for cache
+      setFeatureFlags(prev => {
+        try {
+          localStorage.setItem('ck-analysis-v1', JSON.stringify({
+            summary: result,
+            fileName: file.name,
+            customerName,
+            detectedFormat: fmt,
+            missingFields: missingRequiredFields,
+            featureFlags: prev,
+          }))
+        } catch { /* storage full — ignore */ }
+        return prev
+      })
+
       setLoading(false)
 
       // 5. Background geocoding → re-run analysis with proximity data
@@ -365,7 +736,6 @@ export default function AnalysisPage() {
           return { city, state }
         })
 
-      // Collect unique station addresses for non-CK transactions (for CK matching)
       const nonCKAddrKeys = new Set<string>()
       for (const t of transactions) {
         if (!t.isCircleK && t.stationAddress && t.stationCity && t.stationState) {
@@ -375,7 +745,7 @@ export default function AnalysisPage() {
       const uniqueAddresses = Array.from(nonCKAddrKeys).map(k => {
         const parts = k.split('|')
         const state = parts[parts.length - 1]
-        const city = parts[parts.length - 2]
+        const city  = parts[parts.length - 2]
         const address = parts.slice(0, parts.length - 2).join('|')
         return { address, city, state }
       })
@@ -393,7 +763,6 @@ export default function AnalysisPage() {
         (done) => { geoDone = done; setGeocodingProgress({ done: geoDone, total: totalGeoItems }) }
       )
 
-      // Geocode individual station addresses and reclassify any that land on a CK store
       const CK_MATCH_MILES = 0.1
       let geocodedAddrs = new Map<string, { lat: number; lng: number }>()
       if (uniqueAddresses.length > 0 && ckStoreCoords.length > 0) {
@@ -407,13 +776,10 @@ export default function AnalysisPage() {
           const coord = geocodedAddrs.get(addrGeoKey(t.stationAddress, t.stationCity, t.stationState))
           if (!coord) continue
           const dist = nearestCKDistance(coord.lat, coord.lng, ckStoreCoords)
-          if (dist >= 0 && dist <= CK_MATCH_MILES) {
-            t.isCircleK = true
-          }
+          if (dist >= 0 && dist <= CK_MATCH_MILES) t.isCircleK = true
         }
       }
 
-      // Re-run analysis with geocoded coordinates (and any reclassified CK transactions)
       const enrichedResult = analyzeTransactions(transactions, ckZipSet, {
         detectedFormat: fmt,
         geocodedCoords,
@@ -421,11 +787,21 @@ export default function AnalysisPage() {
         ckStores: ckStoreCoords,
       })
       setSummary(enrichedResult)
-      try {
-        localStorage.setItem('ck-analysis-v1', JSON.stringify({
-          summary: enrichedResult, fileName: file.name, customerName, detectedFormat: fmt, missingFields: missingRequiredFields,
-        }))
-      } catch { /* storage full — ignore */ }
+
+      setFeatureFlags(prev => {
+        try {
+          localStorage.setItem('ck-analysis-v1', JSON.stringify({
+            summary: enrichedResult,
+            fileName: file.name,
+            customerName,
+            detectedFormat: fmt,
+            missingFields: missingRequiredFields,
+            featureFlags: prev,
+          }))
+        } catch { /* storage full — ignore */ }
+        return prev
+      })
+
       setGeocodingInProgress(false)
       setGeocodingProgress(null)
 
@@ -434,7 +810,7 @@ export default function AnalysisPage() {
       setLoading(false)
       setGeocodingInProgress(false)
     }
-  }, [])
+  }, [customerName])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -459,17 +835,16 @@ export default function AnalysisPage() {
     setGeocodingProgress(null)
     setCKStorePins([])
     setRestoredFromCache(false)
+    setFeatureFlags(DEFAULT_FEATURES)
     try { localStorage.removeItem('ck-analysis-v1') } catch { /* ignore */ }
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'brands',     label: 'Brand Breakdown',         icon: <BarChart2 size={16} /> },
-    { id: 'geographic', label: 'Geographic',              icon: <MapPin size={16} /> },
-    { id: 'locations',  label: 'Top Competitor Locations', icon: <Fuel size={16} /> },
-    { id: 'vehicles',   label: 'Vehicles',                icon: <Car size={16} /> },
-    { id: 'map',        label: 'Map View',                icon: <MapPin size={16} /> },
-  ]
+  // Tabs filtered to only those whose feature is enabled
+  const visibleTabs = ALL_TABS.filter(t => featureFlags[TAB_FEATURE_MAP[t.id]])
+
+  // Months spanned by data (used by Savings Calc and Annualized panels)
+  const monthSpan = summary ? computeMonthSpan(summary.dateRange) : 1
 
   return (
     <div className="min-h-screen bg-off-white">
@@ -487,6 +862,7 @@ export default function AnalysisPage() {
         {/* ── Upload State ──────────────────────────────────────────────────── */}
         {!summary && (
           <div className="max-w-2xl mx-auto">
+            {/* Customer Name */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Customer / Account Name</label>
               <input
@@ -498,6 +874,10 @@ export default function AnalysisPage() {
               />
             </div>
 
+            {/* Feature Selector */}
+            <FeatureSelector flags={featureFlags} onChange={toggleFeature} />
+
+            {/* Drop zone */}
             <div
               onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
               onDragLeave={() => setIsDragging(false)}
@@ -529,7 +909,7 @@ export default function AnalysisPage() {
               <div className="mt-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>
             )}
 
-            {/* Required / optional field hint */}
+            {/* Column hint */}
             <div className="mt-6 bg-white rounded-xl border border-gray-200 p-4 space-y-3">
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Required columns</p>
@@ -567,7 +947,7 @@ export default function AnalysisPage() {
                   {fileName} &bull; {summary.dateRange.start}
                   {summary.dateRange.end && summary.dateRange.end !== summary.dateRange.start ? ` – ${summary.dateRange.end}` : ''}
                 </p>
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <span className="text-xs bg-gray-100 text-gray-600 rounded px-2 py-0.5 font-medium">
                     {summary.detectedFormat}
                   </span>
@@ -593,6 +973,9 @@ export default function AnalysisPage() {
               </button>
             </div>
 
+            {/* Feature Toggle Bar */}
+            <FeatureToggleBar flags={featureFlags} onChange={toggleFeature} />
+
             {/* Summary stats */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
               <StatCard label="Transactions" value={summary.totalTransactions.toLocaleString()} />
@@ -607,207 +990,219 @@ export default function AnalysisPage() {
               />
             </div>
 
+            {/* Annualized Projections (if enabled) */}
+            {featureFlags.annualized && (
+              <AnnualizedPanel summary={summary} months={monthSpan} />
+            )}
+
             {/* CK Opportunity Panel */}
             <OpportunityPanel analysis={summary.ckCaptureAnalysis} totalGallons={summary.totalGallons} />
 
-            {/* Tabbed detail sections */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="flex border-b border-gray-200 overflow-x-auto">
-                {TABS.map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium whitespace-nowrap transition-colors ${
-                      activeTab === tab.id
-                        ? 'border-b-2 border-brand-orange text-brand-orange bg-orange-50'
-                        : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
-                    }`}
-                  >
-                    {tab.icon}
-                    {tab.label}
-                    {tab.id === 'map' && geocodingInProgress && (
-                      <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-                    )}
-                  </button>
-                ))}
+            {/* Savings Calculator (if enabled) */}
+            {featureFlags.savingsCalc && (
+              <SavingsCalculatorPanel
+                capturable={summary.ckCaptureAnalysis.capturable}
+                months={monthSpan}
+              />
+            )}
+
+            {/* Tabbed detail sections — only shown if at least one tab is visible */}
+            {visibleTabs.length > 0 && (
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="flex border-b border-gray-200 overflow-x-auto">
+                  {visibleTabs.map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium whitespace-nowrap transition-colors ${
+                        activeTab === tab.id
+                          ? 'border-b-2 border-brand-orange text-brand-orange bg-orange-50'
+                          : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                      }`}
+                    >
+                      {tab.icon}
+                      {tab.label}
+                      {tab.id === 'map' && geocodingInProgress && (
+                        <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="p-6">
+                  {/* ── Brands Tab ──────────────────────────────────────── */}
+                  {activeTab === 'brands' && featureFlags.brandBreakdown && (
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-bold text-off-black">Gallons by Network / Brand</h3>
+                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-brand-orange inline-block" />Circle K</span>
+                          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-gray-400 inline-block" />Competitor</span>
+                        </div>
+                      </div>
+                      <div className="divide-y divide-gray-100">
+                        {(showAllBrands ? summary.brandBreakdown : summary.brandBreakdown.slice(0, 15)).map(brand => (
+                          <BrandBar key={brand.brand} brand={brand} maxGallons={summary.brandBreakdown[0]?.gallons ?? 1} />
+                        ))}
+                      </div>
+                      {summary.brandBreakdown.length > 15 && (
+                        <button onClick={() => setShowAllBrands(v => !v)} className="mt-4 flex items-center gap-1 text-sm text-brand-orange hover:underline">
+                          {showAllBrands ? <><ChevronUp size={16} />Show fewer</> : <><ChevronDown size={16} />Show all {summary.brandBreakdown.length} brands</>}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Geographic Tab ──────────────────────────────────── */}
+                  {activeTab === 'geographic' && featureFlags.geographic && (
+                    <div>
+                      <h3 className="font-bold text-off-black mb-4">Fueling Activity by State</h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-gray-200">
+                              {['State', 'Transactions', 'Gallons', 'Spend', 'CK Gallons', 'CK Share'].map(h => (
+                                <th key={h} className={`py-2 ${h === 'State' ? 'text-left pr-4' : 'text-right px-4'} text-xs font-semibold uppercase tracking-wider text-gray-500`}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {summary.stateBreakdown.map(row => (
+                              <tr key={row.state} className="hover:bg-gray-50">
+                                <td className="py-2.5 pr-4 font-semibold text-off-black">{row.state}</td>
+                                <td className="py-2.5 px-4 text-right text-gray-600">{row.transactions.toLocaleString()}</td>
+                                <td className="py-2.5 px-4 text-right font-medium">{fmtGallons(row.gallons)}</td>
+                                <td className="py-2.5 px-4 text-right text-gray-600">{fmtDollars(row.spend)}</td>
+                                <td className="py-2.5 px-4 text-right text-brand-orange font-medium">{fmtGallons(row.ckGallons)}</td>
+                                <td className="py-2.5 pl-4 text-right">
+                                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${row.ckSharePct >= 20 ? 'bg-green-100 text-green-700' : row.ckSharePct > 0 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
+                                    {fmtPct(row.ckSharePct)}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Competitor Locations Tab ─────────────────────────── */}
+                  {activeTab === 'locations' && featureFlags.competitorLocations && (
+                    <div>
+                      <div className="mb-4">
+                        <h3 className="font-bold text-off-black">Top Competitor Fueling Locations</h3>
+                        <p className="text-xs text-gray-400 mt-0.5">Non-Circle K stations ranked by gallons purchased</p>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-gray-200">
+                              {['Station', 'Brand', 'Location', 'Trans', 'Gallons', 'Spend', 'Nearest CK', 'CK Nearby?'].map(h => (
+                                <th key={h} className={`py-2 ${['Station','Brand','Location'].includes(h) ? 'text-left px-4 first:pl-0' : 'text-right px-4'} text-xs font-semibold uppercase tracking-wider text-gray-500`}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {summary.topCompetitorLocations.map((loc, i) => (
+                              <tr key={i} className="hover:bg-gray-50">
+                                <td className="py-2.5 pr-4 font-medium text-off-black max-w-[180px] truncate">{loc.stationName}</td>
+                                <td className="py-2.5 px-4 text-gray-600 text-xs">{loc.displayBrand}</td>
+                                <td className="py-2.5 px-4 text-gray-500 text-xs whitespace-nowrap">{loc.city}, {loc.state} {loc.zipCode}</td>
+                                <td className="py-2.5 px-4 text-right text-gray-600">{loc.transactions}</td>
+                                <td className="py-2.5 px-4 text-right font-medium">{fmtGallons(loc.gallons)}</td>
+                                <td className="py-2.5 px-4 text-right text-gray-600">{fmtDollars(loc.spend)}</td>
+                                <td className="py-2.5 px-4 text-right text-xs text-gray-500">
+                                  {loc.nearestCKDistanceMi >= 0 ? fmtMiles(loc.nearestCKDistanceMi) : '—'}
+                                </td>
+                                <td className="py-2.5 pl-4 text-right">
+                                  {loc.hasCKNearby ? (
+                                    <span className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 rounded px-2 py-0.5 font-semibold"><CheckCircle size={11} />Yes</span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-500 rounded px-2 py-0.5"><XCircle size={11} />No</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Vehicles Tab ─────────────────────────────────────── */}
+                  {activeTab === 'vehicles' && featureFlags.vehicles && (
+                    <div>
+                      <div className="mb-4">
+                        <h3 className="font-bold text-off-black">Vehicle Fueling Summary</h3>
+                        <p className="text-xs text-gray-400 mt-0.5">Per-unit breakdown sorted by total gallons</p>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-gray-200">
+                              {['Unit #', 'Driver City', 'Trans', 'Gallons', 'Spend', 'CK Gallons', 'CK Share'].map(h => (
+                                <th key={h} className={`py-2 ${['Unit #','Driver City'].includes(h) ? 'text-left pr-4' : 'text-right px-4'} text-xs font-semibold uppercase tracking-wider text-gray-500`}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {(showAllVehicles ? summary.vehicleBreakdown : summary.vehicleBreakdown.slice(0, 30)).map(v => (
+                              <tr key={v.unitNumber} className="hover:bg-gray-50">
+                                <td className="py-2 pr-4 font-mono font-semibold text-off-black text-xs">{v.unitNumber}</td>
+                                <td className="py-2 px-4 text-gray-600 text-xs">{v.driverCity || '—'}</td>
+                                <td className="py-2 px-4 text-right text-gray-600">{v.transactions}</td>
+                                <td className="py-2 px-4 text-right font-medium">{fmtGallons(v.gallons)}</td>
+                                <td className="py-2 px-4 text-right text-gray-600">{fmtDollars(v.spend)}</td>
+                                <td className="py-2 px-4 text-right text-brand-orange font-medium">{fmtGallons(v.ckGallons)}</td>
+                                <td className="py-2 pl-4 text-right">
+                                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${v.ckSharePct >= 20 ? 'bg-green-100 text-green-700' : v.ckSharePct > 0 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
+                                    {fmtPct(v.ckSharePct)}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      {summary.vehicleBreakdown.length > 30 && (
+                        <button onClick={() => setShowAllVehicles(v => !v)} className="mt-4 flex items-center gap-1 text-sm text-brand-orange hover:underline">
+                          {showAllVehicles ? <><ChevronUp size={16} />Show fewer</> : <><ChevronDown size={16} />Show all {summary.vehicleBreakdown.length} vehicles</>}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Map Tab ──────────────────────────────────────────── */}
+                  {activeTab === 'map' && featureFlags.mapView && (
+                    <div className="space-y-6">
+                      {summary.proximityBreakdown && !geocodingInProgress ? (
+                        <ProximityPanel prox={summary.proximityBreakdown} totalGallons={summary.totalGallons} />
+                      ) : geocodingInProgress ? (
+                        <div className="rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-700 flex items-center gap-2">
+                          <span className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                          Geocoding locations for proximity analysis…
+                          {geocodingProgress && ` (${geocodingProgress.done}/${geocodingProgress.total})`}
+                        </div>
+                      ) : (
+                        <div className="rounded-xl bg-gray-50 border border-gray-200 px-4 py-3 text-sm text-gray-500">
+                          Proximity analysis requires a Mapbox token configured in your environment.
+                        </div>
+                      )}
+                      <FuelingMap
+                        transactionPoints={summary.mapPoints}
+                        ckStores={ckStorePins}
+                        height={560}
+                        geocodingInProgress={geocodingInProgress}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
+            )}
 
-              <div className="p-6">
-                {/* ── Brands Tab ─────────────────────────────────────── */}
-                {activeTab === 'brands' && (
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-bold text-off-black">Gallons by Network / Brand</h3>
-                      <div className="flex items-center gap-3 text-xs text-gray-500">
-                        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-brand-orange inline-block" />Circle K</span>
-                        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-gray-400 inline-block" />Competitor</span>
-                      </div>
-                    </div>
-                    <div className="divide-y divide-gray-100">
-                      {(showAllBrands ? summary.brandBreakdown : summary.brandBreakdown.slice(0, 15)).map(brand => (
-                        <BrandBar key={brand.brand} brand={brand} maxGallons={summary.brandBreakdown[0]?.gallons ?? 1} />
-                      ))}
-                    </div>
-                    {summary.brandBreakdown.length > 15 && (
-                      <button onClick={() => setShowAllBrands(v => !v)} className="mt-4 flex items-center gap-1 text-sm text-brand-orange hover:underline">
-                        {showAllBrands ? <><ChevronUp size={16} />Show fewer</> : <><ChevronDown size={16} />Show all {summary.brandBreakdown.length} brands</>}
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* ── Geographic Tab ─────────────────────────────────── */}
-                {activeTab === 'geographic' && (
-                  <div>
-                    <h3 className="font-bold text-off-black mb-4">Fueling Activity by State</h3>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-gray-200">
-                            {['State', 'Transactions', 'Gallons', 'Spend', 'CK Gallons', 'CK Share'].map(h => (
-                              <th key={h} className={`py-2 ${h === 'State' ? 'text-left pr-4' : 'text-right px-4'} text-xs font-semibold uppercase tracking-wider text-gray-500`}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {summary.stateBreakdown.map(row => (
-                            <tr key={row.state} className="hover:bg-gray-50">
-                              <td className="py-2.5 pr-4 font-semibold text-off-black">{row.state}</td>
-                              <td className="py-2.5 px-4 text-right text-gray-600">{row.transactions.toLocaleString()}</td>
-                              <td className="py-2.5 px-4 text-right font-medium">{fmtGallons(row.gallons)}</td>
-                              <td className="py-2.5 px-4 text-right text-gray-600">{fmtDollars(row.spend)}</td>
-                              <td className="py-2.5 px-4 text-right text-brand-orange font-medium">{fmtGallons(row.ckGallons)}</td>
-                              <td className="py-2.5 pl-4 text-right">
-                                <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${row.ckSharePct >= 20 ? 'bg-green-100 text-green-700' : row.ckSharePct > 0 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
-                                  {fmtPct(row.ckSharePct)}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* ── Top Competitor Locations Tab ─────────────────────── */}
-                {activeTab === 'locations' && (
-                  <div>
-                    <div className="mb-4">
-                      <h3 className="font-bold text-off-black">Top Competitor Fueling Locations</h3>
-                      <p className="text-xs text-gray-400 mt-0.5">Non-Circle K stations ranked by gallons purchased</p>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-gray-200">
-                            {['Station', 'Brand', 'Location', 'Trans', 'Gallons', 'Spend', 'Nearest CK', 'CK Nearby?'].map(h => (
-                              <th key={h} className={`py-2 ${['Station','Brand','Location'].includes(h) ? 'text-left px-4 first:pl-0' : 'text-right px-4'} text-xs font-semibold uppercase tracking-wider text-gray-500`}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {summary.topCompetitorLocations.map((loc, i) => (
-                            <tr key={i} className="hover:bg-gray-50">
-                              <td className="py-2.5 pr-4 font-medium text-off-black max-w-[180px] truncate">{loc.stationName}</td>
-                              <td className="py-2.5 px-4 text-gray-600 text-xs">{loc.displayBrand}</td>
-                              <td className="py-2.5 px-4 text-gray-500 text-xs whitespace-nowrap">{loc.city}, {loc.state} {loc.zipCode}</td>
-                              <td className="py-2.5 px-4 text-right text-gray-600">{loc.transactions}</td>
-                              <td className="py-2.5 px-4 text-right font-medium">{fmtGallons(loc.gallons)}</td>
-                              <td className="py-2.5 px-4 text-right text-gray-600">{fmtDollars(loc.spend)}</td>
-                              <td className="py-2.5 px-4 text-right text-xs text-gray-500">
-                                {loc.nearestCKDistanceMi >= 0 ? fmtMiles(loc.nearestCKDistanceMi) : '—'}
-                              </td>
-                              <td className="py-2.5 pl-4 text-right">
-                                {loc.hasCKNearby ? (
-                                  <span className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 rounded px-2 py-0.5 font-semibold"><CheckCircle size={11} />Yes</span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-500 rounded px-2 py-0.5"><XCircle size={11} />No</span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* ── Vehicles Tab ─────────────────────────────────────── */}
-                {activeTab === 'vehicles' && (
-                  <div>
-                    <div className="mb-4">
-                      <h3 className="font-bold text-off-black">Vehicle Fueling Summary</h3>
-                      <p className="text-xs text-gray-400 mt-0.5">Per-unit breakdown sorted by total gallons</p>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-gray-200">
-                            {['Unit #', 'Driver City', 'Trans', 'Gallons', 'Spend', 'CK Gallons', 'CK Share'].map(h => (
-                              <th key={h} className={`py-2 ${['Unit #','Driver City'].includes(h) ? 'text-left pr-4' : 'text-right px-4'} text-xs font-semibold uppercase tracking-wider text-gray-500`}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {(showAllVehicles ? summary.vehicleBreakdown : summary.vehicleBreakdown.slice(0, 30)).map(v => (
-                            <tr key={v.unitNumber} className="hover:bg-gray-50">
-                              <td className="py-2 pr-4 font-mono font-semibold text-off-black text-xs">{v.unitNumber}</td>
-                              <td className="py-2 px-4 text-gray-600 text-xs">{v.driverCity || '—'}</td>
-                              <td className="py-2 px-4 text-right text-gray-600">{v.transactions}</td>
-                              <td className="py-2 px-4 text-right font-medium">{fmtGallons(v.gallons)}</td>
-                              <td className="py-2 px-4 text-right text-gray-600">{fmtDollars(v.spend)}</td>
-                              <td className="py-2 px-4 text-right text-brand-orange font-medium">{fmtGallons(v.ckGallons)}</td>
-                              <td className="py-2 pl-4 text-right">
-                                <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${v.ckSharePct >= 20 ? 'bg-green-100 text-green-700' : v.ckSharePct > 0 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
-                                  {fmtPct(v.ckSharePct)}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    {summary.vehicleBreakdown.length > 30 && (
-                      <button onClick={() => setShowAllVehicles(v => !v)} className="mt-4 flex items-center gap-1 text-sm text-brand-orange hover:underline">
-                        {showAllVehicles ? <><ChevronUp size={16} />Show fewer</> : <><ChevronDown size={16} />Show all {summary.vehicleBreakdown.length} vehicles</>}
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* ── Map Tab ──────────────────────────────────────────── */}
-                {activeTab === 'map' && (
-                  <div className="space-y-6">
-                    {/* Proximity breakdown (when geocoding is done) */}
-                    {summary.proximityBreakdown && !geocodingInProgress ? (
-                      <ProximityPanel prox={summary.proximityBreakdown} totalGallons={summary.totalGallons} />
-                    ) : geocodingInProgress ? (
-                      <div className="rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-700 flex items-center gap-2">
-                        <span className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin shrink-0" />
-                        Geocoding locations for proximity analysis…
-                        {geocodingProgress && ` (${geocodingProgress.done}/${geocodingProgress.total})`}
-                      </div>
-                    ) : (
-                      <div className="rounded-xl bg-gray-50 border border-gray-200 px-4 py-3 text-sm text-gray-500">
-                        Proximity analysis requires a Mapbox token configured in your environment.
-                      </div>
-                    )}
-
-                    {/* Map */}
-                    <FuelingMap
-                      transactionPoints={summary.mapPoints}
-                      ckStores={ckStorePins}
-                      height={560}
-                      geocodingInProgress={geocodingInProgress}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Fuel type summary */}
-            {summary.fuelTypeBreakdown.length > 1 && (
+            {/* Fuel Type Split (if enabled) */}
+            {featureFlags.fuelTypeSplit && summary.fuelTypeBreakdown.length > 1 && (
               <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
                 <h3 className="font-bold text-off-black mb-3 text-sm">Fuel Type Breakdown</h3>
                 <div className="flex flex-wrap gap-3">
