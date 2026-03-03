@@ -221,17 +221,17 @@ function OpportunityPanel({ analysis, totalGallons }: { analysis: TransactionSum
 // ─── Proximity Panel (shown in Map tab) ───────────────────────────────────────
 
 function ProximityPanel({ prox, totalGallons }: { prox: NonNullable<TransactionSummary['proximityBreakdown']>; totalGallons: number }) {
-  const rows = [
-    { label: 'Fueled at Circle K',               gallons: prox.ckGallons,          color: '#ED8B00', opportunity: false },
-    { label: 'Competitor — within 1 mile of CK', gallons: prox.within1mi.gallons,  color: '#16a34a', opportunity: true },
-    { label: 'Competitor — 1 – 2 miles of CK',   gallons: prox.within2mi.gallons,  color: '#22c55e', opportunity: true },
-    { label: 'Competitor — 2 – 5 miles of CK',   gallons: prox.within5mi.gallons,  color: '#ca8a04', opportunity: false },
-    { label: 'Competitor — 5 – 10 miles of CK',  gallons: prox.within10mi.gallons, color: '#ea580c', opportunity: false },
-    { label: 'Beyond 10 miles of any CK',         gallons: prox.beyond10mi.gallons, color: '#dc2626', opportunity: false },
-  ]
-
-  const opportunityGallons = prox.within1mi.gallons + prox.within2mi.gallons
+  // Combine all within-10mi buckets into one "opportunity" figure — matches map logic
+  const opportunityGallons =
+    prox.within1mi.gallons + prox.within2mi.gallons +
+    prox.within5mi.gallons + prox.within10mi.gallons
   const opportunityPct = totalGallons > 0 ? (opportunityGallons / totalGallons) * 100 : 0
+
+  const rows = [
+    { label: 'Fueled at Circle K',              gallons: prox.ckGallons,            color: '#16a34a', opportunity: false },
+    { label: 'Competitor — CK within 10 mi',    gallons: opportunityGallons,         color: '#3b82f6', opportunity: true  },
+    { label: 'Competitor — no CK within 10 mi', gallons: prox.beyond10mi.gallons,   color: '#dc2626', opportunity: false },
+  ]
 
   return (
     <div className="space-y-3">
@@ -243,9 +243,9 @@ function ProximityPanel({ prox, totalGallons }: { prox: NonNullable<TransactionS
           </p>
         </div>
         {opportunityGallons > 0 && (
-          <div className="rounded-lg bg-green-100 border border-green-300 px-3 py-1.5 text-xs text-green-800 text-right shrink-0 ml-4">
+          <div className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-1.5 text-xs text-blue-800 text-right shrink-0 ml-4">
             <span className="font-bold">{fmtGallons(opportunityGallons)} gal</span><br />
-            <span className="opacity-80">within 2 mi of CK ({fmtPct(opportunityPct)})</span>
+            <span className="opacity-80">within 10 mi of CK ({fmtPct(opportunityPct)})</span>
           </div>
         )}
       </div>
@@ -257,7 +257,7 @@ function ProximityPanel({ prox, totalGallons }: { prox: NonNullable<TransactionS
               <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: row.color }} />
               <span className="flex-1 text-sm text-gray-700">{row.label}</span>
               {row.opportunity && row.gallons > 0 && (
-                <span className="text-xs bg-green-100 text-green-700 rounded px-1.5 py-0.5 font-semibold">Opportunity</span>
+                <span className="text-xs bg-blue-100 text-blue-700 rounded px-1.5 py-0.5 font-semibold">Opportunity</span>
               )}
               <span className="text-sm font-semibold text-off-black w-24 text-right">{fmtGallons(row.gallons)} gal</span>
               <span className="text-xs text-gray-400 w-12 text-right">{fmtPct(pct)}</span>
