@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react'
 import dynamic from 'next/dynamic'
+import * as XLSX from 'xlsx'
 import {
   Upload,
   BarChart2,
@@ -233,8 +234,10 @@ export default function AnalysisPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const processFile = useCallback(async (file: File) => {
-    if (!file.name.match(/\.(csv|CSV|txt|TXT)$/)) {
-      setError('Please upload a CSV or text file.')
+    const isExcel = /\.(xlsx|xls|XLSX|XLS)$/.test(file.name)
+    const isCSV   = /\.(csv|CSV|txt|TXT)$/.test(file.name)
+    if (!isExcel && !isCSV) {
+      setError('Please upload a CSV, Excel (.xlsx / .xls), or text file.')
       return
     }
     setLoading(true)
@@ -246,7 +249,18 @@ export default function AnalysisPage() {
     try {
       // 1. Read file
       setLoadingStep('Reading file…')
-      const content = await file.text()
+      let content: string
+
+      if (isExcel) {
+        // Convert first sheet to CSV using SheetJS
+        const buffer = await file.arrayBuffer()
+        const workbook = XLSX.read(buffer, { type: 'array' })
+        const sheetName = workbook.SheetNames[0]
+        const sheet = workbook.Sheets[sheetName]
+        content = XLSX.utils.sheet_to_csv(sheet)
+      } else {
+        content = await file.text()
+      }
 
       // 2. Parse with flexible parser
       setLoadingStep('Detecting format and parsing transactions…')
@@ -405,7 +419,7 @@ export default function AnalysisPage() {
                   : 'border-gray-300 bg-white hover:border-brand-orange hover:bg-orange-50'
               }`}
             >
-              <input ref={fileInputRef} type="file" accept=".csv,.txt" onChange={handleFileChange} className="hidden" />
+              <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls,.txt" onChange={handleFileChange} className="hidden" />
               {loading ? (
                 <div>
                   <div className="w-10 h-10 border-4 border-brand-orange border-t-transparent rounded-full animate-spin mx-auto mb-4" />
@@ -415,8 +429,8 @@ export default function AnalysisPage() {
                 <>
                   <Upload size={40} className="mx-auto text-gray-400 mb-4" />
                   <p className="font-semibold text-off-black mb-1">Drop your fleet transaction file here</p>
-                  <p className="text-sm text-gray-500">Heartland, WEX, Fuelman, Fleetcor, or any CSV export</p>
-                  <p className="text-xs text-gray-400 mt-3">Click to browse · .csv and .txt supported</p>
+                  <p className="text-sm text-gray-500">WEX, Fuelman, Fleetcor, Comdata, or any fleet card export</p>
+                  <p className="text-xs text-gray-400 mt-3">Click to browse · .xlsx, .xls, .csv, .txt supported</p>
                 </>
               )}
             </div>

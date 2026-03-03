@@ -232,7 +232,7 @@ export function parseFleetCSV(content: string): ParseResult {
   // Detect format by header fingerprint
   const headerJoined = headers.map(normalizeKey).join('|')
   let detectedFormat = 'Generic Fleet'
-  if (headerJoined.includes('station brand name')) detectedFormat = 'Heartland'
+  if (headerJoined.includes('station brand name')) detectedFormat = 'WEX'
   else if (headerJoined.includes('posting date') || headerJoined.includes('post date')) detectedFormat = 'WEX / Fleet One'
   else if (headerJoined.includes('invoice date')) detectedFormat = 'Fuelman / Fleetcor'
 
