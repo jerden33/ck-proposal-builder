@@ -514,8 +514,8 @@ export function analyzeTransactions(
       driverCity: t.driverCity,
       transactions: 0, gallons: 0, spend: 0, ckGallons: 0, ckTransactions: 0,
       capturableGallons: 0,
-      competitorBrandGallons: new Map(),
-      fillDates: [],
+      competitorBrandGallons: new Map<string, number>(),
+      fillDates: [] as string[],
     }
     existing.transactions++
     existing.gallons += t.gallons
