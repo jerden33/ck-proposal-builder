@@ -282,7 +282,7 @@ export function analyzeTransactions(
 
   // Enrich with geocoded distance
   if (geocodedCoords && ckStores) {
-    for (const loc of locMap.values()) {
+    for (const loc of Array.from(locMap.values())) {
       const coord = geocodedCoords.get(geoKey(loc.city, loc.state))
       if (coord) {
         loc.nearestCKDistanceMi = nearestCKDistance(coord.lat, coord.lng, ckStores)
