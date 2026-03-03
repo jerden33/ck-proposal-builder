@@ -22,16 +22,13 @@ export interface CKStorePin {
 
 // ─── Color helpers ────────────────────────────────────────────────────────────
 
-/** Determine dot color for a transaction point based on CK proximity */
+/** Determine dot color for a transaction point */
 function pointColor(p: MapPoint): string {
-  if (p.isCircleK) return '#ED8B00'           // brand orange — already at CK
+  if (p.isCircleK) return '#16a34a'           // green  — customer fueled at CK
   const d = p.nearestCKDistanceMi
-  if (d < 0)   return '#9ca3af'               // gray — no distance data
-  if (d < 1)   return '#16a34a'               // green-600
-  if (d < 2)   return '#22c55e'               // green-500
-  if (d < 5)   return '#ca8a04'               // yellow-600
-  if (d < 10)  return '#ea580c'               // orange-600
-  return '#dc2626'                             // red-600
+  if (d < 0)  return '#9ca3af'               // gray   — no distance data yet
+  if (d < 10) return '#3b82f6'               // blue   — competitor, CK within 10 mi (opportunity)
+  return '#dc2626'                            // red    — competitor, no CK within 10 mi
 }
 
 // ─── GeoJSON builders ─────────────────────────────────────────────────────────
@@ -170,8 +167,8 @@ export function FuelingMap({
               <div style="font-size:12px;color:#555;margin-bottom:6px">${p.city}, ${p.state}</div>
               <div style="font-size:13px"><b>${Number(p.gallons).toLocaleString()}</b> gal &nbsp;·&nbsp; ${Number(p.transactions).toLocaleString()} trans</div>
               ${p.spend > 0 ? `<div style="font-size:12px;color:#888;margin-top:2px">$${Math.round(p.spend).toLocaleString()}</div>` : ''}
-              <div style="margin-top:6px;font-size:12px;padding:3px 6px;border-radius:4px;display:inline-block;background:${isCK ? '#FFF3E0' : '#f3f4f6'};color:${isCK ? '#b45309' : '#444'}">
-                ${isCK ? '✓ Circle K' : `Nearest CK: ${dist}`}
+              <div style="margin-top:6px;font-size:12px;padding:3px 6px;border-radius:4px;display:inline-block;background:${isCK ? '#f0fdf4' : p.nearestCKDist >= 0 && p.nearestCKDist < 10 ? '#eff6ff' : '#fef2f2'};color:${isCK ? '#15803d' : p.nearestCKDist >= 0 && p.nearestCKDist < 10 ? '#1d4ed8' : '#dc2626'}">
+                ${isCK ? '✓ Fueled at Circle K' : `Nearest CK: ${dist}${p.nearestCKDist >= 0 && p.nearestCKDist < 10 ? ' — Opportunity' : p.nearestCKDist >= 10 ? ' — No CK nearby' : ''}`}
               </div>
             </div>
           `)
@@ -261,14 +258,13 @@ export function FuelingMap({
 
       {/* Legend */}
       <div className="absolute bottom-6 left-4 bg-white/95 rounded-xl shadow-md p-3 text-xs space-y-1.5 border border-gray-200">
-        <LegendDot color="#ED8B00" label="Fueling at Circle K" />
-        <LegendDot color="#16a34a" label="< 1 mi from CK" />
-        <LegendDot color="#22c55e" label="1 – 2 mi from CK" />
-        <LegendDot color="#ca8a04" label="2 – 5 mi from CK" />
-        <LegendDot color="#ea580c" label="5 – 10 mi from CK" />
-        <LegendDot color="#dc2626" label="> 10 mi from CK" />
+        <p className="text-gray-400 font-semibold uppercase tracking-wide mb-2" style={{ fontSize: 10 }}>Customer Fueling</p>
+        <LegendDot color="#16a34a" label="Fueled at Circle K" />
+        <LegendDot color="#3b82f6" label="Competitor — CK within 10 mi" />
+        <LegendDot color="#dc2626" label="Competitor — no CK within 10 mi" />
         <div className="border-t border-gray-200 pt-1.5 mt-1">
-          <LegendDot color="#ED8B00" small label="Circle K store" />
+          <p className="text-gray-400 font-semibold uppercase tracking-wide mb-1.5" style={{ fontSize: 10 }}>Network</p>
+          <LegendDot color="#ED8B00" small label="Circle K store (not visited)" />
         </div>
       </div>
     </div>
