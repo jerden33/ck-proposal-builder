@@ -53,6 +53,9 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'station state', 'state', 'site state', 'location state',
     'merchant state', 'fuel state', 'fueling state', 'st', 'store state',
     'prov', 'province',
+    // WEX variants
+    'trans state', 'transaction state', 'service state', 'fill state',
+    'loc state', 'mcht state', 'merch state',
   ],
   gallons: [
     'gallons', 'quantity', 'gal', 'volume', 'fuel quantity', 'qty',
@@ -60,12 +63,14 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'fuel volume',
     // RCPA format uses "Unit/Gallons" (normalizeKey strips the slash → "unitgallons")
     'unit/gallons', 'units/gallons', 'unit gallons', 'units gallons',
+    // WEX standard export uses "Units" for fuel quantity
+    'units',
     'net qty', 'net quantity', 'billed quantity', 'billed qty',
   ],
   // Price-per-unit/gallon — used to derive total amount when no amount column exists
   ppu: [
     'ppu', 'ppu/amount', 'price per unit', 'price per gallon',
-    'unit price', 'ppg', 'ppu/gal', 'cost per gallon', 'price/gal',
+    'unit price', 'unit cost', 'ppg', 'ppu/gal', 'cost per gallon', 'price/gal',
     'cost/gal', 'retail price',
   ],
   fuelType: [
@@ -101,6 +106,8 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'amount', 'total', 'total amount', 'spend', 'cost', 'sale amount',
     'net amount', 'transaction amount', 'charge', 'total cost', 'total charge',
     'invoice amount', 'billed amount', 'dollars',
+    // WEX column names
+    'net cost', 'total fuel cost', 'gross amount', 'gross cost',
   ],
   productName: [
     'product name', 'product', 'item', 'fuel grade', 'grade',
@@ -108,7 +115,8 @@ const FIELD_ALIASES: Record<string, string[]> = {
   ],
 }
 
-const REQUIRED_FIELDS = ['date', 'city', 'state', 'gallons']
+// 'state' is intentionally omitted — it can be inferred from city + zip during geocoding
+const REQUIRED_FIELDS = ['date', 'city', 'gallons']
 
 // ─── Brand display names ───────────────────────────────────────────────────────
 
