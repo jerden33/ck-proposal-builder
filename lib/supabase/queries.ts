@@ -565,6 +565,24 @@ export async function getAnalysis(id: string): Promise<AnalysisRecord | null> {
   return data as AnalysisRecord
 }
 
+export async function updateAnalysisAccountName(id: string, accountName: string): Promise<boolean> {
+  const supabase = createClient()
+  const user = await getCurrentUser()
+  if (!user) return false
+
+  const { error } = await supabase
+    .from('analyses')
+    .update({ account_name: accountName, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('user_id', user.id)
+
+  if (error) {
+    console.error('Error renaming analysis:', error)
+    return false
+  }
+  return true
+}
+
 export async function deleteAnalysis(id: string): Promise<boolean> {
   const supabase = createClient()
   const user = await getCurrentUser()

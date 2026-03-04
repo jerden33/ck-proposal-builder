@@ -311,6 +311,86 @@ function AnnualizedPanel({ summary, months }: { summary: TransactionSummary; mon
   )
 }
 
+// ─── Proximity Panel ──────────────────────────────────────────────────────────
+
+function ProximityPanel({
+  prox,
+  totalGallons,
+  isCustomer,
+}: {
+  prox: NonNullable<TransactionSummary['proximityBreakdown']>
+  totalGallons: number
+  isCustomer: boolean
+}) {
+  const opportunityGallons =
+    prox.within1mi.gallons + prox.within2mi.gallons +
+    prox.within5mi.gallons + prox.within10mi.gallons
+  const opportunityPct = totalGallons > 0 ? (opportunityGallons / totalGallons) * 100 : 0
+
+  const rows = [
+    {
+      label: 'Fueled at Circle K',
+      customerLabel: 'Fueled at Circle K',
+      gallons: prox.ckGallons,
+      color: '#16a34a',
+      badge: null,
+    },
+    {
+      label: 'Competitor — CK within 10 mi',
+      customerLabel: 'Near a Circle K location',
+      gallons: opportunityGallons,
+      color: '#3b82f6',
+      badge: 'Opportunity',
+    },
+    {
+      label: 'Competitor — no CK within 10 mi',
+      customerLabel: 'No CK within 10 miles',
+      gallons: prox.beyond10mi.gallons,
+      color: '#dc2626',
+      badge: null,
+    },
+  ]
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h2 className="font-bold text-off-black text-lg">
+            {isCustomer ? 'How Close Is Circle K to Your Drivers?' : 'Distance-Based Proximity to Circle K'}
+          </h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Based on geocoded fueling locations &nbsp;·&nbsp; {fmtPct(prox.geocodedPct)} of total gallons geocoded
+          </p>
+        </div>
+        {opportunityGallons > 0 && (
+          <div className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-1.5 text-xs text-blue-800 text-right shrink-0 ml-4">
+            <span className="font-bold">{fmtGallons(opportunityGallons)} gal</span><br />
+            <span className="opacity-80">within 10 mi of CK ({fmtPct(opportunityPct)})</span>
+          </div>
+        )}
+      </div>
+      <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 overflow-hidden">
+        {rows.map(row => {
+          const pct = totalGallons > 0 ? (row.gallons / totalGallons) * 100 : 0
+          return (
+            <div key={row.label} className="flex items-center gap-3 px-4 py-3 bg-white">
+              <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: row.color }} />
+              <span className="flex-1 text-sm text-gray-700">
+                {isCustomer ? row.customerLabel : row.label}
+              </span>
+              {row.badge && row.gallons > 0 && (
+                <span className="text-xs bg-blue-100 text-blue-700 rounded px-1.5 py-0.5 font-semibold">{row.badge}</span>
+              )}
+              <span className="text-sm font-semibold text-off-black w-24 text-right">{fmtGallons(row.gallons)} gal</span>
+              <span className="text-xs text-gray-400 w-12 text-right">{fmtPct(pct)}</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ─── Fraud Flags (internal only) ──────────────────────────────────────────────
 
 const FRAUD_TYPE_LABELS: Record<FraudFlag['type'], string> = {
@@ -596,6 +676,15 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
           totalGallons={summary.totalGallons}
           isCustomer={isCustomer}
         />
+
+        {/* Proximity (only when geocoded data is available) */}
+        {summary.proximityBreakdown && (
+          <ProximityPanel
+            prox={summary.proximityBreakdown}
+            totalGallons={summary.totalGallons}
+            isCustomer={isCustomer}
+          />
+        )}
 
         {/* Savings Calculator */}
         <SavingsCalculatorPanel capturable={summary.ckCaptureAnalysis.capturable} months={months} />

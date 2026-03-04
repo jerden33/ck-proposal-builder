@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { getUserProfile, getUserProposals, archiveProposal, duplicateProposal, deleteProposal, getUserAnalyses, deleteAnalysis } from '@/lib/supabase/queries'
+import { getUserProfile, getUserProposals, archiveProposal, duplicateProposal, deleteProposal, getUserAnalyses, deleteAnalysis, updateAnalysisAccountName } from '@/lib/supabase/queries'
 import type { UserProfile, ProposalRecord, AnalysisRecord } from '@/lib/types'
-import { Plus, Search, FileText, Eye, Copy, Archive, Settings, LogOut, Calendar, ExternalLink, Trash2, User, BarChart2 } from 'lucide-react'
+import { Plus, Search, FileText, Eye, Copy, Archive, Settings, LogOut, Calendar, ExternalLink, Trash2, User, BarChart2, Pencil, Check, X } from 'lucide-react'
 import Image from 'next/image'
 
 export default function DashboardPage() {
@@ -16,6 +16,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'shared' | 'archived'>('all')
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
 
   useEffect(() => {
     loadData()
@@ -80,6 +82,20 @@ export default function DashboardPage() {
     if (!confirm(`Delete analysis for "${name}"? This cannot be undone.`)) return
     const success = await deleteAnalysis(id)
     if (success) await loadData()
+  }
+
+  const startRename = (a: AnalysisRecord) => {
+    setRenamingId(a.id)
+    setRenameValue(a.account_name)
+  }
+
+  const commitRename = async (id: string) => {
+    const trimmed = renameValue.trim()
+    if (trimmed) {
+      await updateAnalysisAccountName(id, trimmed)
+      setAnalyses(prev => prev.map(a => a.id === id ? { ...a, account_name: trimmed } : a))
+    }
+    setRenamingId(null)
   }
 
   const filteredProposals = proposals.filter(p => {
@@ -370,9 +386,34 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  <h3 className="text-lg font-bold text-off-black mb-1 line-clamp-1">
-                    {a.account_name}
-                  </h3>
+                  {renamingId === a.id ? (
+                    <div className="flex items-center gap-1 mb-1">
+                      <input
+                        autoFocus
+                        value={renameValue}
+                        onChange={e => setRenameValue(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') commitRename(a.id)
+                          if (e.key === 'Escape') setRenamingId(null)
+                        }}
+                        onBlur={() => commitRename(a.id)}
+                        className="flex-1 text-lg font-bold text-off-black border-b-2 border-brand-orange bg-transparent outline-none min-w-0"
+                      />
+                      <button onMouseDown={() => commitRename(a.id)} className="text-green-600 hover:text-green-700 shrink-0"><Check size={16} /></button>
+                      <button onMouseDown={() => setRenamingId(null)} className="text-gray-400 hover:text-gray-600 shrink-0"><X size={16} /></button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 mb-1 group/name">
+                      <h3 className="text-lg font-bold text-off-black line-clamp-1 min-w-0">{a.account_name}</h3>
+                      <button
+                        onClick={() => startRename(a)}
+                        className="text-gray-300 hover:text-gray-500 opacity-0 group-hover/name:opacity-100 transition-opacity shrink-0"
+                        title="Rename"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    </div>
+                  )}
                   {profile?.is_super_admin && a.profiles && (
                     <div className="flex items-center gap-1 text-xs text-gray-500 mb-2 bg-gray-50 px-2 py-1 rounded">
                       <User size={12} />
