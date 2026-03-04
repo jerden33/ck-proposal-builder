@@ -1,5 +1,5 @@
 import { createClient } from './client'
-import type { UserProfile, ProposalRecord, ProductConfig, AppSetting, AnalysisRecord } from '@/lib/types'
+import type { UserProfile, ProposalRecord, ProductConfig, AppSetting, AnalysisRecord, AnalysisShare } from '@/lib/types'
 import { nanoid } from 'nanoid'
 
 // User Queries
@@ -581,5 +581,57 @@ export async function deleteAnalysis(id: string): Promise<boolean> {
     return false
   }
 
+  return true
+}
+
+// ─── Analysis Share Queries ────────────────────────────────────────────────────
+
+export async function getAnalysisShares(analysisId: string): Promise<AnalysisShare[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('analysis_shares')
+    .select('*')
+    .eq('analysis_id', analysisId)
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    console.error('Error fetching analysis shares:', error)
+    return []
+  }
+  return data ?? []
+}
+
+export async function createAnalysisShare(
+  analysisId: string,
+  type: 'internal' | 'customer'
+): Promise<AnalysisShare | null> {
+  const supabase = createClient()
+  const user = await getCurrentUser()
+  if (!user) return null
+
+  const { data, error } = await supabase
+    .from('analysis_shares')
+    .insert({ analysis_id: analysisId, type, created_by: user.id })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error creating analysis share:', error)
+    return null
+  }
+  return data
+}
+
+export async function revokeAnalysisShare(token: string): Promise<boolean> {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('analysis_shares')
+    .delete()
+    .eq('token', token)
+
+  if (error) {
+    console.error('Error revoking analysis share:', error)
+    return false
+  }
   return true
 }

@@ -159,6 +159,16 @@ export interface AnalysisRecord {
   }
 }
 
+export interface AnalysisShare {
+  id: string
+  analysis_id: string
+  token: string
+  type: 'internal' | 'customer'
+  created_by: string
+  view_count: number
+  created_at: string
+}
+
 export interface AppSetting {
   id: string
   key: string

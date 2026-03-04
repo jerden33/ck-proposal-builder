@@ -25,8 +25,10 @@ import {
   Zap,
   Save,
   BookOpen,
+  Share2,
 } from 'lucide-react'
 import { Navbar } from '@/components/Navbar'
+import { ShareModal } from '@/components/ShareModal'
 import { parseFleetCSV } from '@/lib/transaction-parser'
 import { createAnalysis, getAnalysis } from '@/lib/supabase/queries'
 import {
@@ -903,6 +905,7 @@ export default function AnalysisPage() {
   const [savedAnalysisId, setSavedAnalysisId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [showShareModal, setShowShareModal] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   // Always-current ref so processFile can read flags without stale closure
   const featureFlagsRef = useRef<FeatureFlags>(DEFAULT_FEATURES)
@@ -1375,10 +1378,19 @@ export default function AnalysisPage() {
               </div>
               <div className="flex items-center gap-2">
                 {savedAnalysisId ? (
-                  <span className="flex items-center gap-1.5 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-                    <BookOpen size={13} />
-                    Saved
-                  </span>
+                  <>
+                    <span className="flex items-center gap-1.5 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                      <BookOpen size={13} />
+                      Saved
+                    </span>
+                    <button
+                      onClick={() => setShowShareModal(true)}
+                      className="btn-secondary text-sm flex items-center gap-2"
+                    >
+                      <Share2 size={15} />
+                      Share
+                    </button>
+                  </>
                 ) : (
                   <button
                     onClick={handleSave}
@@ -1661,6 +1673,10 @@ export default function AnalysisPage() {
           </div>
         )}
       </div>
+
+      {showShareModal && savedAnalysisId && (
+        <ShareModal analysisId={savedAnalysisId} onClose={() => setShowShareModal(false)} />
+      )}
     </div>
   )
 }
