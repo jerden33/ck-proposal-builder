@@ -60,7 +60,7 @@ export interface OTRAnalysis {
 }
 
 // ─── Corridor Definitions ─────────────────────────────────────────────────────
-// Simplified polylines for 16 major US truck freight corridors.
+// Simplified polylines for major US truck freight corridors.
 // Accuracy within ~10 miles is sufficient for the corridor-snapping use-case.
 
 export const CORRIDORS: CorridorDefinition[] = [
@@ -324,6 +324,357 @@ export const CORRIDORS: CorridorDefinition[] = [
       { lat: 40.71, lng: -74.01 },  // New York
       { lat: 41.82, lng: -71.41 },  // Providence
       { lat: 42.36, lng: -71.06 },  // Boston
+    ],
+  },
+
+  // ── Additional corridors ──────────────────────────────────────────────────
+
+  {
+    id: 'I-27',
+    name: 'I-27',
+    direction: 'NS',
+    states: ['TX'],
+    waypoints: [
+      { lat: 33.58, lng: -101.85 }, // Lubbock
+      { lat: 34.18, lng: -101.71 }, // Plainview
+      { lat: 35.22, lng: -101.83 }, // Amarillo
+    ],
+  },
+  {
+    id: 'I-29',
+    name: 'I-29',
+    direction: 'NS',
+    states: ['MO', 'IA', 'SD', 'ND'],
+    waypoints: [
+      { lat: 39.10, lng: -94.58 },  // Kansas City, MO
+      { lat: 39.77, lng: -94.85 },  // St. Joseph, MO
+      { lat: 42.50, lng: -96.40 },  // Sioux City, IA
+      { lat: 43.55, lng: -96.73 },  // Sioux Falls, SD
+      { lat: 44.90, lng: -97.12 },  // Watertown, SD
+      { lat: 46.88, lng: -96.79 },  // Fargo, ND
+      { lat: 47.92, lng: -97.03 },  // Grand Forks, ND
+      { lat: 48.97, lng: -97.24 },  // Pembina, ND (border)
+    ],
+  },
+  {
+    id: 'I-30',
+    name: 'I-30',
+    direction: 'EW',
+    states: ['TX', 'AR'],
+    waypoints: [
+      { lat: 32.73, lng: -97.31 },  // Fort Worth
+      { lat: 32.79, lng: -96.80 },  // Dallas
+      { lat: 33.14, lng: -96.11 },  // Greenville, TX
+      { lat: 33.43, lng: -94.05 },  // Texarkana
+      { lat: 33.67, lng: -93.59 },  // Hope, AR
+      { lat: 34.74, lng: -92.29 },  // Little Rock
+    ],
+  },
+  {
+    id: 'I-37',
+    name: 'I-37',
+    direction: 'NS',
+    states: ['TX'],
+    waypoints: [
+      { lat: 29.42, lng: -98.49 },  // San Antonio
+      { lat: 28.97, lng: -98.48 },  // Pleasanton
+      { lat: 28.46, lng: -98.18 },  // Three Rivers
+      { lat: 27.80, lng: -97.40 },  // Corpus Christi
+    ],
+  },
+  {
+    id: 'I-39',
+    name: 'I-39',
+    direction: 'NS',
+    states: ['IL', 'WI'],
+    waypoints: [
+      { lat: 40.48, lng: -88.99 },  // Bloomington, IL
+      { lat: 40.88, lng: -88.63 },  // Pontiac, IL
+      { lat: 41.35, lng: -88.84 },  // Ottawa, IL
+      { lat: 42.27, lng: -89.09 },  // Rockford, IL
+      { lat: 42.50, lng: -89.02 },  // Beloit, WI
+    ],
+  },
+  {
+    id: 'I-41',
+    name: 'I-41',
+    direction: 'NS',
+    states: ['WI'],
+    waypoints: [
+      { lat: 43.04, lng: -87.91 },  // Milwaukee
+      { lat: 43.42, lng: -88.18 },  // Hartford, WI
+      { lat: 43.77, lng: -88.45 },  // Fond du Lac
+      { lat: 44.02, lng: -88.54 },  // Oshkosh
+      { lat: 44.26, lng: -88.41 },  // Appleton
+      { lat: 44.52, lng: -88.02 },  // Green Bay
+    ],
+  },
+  {
+    id: 'I-44',
+    name: 'I-44',
+    direction: 'EW',
+    states: ['OK', 'MO'],
+    waypoints: [
+      { lat: 35.41, lng: -99.40 },  // Elk City, OK (I-40 junction)
+      { lat: 35.47, lng: -97.52 },  // Oklahoma City
+      { lat: 36.15, lng: -95.99 },  // Tulsa
+      { lat: 37.08, lng: -94.51 },  // Joplin, MO
+      { lat: 37.22, lng: -93.29 },  // Springfield, MO
+      { lat: 38.63, lng: -90.20 },  // St. Louis
+    ],
+  },
+  {
+    id: 'I-45',
+    name: 'I-45',
+    direction: 'NS',
+    states: ['TX'],
+    waypoints: [
+      { lat: 32.79, lng: -96.80 },  // Dallas
+      { lat: 32.09, lng: -96.47 },  // Corsicana
+      { lat: 30.72, lng: -95.55 },  // Huntsville
+      { lat: 29.76, lng: -95.37 },  // Houston
+      { lat: 29.30, lng: -94.80 },  // Galveston
+    ],
+  },
+  {
+    id: 'I-49',
+    name: 'I-49',
+    direction: 'NS',
+    states: ['MO', 'AR', 'LA'],
+    waypoints: [
+      { lat: 39.10, lng: -94.58 },  // Kansas City, MO
+      { lat: 37.08, lng: -94.51 },  // Joplin, MO
+      { lat: 36.07, lng: -94.16 },  // Fayetteville, AR
+      { lat: 35.38, lng: -94.40 },  // Fort Smith, AR
+      { lat: 33.43, lng: -94.05 },  // Texarkana
+      { lat: 32.52, lng: -93.75 },  // Shreveport, LA
+      { lat: 30.22, lng: -92.02 },  // Lafayette, LA
+      { lat: 29.95, lng: -90.07 },  // New Orleans
+    ],
+  },
+  {
+    id: 'I-59',
+    name: 'I-59',
+    direction: 'NS',
+    states: ['AL', 'MS', 'LA'],
+    waypoints: [
+      { lat: 33.52, lng: -86.80 },  // Birmingham, AL
+      { lat: 33.40, lng: -87.28 },  // Tuscaloosa
+      { lat: 32.37, lng: -88.70 },  // Meridian, MS
+      { lat: 31.33, lng: -89.29 },  // Hattiesburg
+      { lat: 30.50, lng: -89.75 },  // Picayune, MS
+      { lat: 29.95, lng: -90.07 },  // New Orleans
+    ],
+  },
+  {
+    id: 'I-64',
+    name: 'I-64',
+    direction: 'EW',
+    states: ['MO', 'IL', 'KY', 'WV', 'VA'],
+    waypoints: [
+      { lat: 38.63, lng: -90.20 },  // St. Louis
+      { lat: 38.26, lng: -85.76 },  // Louisville
+      { lat: 38.04, lng: -84.50 },  // Lexington, KY
+      { lat: 38.35, lng: -81.63 },  // Charleston, WV
+      { lat: 37.54, lng: -77.44 },  // Richmond, VA
+      { lat: 36.85, lng: -76.29 },  // Norfolk/Hampton Roads
+    ],
+  },
+  {
+    id: 'I-69',
+    name: 'I-69',
+    direction: 'NS',
+    states: ['MI', 'IN'],
+    waypoints: [
+      { lat: 42.97, lng: -82.43 },  // Port Huron, MI
+      { lat: 43.01, lng: -83.69 },  // Flint, MI
+      { lat: 42.73, lng: -84.56 },  // Lansing, MI
+      { lat: 41.08, lng: -85.14 },  // Fort Wayne, IN
+      { lat: 39.77, lng: -86.16 },  // Indianapolis
+      { lat: 37.97, lng: -87.57 },  // Evansville, IN
+    ],
+  },
+  {
+    id: 'I-71',
+    name: 'I-71',
+    direction: 'NS',
+    states: ['OH', 'KY'],
+    waypoints: [
+      { lat: 41.50, lng: -81.69 },  // Cleveland
+      { lat: 40.87, lng: -82.32 },  // Mansfield, OH
+      { lat: 39.96, lng: -82.99 },  // Columbus
+      { lat: 39.10, lng: -84.51 },  // Cincinnati
+      { lat: 38.26, lng: -85.76 },  // Louisville
+    ],
+  },
+  {
+    id: 'I-74',
+    name: 'I-74',
+    direction: 'EW',
+    states: ['OH', 'IN', 'IL'],
+    waypoints: [
+      { lat: 39.10, lng: -84.51 },  // Cincinnati
+      { lat: 39.76, lng: -84.19 },  // Dayton
+      { lat: 39.77, lng: -86.16 },  // Indianapolis
+      { lat: 40.12, lng: -88.25 },  // Champaign, IL
+      { lat: 40.48, lng: -88.99 },  // Bloomington, IL
+      { lat: 41.51, lng: -90.52 },  // Moline/Rock Island
+    ],
+  },
+  {
+    id: 'I-76',
+    name: 'I-76 (PA Turnpike)',
+    direction: 'EW',
+    states: ['OH', 'PA'],
+    waypoints: [
+      { lat: 41.07, lng: -80.67 },  // Youngstown, OH (I-80 junction)
+      { lat: 40.44, lng: -80.00 },  // Pittsburgh
+      { lat: 40.07, lng: -78.50 },  // Bedford, PA
+      { lat: 40.20, lng: -77.19 },  // Carlisle, PA
+      { lat: 40.26, lng: -76.88 },  // Harrisburg
+      { lat: 40.10, lng: -75.38 },  // King of Prussia
+      { lat: 39.95, lng: -75.17 },  // Philadelphia
+    ],
+  },
+  {
+    id: 'I-77',
+    name: 'I-77',
+    direction: 'NS',
+    states: ['SC', 'NC', 'WV', 'OH'],
+    waypoints: [
+      { lat: 34.00, lng: -81.03 },  // Columbia, SC
+      { lat: 35.23, lng: -80.84 },  // Charlotte
+      { lat: 35.78, lng: -80.88 },  // Statesville, NC
+      { lat: 37.27, lng: -81.22 },  // Bluefield, WV
+      { lat: 38.35, lng: -81.63 },  // Charleston, WV
+      { lat: 39.27, lng: -81.56 },  // Parkersburg, WV
+      { lat: 40.80, lng: -81.38 },  // Canton, OH
+      { lat: 41.08, lng: -81.52 },  // Akron
+      { lat: 41.50, lng: -81.69 },  // Cleveland
+    ],
+  },
+  {
+    id: 'I-78',
+    name: 'I-78',
+    direction: 'EW',
+    states: ['PA', 'NJ', 'NY'],
+    waypoints: [
+      { lat: 40.26, lng: -76.88 },  // Harrisburg
+      { lat: 40.60, lng: -75.49 },  // Allentown, PA
+      { lat: 40.69, lng: -74.72 },  // Clinton, NJ
+      { lat: 40.74, lng: -74.17 },  // Newark, NJ
+      { lat: 40.71, lng: -74.01 },  // New York City
+    ],
+  },
+  {
+    id: 'I-79',
+    name: 'I-79',
+    direction: 'NS',
+    states: ['WV', 'PA'],
+    waypoints: [
+      { lat: 38.35, lng: -81.63 },  // Charleston, WV
+      { lat: 39.63, lng: -79.96 },  // Morgantown, WV
+      { lat: 40.44, lng: -80.00 },  // Pittsburgh
+      { lat: 40.86, lng: -79.90 },  // Butler, PA
+      { lat: 42.13, lng: -80.09 },  // Erie, PA
+    ],
+  },
+  {
+    id: 'I-83',
+    name: 'I-83',
+    direction: 'NS',
+    states: ['MD', 'PA'],
+    waypoints: [
+      { lat: 39.29, lng: -76.61 },  // Baltimore
+      { lat: 39.97, lng: -76.73 },  // York, PA
+      { lat: 40.26, lng: -76.88 },  // Harrisburg
+    ],
+  },
+  {
+    id: 'I-84-OR',
+    name: 'I-84 (Pacific NW)',
+    direction: 'EW',
+    states: ['OR', 'ID', 'UT'],
+    waypoints: [
+      { lat: 45.52, lng: -122.68 }, // Portland, OR
+      { lat: 45.60, lng: -121.18 }, // The Dalles
+      { lat: 45.67, lng: -118.79 }, // Pendleton
+      { lat: 44.32, lng: -116.98 }, // Ontario/Boise area
+      { lat: 43.62, lng: -116.20 }, // Boise, ID
+      { lat: 42.56, lng: -114.47 }, // Twin Falls
+      { lat: 42.54, lng: -113.79 }, // Burley
+      { lat: 41.22, lng: -111.97 }, // Ogden, UT (I-84/I-15 junction)
+    ],
+  },
+  {
+    id: 'I-87',
+    name: 'I-87 (NY Thruway)',
+    direction: 'NS',
+    states: ['NY'],
+    waypoints: [
+      { lat: 40.71, lng: -74.01 },  // New York City
+      { lat: 41.50, lng: -74.01 },  // Newburgh
+      { lat: 42.65, lng: -73.76 },  // Albany
+      { lat: 43.31, lng: -73.64 },  // Glens Falls
+      { lat: 44.70, lng: -73.45 },  // Plattsburgh
+      { lat: 45.00, lng: -73.43 },  // Canadian border
+    ],
+  },
+  {
+    id: 'I-88-NY',
+    name: 'I-88 (Albany–Binghamton)',
+    direction: 'EW',
+    states: ['NY'],
+    waypoints: [
+      { lat: 42.82, lng: -73.95 },  // Schenectady / Albany junction
+      { lat: 42.46, lng: -75.07 },  // Oneonta
+      { lat: 42.10, lng: -75.91 },  // Binghamton (I-81/I-86 junction)
+    ],
+  },
+  {
+    id: 'I-91',
+    name: 'I-91',
+    direction: 'NS',
+    states: ['CT', 'MA', 'VT'],
+    waypoints: [
+      { lat: 41.31, lng: -72.93 },  // New Haven, CT
+      { lat: 41.76, lng: -72.68 },  // Hartford
+      { lat: 42.10, lng: -72.59 },  // Springfield, MA
+      { lat: 42.85, lng: -72.56 },  // Brattleboro, VT
+      { lat: 43.65, lng: -72.32 },  // White River Junction
+      { lat: 44.48, lng: -73.21 },  // Burlington, VT
+    ],
+  },
+  {
+    id: 'I-94',
+    name: 'I-94',
+    direction: 'EW',
+    states: ['MT', 'ND', 'MN', 'WI', 'IL', 'IN', 'MI'],
+    waypoints: [
+      { lat: 45.79, lng: -108.50 }, // Billings, MT (I-90 junction)
+      { lat: 46.81, lng: -100.79 }, // Bismarck, ND
+      { lat: 46.88, lng: -96.79 },  // Fargo, ND
+      { lat: 44.98, lng: -93.27 },  // Minneapolis / St. Paul
+      { lat: 44.81, lng: -91.50 },  // Eau Claire, WI
+      { lat: 43.07, lng: -89.40 },  // Madison, WI
+      { lat: 43.04, lng: -87.91 },  // Milwaukee
+      { lat: 41.88, lng: -87.63 },  // Chicago
+      { lat: 41.60, lng: -87.34 },  // Gary, IN
+      { lat: 42.33, lng: -83.05 },  // Detroit
+      { lat: 42.97, lng: -82.43 },  // Port Huron, MI
+    ],
+  },
+  {
+    id: 'I-96',
+    name: 'I-96',
+    direction: 'EW',
+    states: ['MI'],
+    waypoints: [
+      { lat: 42.33, lng: -83.05 },  // Detroit
+      { lat: 42.28, lng: -83.74 },  // Ann Arbor
+      { lat: 42.73, lng: -84.56 },  // Lansing
+      { lat: 42.96, lng: -85.67 },  // Grand Rapids
+      { lat: 43.23, lng: -86.25 },  // Muskegon
     ],
   },
 ]
