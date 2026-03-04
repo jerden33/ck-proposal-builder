@@ -46,12 +46,13 @@ export async function geocodeLocations(
 ): Promise<Map<string, GeocodedCoord>> {
   const results = new Map<string, GeocodedCoord>()
 
-  // Deduplicate: key = "CITY|STATE" (uppercased)
+  // Deduplicate: key = "CITY|STATE" (uppercased).
+  // State may be empty (e.g. WEX exports without a state column) — geocode by city alone in that case.
   const uniqueKeys = new Set<string>()
   for (const { city, state } of locations) {
     const c = city.trim().toUpperCase()
     const s = state.trim().toUpperCase()
-    if (c && s) uniqueKeys.add(`${c}|${s}`)
+    if (c) uniqueKeys.add(`${c}|${s}`)
   }
 
   const keys = Array.from(uniqueKeys)
@@ -63,7 +64,8 @@ export async function geocodeLocations(
     const batch = keys.slice(i, i + CONCURRENCY)
     const promises = batch.map(async key => {
       const [city, state] = key.split('|')
-      const coord = await geocodeOne(`${city}, ${state}`, token)
+      const query = state ? `${city}, ${state}` : city
+      const coord = await geocodeOne(query, token)
       return { key, coord }
     })
     const batchResults = await Promise.all(promises)
