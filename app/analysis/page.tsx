@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import * as XLSX from 'xlsx'
+import { useSearchParams } from 'next/navigation'
 import {
   Upload,
   BarChart2,
@@ -22,9 +23,12 @@ import {
   Clock,
   ShieldAlert,
   Zap,
+  Save,
+  BookOpen,
 } from 'lucide-react'
 import { Navbar } from '@/components/Navbar'
 import { parseFleetCSV } from '@/lib/transaction-parser'
+import { createAnalysis, getAnalysis } from '@/lib/supabase/queries'
 import {
   analyzeTransactions,
   buildCKZipSet,
@@ -878,6 +882,7 @@ const ALL_TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 ]
 
 export default function AnalysisPage() {
+  const searchParams = useSearchParams()
   const [isDragging, setIsDragging] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loadingStep, setLoadingStep] = useState('')
@@ -895,6 +900,9 @@ export default function AnalysisPage() {
   const [showAllVehicles, setShowAllVehicles] = useState(false)
   const [restoredFromCache, setRestoredFromCache] = useState(false)
   const [featureFlags, setFeatureFlags] = useState<FeatureFlags>(DEFAULT_FEATURES)
+  const [savedAnalysisId, setSavedAnalysisId] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   // Always-current ref so processFile can read flags without stale closure
   const featureFlagsRef = useRef<FeatureFlags>(DEFAULT_FEATURES)
@@ -942,6 +950,49 @@ export default function AnalysisPage() {
     }
   }, [])
 
+  // Load a saved analysis from DB when ?load=<id> is in the URL
+  useEffect(() => {
+    const loadId = searchParams.get('load')
+    if (!loadId) return
+    setLoading(true)
+    setLoadingStep('Loading saved analysis…')
+    getAnalysis(loadId).then(record => {
+      if (!record) {
+        setError('Saved analysis not found.')
+        setLoading(false)
+        return
+      }
+      setSummary(record.data as TransactionSummary)
+      setCustomerName(record.account_name)
+      setFileName(record.file_name)
+      setDetectedFormat(record.detected_format)
+      setSavedAnalysisId(record.id)
+      setLoading(false)
+      // Load CK pins for map
+      fetch('/stores-data.json')
+        .then(r => r.json())
+        .then((data) => {
+          const pins: CKStorePin[] = (data.stores ?? [])
+            .filter((s: StoreRecord) => s.coordinates?.lat && s.coordinates?.lng)
+            .map((s: StoreRecord) => ({
+              lat: s.coordinates.lat,
+              lng: s.coordinates.lng,
+              name: s.name,
+              city: s.city,
+              state: s.state,
+              zip: s.zip,
+              truckAccessible: s.truckAccessible,
+            }))
+          setCKStorePins(pins)
+        })
+        .catch(() => { /* non-fatal */ })
+    }).catch(() => {
+      setError('Failed to load saved analysis.')
+      setLoading(false)
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Save feature flags to cache whenever they change (after initial load)
   useEffect(() => {
     if (!summary) return
@@ -960,6 +1011,21 @@ export default function AnalysisPage() {
       if (fallback) setActiveTab(fallback.id)
     }
   }, [featureFlags, activeTab])
+
+  const handleSave = async () => {
+    if (!summary) return
+    setSaving(true)
+    setSaveError(null)
+    const result = await createAnalysis(customerName, fileName, summary as unknown as Record<string, unknown>)
+    if (result) {
+      setSavedAnalysisId(result.id)
+      // Update browser URL so a refresh keeps it linked, without full navigation
+      window.history.replaceState(null, '', `/analysis?load=${result.id}`)
+    } else {
+      setSaveError('Failed to save — are you logged in?')
+    }
+    setSaving(false)
+  }
 
   const processFile = useCallback(async (file: File) => {
     const isExcel = /\.(xlsx|xls|XLSX|XLS)$/.test(file.name)
@@ -1168,8 +1234,11 @@ export default function AnalysisPage() {
     setCKStorePins([])
     setRestoredFromCache(false)
     setFeatureFlags(DEFAULT_FEATURES)
+    setSavedAnalysisId(null)
+    setSaveError(null)
     try { localStorage.removeItem('ck-analysis-v1') } catch { /* ignore */ }
     if (fileInputRef.current) fileInputRef.current.value = ''
+    window.history.replaceState(null, '', '/analysis')
   }
 
   // Tabs filtered to only those whose feature is enabled
@@ -1304,11 +1373,31 @@ export default function AnalysisPage() {
                   )}
                 </div>
               </div>
-              <button onClick={reset} className="btn-secondary text-sm flex items-center gap-2">
-                <Upload size={15} />
-                New File
-              </button>
+              <div className="flex items-center gap-2">
+                {savedAnalysisId ? (
+                  <span className="flex items-center gap-1.5 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                    <BookOpen size={13} />
+                    Saved
+                  </span>
+                ) : (
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="btn-secondary text-sm flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <Save size={15} />
+                    {saving ? 'Saving…' : 'Save Analysis'}
+                  </button>
+                )}
+                <button onClick={reset} className="btn-secondary text-sm flex items-center gap-2">
+                  <Upload size={15} />
+                  New File
+                </button>
+              </div>
             </div>
+            {saveError && (
+              <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-700">{saveError}</div>
+            )}
 
             {/* Feature Toggle Bar */}
             <FeatureToggleBar flags={featureFlags} onChange={toggleFeature} />

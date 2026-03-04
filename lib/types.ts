@@ -137,6 +137,24 @@ export interface ProductConfig {
   display_order: number
 }
 
+export interface AnalysisRecord {
+  id: string
+  user_id: string
+  account_name: string
+  file_name: string
+  detected_format: string
+  total_transactions: number
+  total_gallons: number
+  total_spend: number
+  date_range_start: string | null
+  date_range_end: string | null
+  status: 'saved' | 'archived'
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: Record<string, any>   // TransactionSummary blob
+  created_at: string
+  updated_at: string
+}
+
 export interface AppSetting {
   id: string
   key: string

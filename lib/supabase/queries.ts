@@ -1,5 +1,5 @@
 import { createClient } from './client'
-import type { UserProfile, ProposalRecord, ProductConfig, AppSetting } from '@/lib/types'
+import type { UserProfile, ProposalRecord, ProductConfig, AppSetting, AnalysisRecord } from '@/lib/types'
 import { nanoid } from 'nanoid'
 
 // User Queries
@@ -465,6 +465,106 @@ export async function updateHeroImage(imageUrl: string | null): Promise<boolean>
 
   if (error) {
     console.error('Error updating hero image:', error)
+    return false
+  }
+
+  return true
+}
+
+// ─── Analysis Queries ──────────────────────────────────────────────────────────
+
+export async function createAnalysis(
+  accountName: string,
+  fileName: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  summary: Record<string, any>
+): Promise<{ id: string } | null> {
+  const supabase = createClient()
+  const user = await getCurrentUser()
+  if (!user) return null
+
+  const id = nanoid(10)
+
+  const { error } = await supabase
+    .from('analyses')
+    .insert({
+      id,
+      user_id: user.id,
+      account_name: accountName || 'Untitled Analysis',
+      file_name: fileName,
+      detected_format: summary.detectedFormat ?? '',
+      total_transactions: summary.totalTransactions ?? 0,
+      total_gallons: summary.totalGallons ?? 0,
+      total_spend: summary.totalSpend ?? 0,
+      date_range_start: summary.dateRange?.start ?? null,
+      date_range_end: summary.dateRange?.end ?? null,
+      status: 'saved',
+      data: summary,
+    })
+
+  if (error) {
+    console.error('Error creating analysis:', error)
+    return null
+  }
+
+  return { id }
+}
+
+export async function getUserAnalyses(): Promise<AnalysisRecord[]> {
+  const supabase = createClient()
+  const user = await getCurrentUser()
+  if (!user) return []
+
+  const profile = await getUserProfile()
+
+  let query = supabase
+    .from('analyses')
+    .select('id, user_id, account_name, file_name, detected_format, total_transactions, total_gallons, total_spend, date_range_start, date_range_end, status, created_at, updated_at')
+    .order('updated_at', { ascending: false })
+
+  if (!profile?.is_super_admin) {
+    query = query.eq('user_id', user.id)
+  }
+
+  const { data, error } = await query
+  if (error) {
+    console.error('Error fetching analyses:', error)
+    return []
+  }
+
+  return (data || []) as AnalysisRecord[]
+}
+
+export async function getAnalysis(id: string): Promise<AnalysisRecord | null> {
+  const supabase = createClient()
+
+  const { data, error } = await supabase
+    .from('analyses')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (error) {
+    console.error('Error fetching analysis:', error)
+    return null
+  }
+
+  return data as AnalysisRecord
+}
+
+export async function deleteAnalysis(id: string): Promise<boolean> {
+  const supabase = createClient()
+  const user = await getCurrentUser()
+  if (!user) return false
+
+  const { error } = await supabase
+    .from('analyses')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id)
+
+  if (error) {
+    console.error('Error deleting analysis:', error)
     return false
   }
 

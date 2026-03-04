@@ -3,15 +3,16 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { getUserProfile, getUserProposals, archiveProposal, duplicateProposal, deleteProposal } from '@/lib/supabase/queries'
-import type { UserProfile, ProposalRecord } from '@/lib/types'
-import { Plus, Search, FileText, Eye, Copy, Archive, Settings, LogOut, Calendar, ExternalLink, Trash2, User } from 'lucide-react'
+import { getUserProfile, getUserProposals, archiveProposal, duplicateProposal, deleteProposal, getUserAnalyses, deleteAnalysis } from '@/lib/supabase/queries'
+import type { UserProfile, ProposalRecord, AnalysisRecord } from '@/lib/types'
+import { Plus, Search, FileText, Eye, Copy, Archive, Settings, LogOut, Calendar, ExternalLink, Trash2, User, BarChart2 } from 'lucide-react'
 import Image from 'next/image'
 
 export default function DashboardPage() {
   const router = useRouter()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [proposals, setProposals] = useState<ProposalRecord[]>([])
+  const [analyses, setAnalyses] = useState<AnalysisRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'shared' | 'archived'>('all')
@@ -22,12 +23,14 @@ export default function DashboardPage() {
 
   const loadData = async () => {
     setLoading(true)
-    const [userProfile, userProposals] = await Promise.all([
+    const [userProfile, userProposals, userAnalyses] = await Promise.all([
       getUserProfile(),
-      getUserProposals()
+      getUserProposals(),
+      getUserAnalyses(),
     ])
     setProfile(userProfile)
     setProposals(userProposals)
+    setAnalyses(userAnalyses)
     setLoading(false)
   }
 
@@ -71,6 +74,12 @@ export default function DashboardPage() {
         alert('Failed to delete proposal. Please check console for errors.')
       }
     }
+  }
+
+  const handleDeleteAnalysis = async (id: string, name: string) => {
+    if (!confirm(`Delete analysis for "${name}"? This cannot be undone.`)) return
+    const success = await deleteAnalysis(id)
+    if (success) await loadData()
   }
 
   const filteredProposals = proposals.filter(p => {
@@ -303,6 +312,113 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
+        {/* ── Saved Analyses ──────────────────────────────────────────── */}
+        <div className="mt-12">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-off-black flex items-center gap-2">
+                <BarChart2 size={22} />
+                Saved Analyses
+              </h2>
+              <p className="text-gray-600 text-sm mt-1">
+                {analyses.length} {analyses.length === 1 ? 'analysis' : 'analyses'}
+              </p>
+            </div>
+            <button
+              onClick={() => router.push('/analysis')}
+              className="btn-secondary flex items-center gap-2 text-sm"
+            >
+              <Plus size={16} />
+              New Analysis
+            </button>
+          </div>
+
+          {analyses.length === 0 ? (
+            <div className="card text-center py-12">
+              <BarChart2 size={48} className="mx-auto text-gray-300 mb-3" />
+              <h3 className="text-lg font-bold text-gray-700 mb-1">No saved analyses yet</h3>
+              <p className="text-gray-500 text-sm mb-5">
+                Upload a fleet transaction report in the Analysis tool and click Save to store it here.
+              </p>
+              <button
+                onClick={() => router.push('/analysis')}
+                className="btn-primary inline-flex items-center gap-2"
+              >
+                <BarChart2 size={16} />
+                Open Analysis Tool
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {analyses.map(a => (
+                <div key={a.id} className="card-interactive p-6 group">
+                  <div className="flex items-start justify-between mb-3">
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                      {a.detected_format || 'Fleet Analysis'}
+                    </span>
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <Calendar size={13} />
+                      {new Date(a.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+
+                  <h3 className="text-lg font-bold text-off-black mb-1 line-clamp-1">
+                    {a.account_name}
+                  </h3>
+                  <p className="text-xs text-gray-400 mb-3 truncate">{a.file_name}</p>
+
+                  <div className="grid grid-cols-3 gap-2 mb-4 text-center">
+                    <div className="bg-gray-50 rounded-lg px-2 py-2">
+                      <p className="text-xs text-gray-500">Trans.</p>
+                      <p className="font-bold text-off-black text-sm">{a.total_transactions.toLocaleString()}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg px-2 py-2">
+                      <p className="text-xs text-gray-500">Gallons</p>
+                      <p className="font-bold text-off-black text-sm">
+                        {a.total_gallons >= 1000
+                          ? `${(a.total_gallons / 1000).toFixed(1)}k`
+                          : a.total_gallons.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg px-2 py-2">
+                      <p className="text-xs text-gray-500">Spend</p>
+                      <p className="font-bold text-off-black text-sm">
+                        {a.total_spend >= 1000000
+                          ? `$${(a.total_spend / 1000000).toFixed(1)}M`
+                          : a.total_spend >= 1000
+                          ? `$${(a.total_spend / 1000).toFixed(0)}k`
+                          : `$${a.total_spend.toFixed(0)}`}
+                      </p>
+                    </div>
+                  </div>
+
+                  {(a.date_range_start || a.date_range_end) && (
+                    <p className="text-xs text-gray-400 mb-4">
+                      {a.date_range_start}
+                      {a.date_range_end && a.date_range_end !== a.date_range_start ? ` – ${a.date_range_end}` : ''}
+                    </p>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => router.push(`/analysis?load=${a.id}`)}
+                      className="flex-1 btn-secondary text-sm flex items-center justify-center gap-2"
+                    >
+                      <ExternalLink size={13} />
+                      Open
+                    </button>
+                    <button
+                      onClick={() => handleDeleteAnalysis(a.id, a.account_name)}
+                      className="px-3 py-2 text-sm text-red-500 hover:text-white hover:bg-red-500 rounded-lg border border-red-200 transition-colors"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
