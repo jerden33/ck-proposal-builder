@@ -125,6 +125,14 @@ export default function DashboardPage() {
                 </p>
               </div>
 
+              <button
+                onClick={() => router.push('/analysis')}
+                className="btn-secondary flex items-center gap-2"
+              >
+                <BarChart2 size={18} />
+                Transaction Analysis
+              </button>
+
               {(profile?.is_admin || profile?.is_super_admin) && (
                 <button
                   onClick={() => router.push('/admin')}
