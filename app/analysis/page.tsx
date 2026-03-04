@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, Suspense } from 'react'
 import dynamic from 'next/dynamic'
 import * as XLSX from 'xlsx'
 import { useSearchParams } from 'next/navigation'
@@ -961,7 +961,7 @@ const ALL_TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'fraud',     label: 'Fraud Flags',              icon: <ShieldAlert size={16} /> },
 ]
 
-export default function AnalysisPage() {
+function AnalysisPageInner() {
   const searchParams = useSearchParams()
   const [isDragging, setIsDragging] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -1783,5 +1783,13 @@ export default function AnalysisPage() {
         <ShareModal analysisId={savedAnalysisId} onClose={() => setShowShareModal(false)} />
       )}
     </div>
+  )
+}
+
+export default function AnalysisPage() {
+  return (
+    <Suspense>
+      <AnalysisPageInner />
+    </Suspense>
   )
 }
