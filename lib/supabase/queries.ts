@@ -490,7 +490,7 @@ export async function createAnalysis(
     .insert({
       id,
       user_id: user.id,
-      account_name: accountName || 'Untitled Analysis',
+      account_name: accountName || '',
       file_name: fileName,
       detected_format: summary.detectedFormat ?? '',
       total_transactions: summary.totalTransactions ?? 0,

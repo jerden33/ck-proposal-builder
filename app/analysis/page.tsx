@@ -312,15 +312,21 @@ function ProximityPanel({ prox, totalGallons }: { prox: NonNullable<TransactionS
 // ─── Savings Calculator ────────────────────────────────────────────────────────
 
 function SavingsCalculatorPanel({
+  captured,
   capturable,
   months,
+  rebateRate,
+  onRebateChange,
 }: {
+  captured: { gallons: number; spend: number }
   capturable: { gallons: number; spend: number }
   months: number
+  rebateRate: number
+  onRebateChange: (v: number) => void
 }) {
-  const [rebateRate, setRebateRate] = useState(3)
+  const eligibleGallons = captured.gallons + capturable.gallons
 
-  const monthlyGal    = capturable.gallons / months
+  const monthlyGal    = eligibleGallons / months
   const annualGal     = monthlyGal * 12
   const monthlySavings = monthlyGal * (rebateRate / 100)
   const annualSavings  = annualGal  * (rebateRate / 100)
@@ -346,7 +352,7 @@ function SavingsCalculatorPanel({
               max={10}
               step={0.5}
               value={rebateRate}
-              onChange={e => setRebateRate(Number(e.target.value))}
+              onChange={e => onRebateChange(Number(e.target.value))}
               className="flex-1 accent-brand-orange h-2 cursor-pointer"
             />
             <div className="shrink-0 flex items-center gap-1.5">
@@ -356,7 +362,7 @@ function SavingsCalculatorPanel({
                 max={20}
                 step={0.5}
                 value={rebateRate}
-                onChange={e => setRebateRate(Number(e.target.value))}
+                onChange={e => onRebateChange(Number(e.target.value))}
                 className="w-16 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-center font-bold focus:outline-none focus:ring-2 focus:ring-brand-orange"
               />
               <span className="text-sm text-gray-500 font-medium">¢/gal</span>
@@ -366,7 +372,7 @@ function SavingsCalculatorPanel({
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="rounded-xl bg-gray-50 border border-gray-200 p-4 text-center">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Opportunity Gallons</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Total CK Gallons</p>
             <p className="text-2xl font-bold text-off-black">{fmtGallons(annualGal)}</p>
             <p className="text-xs text-gray-400 mt-0.5">per year &nbsp;·&nbsp; {fmtGallons(monthlyGal)}/mo</p>
           </div>
@@ -384,8 +390,7 @@ function SavingsCalculatorPanel({
 
         <p className="mt-4 text-xs text-gray-400 flex items-start gap-1.5">
           <Info size={12} className="shrink-0 mt-0.5" />
-          Based on {fmtGallons(capturable.gallons)} capturable gallons across {months.toFixed(1)} months of data, extrapolated to 12 months.
-          Assumes full conversion of gallons at non-CK stations where a CK location exists nearby.
+          Based on {fmtGallons(eligibleGallons)} eligible gallons ({fmtGallons(captured.gallons)} current CK + {fmtGallons(capturable.gallons)} capturable) across {months.toFixed(1)} months of data, extrapolated to 12 months.
         </p>
       </div>
     </div>
@@ -985,6 +990,7 @@ function AnalysisPageInner() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [showShareModal, setShowShareModal] = useState(false)
   const [summaryCopied, setSummaryCopied] = useState(false)
+  const [rebateRate, setRebateRate] = useState(3)
   const fileInputRef = useRef<HTMLInputElement>(null)
   // Always-current ref so processFile can read flags without stale closure
   const featureFlagsRef = useRef<FeatureFlags>(DEFAULT_FEATURES)
@@ -1007,6 +1013,7 @@ function AnalysisPageInner() {
       setDetectedFormat(saved.detectedFormat ?? '')
       setMissingFields(saved.missingFields ?? [])
       if (saved.featureFlags) setFeatureFlags({ ...DEFAULT_FEATURES, ...saved.featureFlags })
+      if (saved.summary?.rebateRate) setRebateRate(saved.summary.rebateRate)
       setRestoredFromCache(true)
       // Re-load CK pins from static data
       fetch('/stores-data.json')
@@ -1044,7 +1051,9 @@ function AnalysisPageInner() {
         setLoading(false)
         return
       }
-      setSummary(record.data as TransactionSummary)
+      const loadedData = record.data as TransactionSummary
+      setSummary(loadedData)
+      if (loadedData.rebateRate) setRebateRate(loadedData.rebateRate)
       setCustomerName(record.account_name)
       setFileName(record.file_name)
       setDetectedFormat(record.detected_format)
@@ -1098,7 +1107,7 @@ function AnalysisPageInner() {
     if (!summary) return
     setSaving(true)
     setSaveError(null)
-    const result = await createAnalysis(customerName, fileName, summary as unknown as Record<string, unknown>)
+    const result = await createAnalysis(customerName, fileName, { ...summary, rebateRate } as unknown as Record<string, unknown>)
     if (result) {
       setSavedAnalysisId(result.id)
       // Update browser URL so a refresh keeps it linked, without full navigation
@@ -1432,8 +1441,14 @@ function AnalysisPageInner() {
             {/* Results header */}
             <div className="flex items-start justify-between flex-wrap gap-4">
               <div>
-                {customerName && <p className="text-sm text-gray-500 mb-0.5">Analysis for</p>}
-                <h2 className="text-2xl font-bold text-off-black">{customerName || 'Fleet Transaction Analysis'}</h2>
+                <p className="text-sm text-gray-500 mb-0.5">Analysis for</p>
+                <input
+                  type="text"
+                  value={customerName}
+                  onChange={e => setCustomerName(e.target.value)}
+                  placeholder="Enter account name…"
+                  className="text-2xl font-bold text-off-black bg-transparent border-b-2 border-transparent hover:border-gray-200 focus:border-brand-orange focus:outline-none placeholder:font-normal placeholder:text-gray-300 w-full"
+                />
                 <p className="text-sm text-gray-400 mt-0.5">
                   {fileName} &bull; {summary.dateRange.start}
                   {summary.dateRange.end && summary.dateRange.end !== summary.dateRange.start ? ` – ${summary.dateRange.end}` : ''}
@@ -1544,8 +1559,11 @@ function AnalysisPageInner() {
             {/* Savings Calculator (if enabled) */}
             {featureFlags.savingsCalc && (
               <SavingsCalculatorPanel
+                captured={summary.ckCaptureAnalysis.captured}
                 capturable={summary.ckCaptureAnalysis.capturable}
                 months={monthSpan}
+                rebateRate={rebateRate}
+                onRebateChange={setRebateRate}
               />
             )}
 

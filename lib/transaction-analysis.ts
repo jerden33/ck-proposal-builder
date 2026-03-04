@@ -161,6 +161,8 @@ export interface TransactionSummary {
   // Map data — populated after geocoding
   mapPoints: MapPoint[]
   proximityBreakdown: ProximityBreakdown | null
+  // Rep-configured rebate rate (¢/gal), saved with analysis
+  rebateRate?: number
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

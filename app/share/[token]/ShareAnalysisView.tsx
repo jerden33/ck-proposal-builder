@@ -8,6 +8,7 @@ const FuelingMap = dynamic(() => import('@/components/FuelingMap').then(m => m.F
   ssr: false,
   loading: () => <div className="bg-gray-100 rounded-xl animate-pulse" style={{ height: 480 }} />,
 })
+import Image from 'next/image'
 import {
   CheckCircle,
   AlertCircle,
@@ -205,15 +206,37 @@ function OpportunityPanel({
 // ─── Savings Calculator ────────────────────────────────────────────────────────
 
 function SavingsCalculatorPanel({
+  captured,
   capturable,
+  proximityBreakdown,
   months,
+  isCustomer,
+  initialRebateRate,
 }: {
+  captured: { gallons: number; spend: number }
   capturable: { gallons: number; spend: number }
+  proximityBreakdown: NonNullable<TransactionSummary['proximityBreakdown']> | null
   months: number
+  isCustomer: boolean
+  initialRebateRate: number
 }) {
-  const [rebateRate, setRebateRate] = useState(3)
+  const [rebateRate, setRebateRate] = useState(initialRebateRate)
 
-  const monthlyGal     = capturable.gallons / months
+  // Use captured + capturable (zip-based). If both are 0, fall back to proximity data.
+  const eligibleGallons = (() => {
+    const zipBased = captured.gallons + capturable.gallons
+    if (zipBased > 0) return zipBased
+    if (proximityBreakdown) {
+      return proximityBreakdown.ckGallons +
+        proximityBreakdown.within1mi.gallons +
+        proximityBreakdown.within2mi.gallons +
+        proximityBreakdown.within5mi.gallons +
+        proximityBreakdown.within10mi.gallons
+    }
+    return 0
+  })()
+
+  const monthlyGal     = eligibleGallons / months
   const annualGal      = monthlyGal * 12
   const monthlySavings = monthlyGal * (rebateRate / 100)
   const annualSavings  = annualGal  * (rebateRate / 100)
@@ -223,13 +246,16 @@ function SavingsCalculatorPanel({
       <div className="bg-off-black px-6 py-4 flex items-center justify-between">
         <div>
           <h2 className="text-white font-bold text-lg">Potential Savings Calculator</h2>
-          <p className="text-gray-400 text-sm mt-0.5">Estimated value of switching opportunity gallons to Circle K</p>
+          <p className="text-gray-400 text-sm mt-0.5">Estimated annual rebate value at Circle K</p>
         </div>
         <DollarSign className="text-brand-orange" size={26} />
       </div>
       <div className="p-6">
         <div className="mb-6">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Circle K Rebate Rate</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Circle K Rebate Rate
+            {isCustomer && <span className="ml-2 text-xs font-normal text-gray-400">(set by your rep)</span>}
+          </label>
           <div className="flex items-center gap-4">
             <input
               type="range"
@@ -237,8 +263,9 @@ function SavingsCalculatorPanel({
               max={10}
               step={0.5}
               value={rebateRate}
-              onChange={e => setRebateRate(Number(e.target.value))}
-              className="flex-1 accent-brand-orange h-2 cursor-pointer"
+              onChange={e => !isCustomer && setRebateRate(Number(e.target.value))}
+              disabled={isCustomer}
+              className={`flex-1 accent-brand-orange h-2 ${isCustomer ? 'cursor-default opacity-60' : 'cursor-pointer'}`}
             />
             <div className="shrink-0 flex items-center gap-1.5">
               <input
@@ -247,8 +274,9 @@ function SavingsCalculatorPanel({
                 max={20}
                 step={0.5}
                 value={rebateRate}
-                onChange={e => setRebateRate(Number(e.target.value))}
-                className="w-16 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-center font-bold focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                onChange={e => !isCustomer && setRebateRate(Number(e.target.value))}
+                readOnly={isCustomer}
+                className={`w-16 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-center font-bold focus:outline-none ${isCustomer ? 'bg-gray-50 text-gray-600 cursor-default' : 'focus:ring-2 focus:ring-brand-orange'}`}
               />
               <span className="text-sm text-gray-500 font-medium">¢/gal</span>
             </div>
@@ -256,7 +284,7 @@ function SavingsCalculatorPanel({
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="rounded-xl bg-gray-50 border border-gray-200 p-4 text-center">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Opportunity Gallons</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Total CK Gallons</p>
             <p className="text-2xl font-bold text-off-black">{fmtGallons(annualGal)}</p>
             <p className="text-xs text-gray-400 mt-0.5">per year &nbsp;·&nbsp; {fmtGallons(monthlyGal)}/mo</p>
           </div>
@@ -273,7 +301,7 @@ function SavingsCalculatorPanel({
         </div>
         <p className="mt-4 text-xs text-gray-400 flex items-start gap-1.5">
           <Info size={12} className="shrink-0 mt-0.5" />
-          Based on {fmtGallons(capturable.gallons)} opportunity gallons across {months.toFixed(1)} months of data, extrapolated to 12 months.
+          Based on {fmtGallons(eligibleGallons)} eligible gallons across {months.toFixed(1)} months of data, extrapolated to 12 months.
         </p>
       </div>
     </div>
@@ -645,8 +673,8 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
       {/* Header bar */}
       <div className="bg-off-black border-b border-gray-800 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {/* CK wordmark */}
-          <div className="text-brand-orange font-black text-xl tracking-tight leading-none">Circle K</div>
+          {/* CK Pro logo */}
+          <Image src="/circle-k-pro-logo.png" alt="Circle K Pro" width={110} height={33} className="h-8 w-auto" />
           <div className="w-px h-5 bg-gray-700" />
           <span className="text-gray-400 text-sm">Fleet Analysis Report</span>
         </div>
@@ -718,7 +746,14 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
         )}
 
         {/* Savings Calculator */}
-        <SavingsCalculatorPanel capturable={summary.ckCaptureAnalysis.capturable} months={months} />
+        <SavingsCalculatorPanel
+          captured={summary.ckCaptureAnalysis.captured}
+          capturable={summary.ckCaptureAnalysis.capturable}
+          proximityBreakdown={summary.proximityBreakdown ?? null}
+          months={months}
+          isCustomer={isCustomer}
+          initialRebateRate={summary.rebateRate ?? 3}
+        />
 
         {/* Tabbed detail sections */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
