@@ -27,6 +27,7 @@ import {
   BookOpen,
   Share2,
   ClipboardCopy,
+  Truck,
 } from 'lucide-react'
 import { Navbar } from '@/components/Navbar'
 import { ShareModal } from '@/components/ShareModal'
@@ -47,6 +48,7 @@ import {
   type FraudFlag,
 } from '@/lib/transaction-analysis'
 import { geocodeLocations, geocodeAddresses, geoKey, addrGeoKey } from '@/lib/geocoding'
+import { runOTRAnalysis } from '@/lib/otr-analysis'
 import type { CKStorePin } from '@/components/FuelingMap'
 
 // Dynamically import the map (Mapbox can't SSR)
@@ -82,6 +84,7 @@ type FeatureKey =
   | 'fraudFlags'
   | 'skipGeocoding'  // processing option — skips API calls, disables map/proximity
   | 'truckMode'     // processing option — scopes opportunity to truck-accessible CK sites
+  | 'otrAnalysis'   // corridor-based OTR opportunity breakdown (requires geocoding)
 
 type FeatureFlags = Record<FeatureKey, boolean>
 
@@ -99,6 +102,7 @@ const DEFAULT_FEATURES: FeatureFlags = {
   fraudFlags: false,
   skipGeocoding: false,
   truckMode: false,
+  otrAnalysis: false,
 }
 
 interface FeatureDef {
@@ -121,6 +125,7 @@ const FEATURE_DEFS: FeatureDef[] = [
   { key: 'behavioralInsights',  label: 'Behavioral Insights',    desc: 'Vehicle segments, top opportunity units & fill frequency', badge: 'New' },
   { key: 'timeOfDay',           label: 'Time Patterns',          desc: 'Hourly & day-of-week fueling (needs timestamp data)', badge: 'New' },
   { key: 'fraudFlags',          label: 'Fraud Flags',            desc: 'High-gallon fills, multi-fill days, PPG outliers & state hops', badge: 'New' },
+  { key: 'otrAnalysis',         label: 'OTR Corridor Analysis',  desc: 'Highway-corridor opportunity breakdown for Over-The-Road fleets (requires geocoding)', badge: 'OTR' },
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -392,6 +397,129 @@ function SavingsCalculatorPanel({
           <Info size={12} className="shrink-0 mt-0.5" />
           Based on {fmtGallons(eligibleGallons)} eligible gallons ({fmtGallons(captured.gallons)} current CK + {fmtGallons(capturable.gallons)} capturable) across {months.toFixed(1)} months of data, extrapolated to 12 months.
         </p>
+      </div>
+    </div>
+  )
+}
+
+// ─── OTR Corridor Analysis Panel ─────────────────────────────────────────────
+
+function OTRAnalysisPanel({ otr, months }: {
+  otr: NonNullable<TransactionSummary['otrAnalysis']>
+  months: number
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const shown = expanded ? otr.corridorResults : otr.corridorResults.slice(0, 8)
+  const totalOpp = otr.corridorResults.reduce((s, r) => s + r.captureGallons, 0)
+  const annualOpp = months > 0 ? (totalOpp / months) * 12 : totalOpp
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-off-black px-6 py-4 flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-white font-bold text-lg">OTR Corridor Analysis</h2>
+            <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">OTR</span>
+          </div>
+          <p className="text-gray-400 text-sm mt-0.5">
+            Opportunity mapped to major interstate corridors — not aerial radius
+          </p>
+        </div>
+        <Truck className="text-brand-orange shrink-0" size={26} />
+      </div>
+
+      {/* Summary strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-0 border-b border-gray-200 divide-x divide-gray-200">
+        {[
+          { label: 'Active Corridors',   value: otr.corridorResults.length.toString() },
+          { label: 'On-Corridor Gallons', value: fmtGallons(otr.totalCorridorGallons) },
+          { label: 'Annual Opp. Gallons', value: fmtGallons(annualOpp), accent: true },
+          { label: 'Off-Corridor Gallons', value: fmtGallons(otr.offCorridorGallons), dim: true },
+        ].map(({ label, value, accent, dim }) => (
+          <div key={label} className="px-4 py-3 text-center">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-0.5">{label}</p>
+            <p className={`text-xl font-bold ${accent ? 'text-green-600' : dim ? 'text-gray-400' : 'text-off-black'}`}>{value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Corridor table */}
+      <div className="p-5">
+        <p className="text-xs text-gray-400 mb-3">
+          A fueling event is <span className="font-semibold text-gray-600">on-corridor</span> if it occurred within 15 mi of the interstate.
+          It is <span className="font-semibold text-green-700">capturable</span> if a truck-accessible CK exists on the same corridor within 30 mi.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200">
+                {['Corridor', 'Gallons', 'CK Now', 'Opp. Gallons', 'Gap Gallons', 'Truck CK Stores', 'CK Potential', 'Top Competitor'].map(h => (
+                  <th key={h} className={`py-2 text-xs font-semibold uppercase tracking-wider text-gray-500 ${h === 'Corridor' || h === 'Top Competitor' ? 'text-left pr-4' : 'text-right px-3'}`}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {shown.map(r => {
+                const oppPct = r.totalGallons > 0 ? (r.captureGallons / r.totalGallons) * 100 : 0
+                return (
+                  <tr key={r.corridorId} className="hover:bg-gray-50">
+                    <td className="py-2.5 pr-4">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-off-black">{r.corridorName}</span>
+                        <span className="text-xs text-gray-400">{r.direction === 'EW' ? 'E↔W' : 'N↕S'}</span>
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-medium">{fmtGallons(r.totalGallons)}</td>
+                    <td className="py-2.5 px-3 text-right">
+                      <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-semibold ${r.captureRate >= 20 ? 'bg-green-100 text-green-700' : r.captureRate > 0 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
+                        {fmtPct(r.captureRate)}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-right">
+                      {r.captureGallons > 0 ? (
+                        <span className="text-green-700 font-semibold">{fmtGallons(r.captureGallons)}</span>
+                      ) : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="py-2.5 px-3 text-right text-gray-400 text-xs">{r.gapGallons > 0 ? fmtGallons(r.gapGallons) : '—'}</td>
+                    <td className="py-2.5 px-3 text-right">
+                      <span className={`text-xs font-semibold ${r.truckCKStoreCount >= 5 ? 'text-green-600' : r.truckCKStoreCount > 0 ? 'text-orange-600' : 'text-red-500'}`}>
+                        {r.truckCKStoreCount}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <div className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-2 bg-green-500 rounded-full" style={{ width: `${Math.min(r.potentialRate, 100)}%` }} />
+                        </div>
+                        <span className="text-xs text-gray-500 w-8 text-right">{fmtPct(r.potentialRate)}</span>
+                      </div>
+                    </td>
+                    <td className="py-2.5 pl-3 text-xs text-gray-500 max-w-[120px] truncate">{r.topCompetitorBrand}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {otr.corridorResults.length > 8 && (
+          <button
+            onClick={() => setExpanded(v => !v)}
+            className="mt-3 flex items-center gap-1 text-sm text-brand-orange hover:underline"
+          >
+            {expanded
+              ? <><ChevronUp size={15} />Show fewer</>
+              : <><ChevronDown size={15} />Show all {otr.corridorResults.length} corridors</>}
+          </button>
+        )}
+
+        {otr.offCorridorGallons > 0 && (
+          <p className="mt-4 text-xs text-gray-400 flex items-start gap-1.5">
+            <Info size={12} className="shrink-0 mt-0.5" />
+            {fmtGallons(otr.offCorridorGallons)} gallons ({otr.offCorridorTransactions.toLocaleString()} transactions) did not snap to a
+            major interstate corridor — likely local delivery or regional routes.
+          </p>
+        )}
       </div>
     </div>
   )
@@ -1283,6 +1411,12 @@ function AnalysisPageInner() {
         geocodedAddresses: geocodedAddrs,
         ckStores: activeStoreCoords,
       })
+
+      // Run OTR corridor analysis if the feature flag is on and we have map points
+      if (featureFlagsRef.current.otrAnalysis && enrichedResult.mapPoints.length > 0) {
+        enrichedResult.otrAnalysis = runOTRAnalysis(enrichedResult.mapPoints, ckStorePins)
+      }
+
       setSummary(enrichedResult)
 
       setFeatureFlags(prev => {
@@ -1565,6 +1699,20 @@ function AnalysisPageInner() {
                 rebateRate={rebateRate}
                 onRebateChange={setRebateRate}
               />
+            )}
+
+            {/* OTR Corridor Analysis */}
+            {featureFlags.otrAnalysis && summary.otrAnalysis && (
+              <OTRAnalysisPanel otr={summary.otrAnalysis} months={monthSpan} />
+            )}
+            {featureFlags.otrAnalysis && !summary.otrAnalysis && (
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 text-center text-sm text-gray-500">
+                <Truck size={28} className="mx-auto text-gray-300 mb-3" />
+                OTR Corridor Analysis requires geocoding to complete.
+                {featureFlags.skipGeocoding
+                  ? ' Disable "Quick Mode" and re-upload the file.'
+                  : ' Geocoding is in progress — the corridor breakdown will appear when it finishes.'}
+              </div>
             )}
 
             {/* Tabbed detail sections — only shown if at least one tab is visible */}

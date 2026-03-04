@@ -165,6 +165,8 @@ export interface TransactionSummary {
   rebateRate?: number
   // Whether OTR/truck mode was active when analysis was saved
   truckMode?: boolean
+  // Corridor-based OTR opportunity analysis (populated after geocoding)
+  otrAnalysis?: import('./otr-analysis').OTRAnalysis
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
