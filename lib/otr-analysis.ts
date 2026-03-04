@@ -826,9 +826,9 @@ export function runOTRAnalysis(
 
       let topCompetitorBrand = '—'
       let topGallons = 0
-      for (const [brand, gal] of d.competitorBrands) {
+      Array.from(d.competitorBrands.entries()).forEach(([brand, gal]) => {
         if (gal > topGallons) { topGallons = gal; topCompetitorBrand = brand }
-      }
+      })
 
       return {
         corridorId: c.id,
