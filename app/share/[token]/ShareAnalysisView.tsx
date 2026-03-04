@@ -1,6 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
+import type { CKStorePin } from '@/components/FuelingMap'
+
+const FuelingMap = dynamic(() => import('@/components/FuelingMap').then(m => m.FuelingMap), {
+  ssr: false,
+  loading: () => <div className="bg-gray-100 rounded-xl animate-pulse" style={{ height: 480 }} />,
+})
 import {
   CheckCircle,
   AlertCircle,
@@ -580,7 +587,7 @@ function RepContactCard({ rep }: { rep: RepData }) {
 
 // ─── Tab types ────────────────────────────────────────────────────────────────
 
-type Tab = 'brands' | 'geographic' | 'locations' | 'vehicles' | 'insights' | 'timing' | 'fraud'
+type Tab = 'brands' | 'geographic' | 'locations' | 'vehicles' | 'insights' | 'timing' | 'fraud' | 'map'
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -593,6 +600,7 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
     { id: 'brands',    label: 'Brand Breakdown' },
     { id: 'geographic',label: 'Geographic' },
     { id: 'locations', label: 'Competitor Locations' },
+    { id: 'map',       label: 'Map' },
     { id: 'vehicles',  label: 'Vehicles' },
     { id: 'insights',  label: 'Behavioral Insights' },
     { id: 'timing',    label: 'Time Patterns' },
@@ -602,12 +610,35 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
     { id: 'brands',    label: 'Brand Breakdown' },
     { id: 'geographic',label: 'Geographic' },
     { id: 'locations', label: 'Top Stations' },
+    { id: 'map',       label: 'Map' },
   ]
 
   const tabs = isCustomer ? customerTabs : internalTabs
   const [activeTab, setActiveTab] = useState<Tab>(tabs[0].id)
   const [showAllBrands, setShowAllBrands] = useState(false)
   const [showAllVehicles, setShowAllVehicles] = useState(false)
+  const [ckStorePins, setCKStorePins] = useState<CKStorePin[]>([])
+
+  useEffect(() => {
+    fetch('/stores-data.json')
+      .then(r => r.json())
+      .then((data) => {
+        const pins: CKStorePin[] = (data.stores ?? [])
+          .filter((s: { coordinates?: { lat: number; lng: number }; truckAccessible?: boolean; name?: string; city?: string; state?: string; zip?: string }) =>
+            s.coordinates?.lat && s.coordinates?.lng)
+          .map((s: { coordinates: { lat: number; lng: number }; name?: string; city?: string; state?: string; zip?: string; truckAccessible?: boolean }) => ({
+            lat: s.coordinates.lat,
+            lng: s.coordinates.lng,
+            name: s.name,
+            city: s.city,
+            state: s.state,
+            zip: s.zip,
+            truckAccessible: s.truckAccessible,
+          }))
+        setCKStorePins(pins)
+      })
+      .catch(() => { /* non-fatal */ })
+  }, [])
 
   return (
     <div className="min-h-screen bg-off-white">
@@ -849,6 +880,29 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
                   <button onClick={() => setShowAllVehicles(v => !v)} className="mt-4 flex items-center gap-1 text-sm text-brand-orange hover:underline">
                     {showAllVehicles ? <><ChevronUp size={16} />Show fewer</> : <><ChevronDown size={16} />Show all {summary.vehicleBreakdown.length} vehicles</>}
                   </button>
+                )}
+              </div>
+            )}
+
+            {/* Map */}
+            {activeTab === 'map' && (
+              <div>
+                <div className="mb-4">
+                  <h3 className="font-bold text-off-black">Fueling Activity Map</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Transaction locations overlaid with Circle K network coverage. Orange dots are truck-accessible locations.
+                  </p>
+                </div>
+                {summary.mapPoints.length > 0 ? (
+                  <FuelingMap
+                    transactionPoints={summary.mapPoints}
+                    ckStores={ckStorePins}
+                    height={520}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-48 bg-gray-50 rounded-xl border border-gray-200 text-sm text-gray-400">
+                    Map data is only available when the analysis was run with geocoding enabled.
+                  </div>
                 )}
               </div>
             )}
