@@ -123,9 +123,11 @@ export function ShareModal({ analysisId, onClose }: Props) {
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState<'internal' | 'customer' | null>(null)
   const [revoking, setRevoking] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
+    setError(null)
     const data = await getAnalysisShares(analysisId)
     setShares(data)
     setLoading(false)
@@ -135,8 +137,13 @@ export function ShareModal({ analysisId, onClose }: Props) {
 
   const handleCreate = async (type: 'internal' | 'customer') => {
     setCreating(type)
+    setError(null)
     const share = await createAnalysisShare(analysisId, type)
-    if (share) setShares(prev => [...prev, share])
+    if (share) {
+      setShares(prev => [...prev, share])
+    } else {
+      setError('Failed to create share link. Make sure the analysis_shares migration has been run in Supabase.')
+    }
     setCreating(null)
   }
 
@@ -163,6 +170,11 @@ export function ShareModal({ analysisId, onClose }: Props) {
 
         {/* Body */}
         <div className="px-6 py-5 space-y-4">
+          {error && (
+            <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <div className="w-6 h-6 border-2 border-brand-orange border-t-transparent rounded-full animate-spin" />
