@@ -26,6 +26,7 @@ import {
   Save,
   BookOpen,
   Share2,
+  ClipboardCopy,
 } from 'lucide-react'
 import { Navbar } from '@/components/Navbar'
 import { ShareModal } from '@/components/ShareModal'
@@ -857,6 +858,51 @@ function FraudFlagsTab({ flags }: { flags: FraudFlag[] }) {
   )
 }
 
+// ─── Summary text generator ───────────────────────────────────────────────────
+
+function buildAnalysisSummary(
+  summary: TransactionSummary,
+  customerName: string,
+  months: number
+): string {
+  const { captureRate, capturable, captured } = summary.ckCaptureAnalysis
+  const subj = customerName || 'This fleet'
+  const annualCapturable = months > 0 ? (capturable.gallons / months) * 12 : capturable.gallons
+  const annualSavings = annualCapturable * 0.03
+
+  const dateRange = summary.dateRange.end && summary.dateRange.end !== summary.dateRange.start
+    ? `${summary.dateRange.start} – ${summary.dateRange.end}`
+    : summary.dateRange.start
+
+  const parts: string[] = []
+
+  // Fleet overview
+  const vehicleStr = summary.uniqueVehicles > 0 ? ` across ${summary.uniqueVehicles.toLocaleString()} vehicles` : ''
+  const stateStr   = summary.uniqueStates.length > 0 ? ` in ${summary.uniqueStates.length} state${summary.uniqueStates.length !== 1 ? 's' : ''}` : ''
+  parts.push(
+    `${subj} ran ${summary.totalTransactions.toLocaleString()} transactions (${dateRange})${vehicleStr}${stateStr} — ${fmtGallons(summary.totalGallons)} and ${fmtDollars(summary.totalSpend)} in total spend.`
+  )
+
+  // CK share
+  if (captureRate > 0) {
+    parts.push(
+      `${fmtPct(captureRate)} of that volume went through Circle K (${fmtGallons(captured.gallons)} gal, ${captured.transactions.toLocaleString()} fills).`
+    )
+  } else {
+    parts.push('None of the volume in this dataset went through Circle K locations.')
+  }
+
+  // Capturable opportunity
+  if (capturable.gallons > 0) {
+    const annualNote = months < 11 ? `, or roughly ${fmtGallons(annualCapturable)} annualized` : ''
+    parts.push(
+      `Another ${fmtGallons(capturable.gallons)}${annualNote} went to other stations in areas where a CK already exists — at 3¢/gal that's about ${fmtDollars(annualSavings)}/year.`
+    )
+  }
+
+  return parts.join(' ')
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 type Tab = 'brands' | 'geographic' | 'locations' | 'vehicles' | 'map' | 'insights' | 'timing' | 'fraud'
@@ -906,6 +952,7 @@ export default function AnalysisPage() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [showShareModal, setShowShareModal] = useState(false)
+  const [summaryCopied, setSummaryCopied] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   // Always-current ref so processFile can read flags without stale closure
   const featureFlagsRef = useRef<FeatureFlags>(DEFAULT_FEATURES)
@@ -1377,6 +1424,19 @@ export default function AnalysisPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    const text = buildAnalysisSummary(summary, customerName, monthSpan)
+                    await navigator.clipboard.writeText(text)
+                    setSummaryCopied(true)
+                    setTimeout(() => setSummaryCopied(false), 2500)
+                  }}
+                  className="btn-secondary text-sm flex items-center gap-2"
+                  title="Copy a plain-text summary to clipboard"
+                >
+                  <ClipboardCopy size={15} />
+                  {summaryCopied ? 'Copied!' : 'Copy summary'}
+                </button>
                 {savedAnalysisId ? (
                   <>
                     <span className="flex items-center gap-1.5 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">

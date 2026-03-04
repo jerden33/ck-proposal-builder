@@ -539,27 +539,32 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
           <div className="w-px h-5 bg-gray-700" />
           <span className="text-gray-400 text-sm">Fleet Analysis Report</span>
         </div>
-        <div className="flex items-center gap-2 text-xs text-gray-500">
-          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${isCustomer ? 'bg-orange-900/50 text-orange-300' : 'bg-gray-700 text-gray-300'}`}>
-            {isCustomer ? 'Customer Report' : 'Internal'}
-          </span>
-          <span>{share.view_count} view{share.view_count !== 1 ? 's' : ''}</span>
-        </div>
+        {!isCustomer && (
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <span className="bg-gray-700 text-gray-300 px-2 py-1 rounded-full text-xs font-semibold">Internal</span>
+            <span>{share.view_count} view{share.view_count !== 1 ? 's' : ''}</span>
+          </div>
+        )}
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
 
         {/* Report header */}
         <div>
-          {analysis.account_name && (
-            <p className="text-sm text-gray-500 mb-0.5">{isCustomer ? 'Prepared for' : 'Analysis for'}</p>
+          {analysis.account_name ? (
+            <>
+              <p className="text-sm text-gray-500 mb-0.5">{isCustomer ? 'Prepared for' : 'Analysis for'}</p>
+              <h1 className="text-3xl font-bold text-off-black">{analysis.account_name}</h1>
+            </>
+          ) : (
+            <h1 className="text-3xl font-bold text-off-black">Fleet Analysis</h1>
           )}
-          <h1 className="text-3xl font-bold text-off-black">{analysis.account_name || 'Fleet Transaction Analysis'}</h1>
           <p className="text-sm text-gray-400 mt-0.5">
-            {analysis.file_name} &bull; {analysis.date_range_start}
+            {analysis.date_range_start}
             {analysis.date_range_end && analysis.date_range_end !== analysis.date_range_start
               ? ` – ${analysis.date_range_end}`
               : ''}
+            {!isCustomer && analysis.file_name && <> &bull; {analysis.file_name}</>}
           </p>
           {!isCustomer && analysis.detected_format && (
             <span className="inline-block mt-1 text-xs bg-gray-100 text-gray-600 rounded px-2 py-0.5 font-medium">
