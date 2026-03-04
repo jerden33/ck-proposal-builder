@@ -107,24 +107,38 @@ export function FuelingMap({
     map.on('load', () => {
       loadedRef.current = true
 
-      // ── CK store layer ──────────────────────────────────────────────────
+      // ── CK store layers ─────────────────────────────────────────────────
+      // All stores share one GeoJSON source; two layers give trucks visual priority
       map.addSource('ck-stores', {
         type: 'geojson',
         data: buildCKGeoJSON(ckStores),
       })
+      // Non-truck stores — small, semi-transparent
       map.addLayer({
         id: 'ck-stores-layer',
         type: 'circle',
         source: 'ck-stores',
+        filter: ['!=', ['get', 'truckAccessible'], true],
         paint: {
-          'circle-radius': [
-            'interpolate', ['linear'], ['zoom'],
-            3, 2, 7, 5, 10, 8,
-          ],
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 1.5, 7, 3.5, 10, 5.5],
           'circle-color': '#ED8B00',
-          'circle-stroke-width': 1,
+          'circle-stroke-width': 0.5,
           'circle-stroke-color': '#fff',
-          'circle-opacity': 0.7,
+          'circle-opacity': 0.45,
+        },
+      })
+      // Truck-accessible stores — larger, full opacity, dark border
+      map.addLayer({
+        id: 'ck-truck-stores-layer',
+        type: 'circle',
+        source: 'ck-stores',
+        filter: ['==', ['get', 'truckAccessible'], true],
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 3.5, 7, 7, 10, 11],
+          'circle-color': '#ED8B00',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#7c3a00',
+          'circle-opacity': 1,
         },
       })
 
@@ -179,8 +193,8 @@ export function FuelingMap({
         popup.remove()
       })
 
-      // CK store popup
-      map.on('mouseenter', 'ck-stores-layer', e => {
+      // CK store popups (shared handler for both layers)
+      const showCKPopup = (e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
         map.getCanvas().style.cursor = 'pointer'
         const p = e.features?.[0]?.properties
         if (!p || !e.lngLat) return
@@ -190,15 +204,16 @@ export function FuelingMap({
             <div style="font-family:sans-serif;padding:4px 2px">
               <div style="font-weight:700;font-size:13px;color:#ED8B00">Circle K</div>
               <div style="font-size:12px;color:#555">${p.city}, ${p.state} ${p.zip}</div>
-              ${p.truckAccessible ? '<div style="font-size:11px;color:#ED8B00;margin-top:2px">✓ Truck accessible</div>' : ''}
+              ${p.truckAccessible ? '<div style="font-size:11px;font-weight:600;color:#7c3a00;margin-top:3px;background:#fff7ed;padding:2px 5px;border-radius:3px;display:inline-block">🚛 Truck accessible</div>' : ''}
             </div>
           `)
           .addTo(map)
-      })
-      map.on('mouseleave', 'ck-stores-layer', () => {
-        map.getCanvas().style.cursor = ''
-        popup.remove()
-      })
+      }
+      const hideCKPopup = () => { map.getCanvas().style.cursor = ''; popup.remove() }
+      map.on('mouseenter', 'ck-stores-layer', showCKPopup)
+      map.on('mouseleave', 'ck-stores-layer', hideCKPopup)
+      map.on('mouseenter', 'ck-truck-stores-layer', showCKPopup)
+      map.on('mouseleave', 'ck-truck-stores-layer', hideCKPopup)
     })
 
     mapRef.current = map

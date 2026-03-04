@@ -81,6 +81,7 @@ type FeatureKey =
   | 'timeOfDay'
   | 'fraudFlags'
   | 'skipGeocoding'  // processing option — skips API calls, disables map/proximity
+  | 'truckMode'     // processing option — scopes opportunity to truck-accessible CK sites
 
 type FeatureFlags = Record<FeatureKey, boolean>
 
@@ -97,6 +98,7 @@ const DEFAULT_FEATURES: FeatureFlags = {
   timeOfDay: true,
   fraudFlags: false,
   skipGeocoding: false,
+  truckMode: false,
 }
 
 interface FeatureDef {
@@ -169,13 +171,24 @@ function BrandBar({ brand, maxGallons }: { brand: BrandSummary; maxGallons: numb
 
 // ─── Opportunity Panel ────────────────────────────────────────────────────────
 
-function OpportunityPanel({ analysis, totalGallons }: { analysis: TransactionSummary['ckCaptureAnalysis']; totalGallons: number }) {
+function OpportunityPanel({ analysis, totalGallons, truckMode = false }: { analysis: TransactionSummary['ckCaptureAnalysis']; totalGallons: number; truckMode?: boolean }) {
   const { captured, capturable, gap, captureRate, potentialRate } = analysis
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="bg-off-black px-6 py-4">
-        <h2 className="text-white font-bold text-lg">Circle K Fueling Opportunity</h2>
-        <p className="text-gray-400 text-sm mt-0.5">Where your fleet's gallons go — and what Circle K can capture</p>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h2 className="text-white font-bold text-lg">Circle K Fueling Opportunity</h2>
+          {truckMode && (
+            <span className="text-xs font-semibold bg-amber-500 text-white rounded px-2 py-0.5 flex items-center gap-1">
+              🚛 OTR / Truck Mode
+            </span>
+          )}
+        </div>
+        <p className="text-gray-400 text-sm mt-0.5">
+          {truckMode
+            ? "Opportunity scoped to truck-accessible CK locations only (451 sites with truck lanes)"
+            : "Where your fleet's gallons go — and what Circle K can capture"}
+        </p>
       </div>
       <div className="p-6">
         <div className="mb-6 space-y-3">
@@ -190,7 +203,7 @@ function OpportunityPanel({ analysis, totalGallons }: { analysis: TransactionSum
           </div>
           <div>
             <div className="flex justify-between text-xs text-gray-500 mb-1">
-              <span>Potential with Circle K network</span>
+              <span>Potential with Circle K {truckMode ? 'truck-accessible' : ''} network</span>
               <span className="font-semibold text-green-600">{fmtPct(potentialRate)}</span>
             </div>
             <div className="h-3 bg-gray-100 rounded-full">
@@ -212,22 +225,24 @@ function OpportunityPanel({ analysis, totalGallons }: { analysis: TransactionSum
           <div className="rounded-xl border-2 border-green-500 bg-green-50 p-4">
             <div className="flex items-center gap-2 mb-3">
               <AlertCircle size={18} className="text-green-600 shrink-0" />
-              <span className="font-bold text-off-black text-sm">Opportunity — CK Available</span>
+              <span className="font-bold text-off-black text-sm">
+                {truckMode ? 'Opportunity — Truck-Accessible CK' : 'Opportunity — CK Available'}
+              </span>
             </div>
             <p className="text-3xl font-bold text-off-black">{fmtGallons(capturable.gallons)}</p>
             <p className="text-xs text-gray-500 mt-0.5">gallons at non-CK stations</p>
             <p className="text-sm font-semibold text-green-600 mt-2">{fmtDollars(capturable.spend)}</p>
             <p className="text-xs text-gray-400 mt-1">
-              {capturable.transactions.toLocaleString()} transactions where CK exists in same area
+              {capturable.transactions.toLocaleString()} transactions where {truckMode ? 'a truck-accessible CK' : 'CK'} exists in same area
             </p>
           </div>
           <div className="rounded-xl border-2 border-gray-200 bg-gray-50 p-4">
             <div className="flex items-center gap-2 mb-3">
               <XCircle size={18} className="text-gray-400 shrink-0" />
-              <span className="font-bold text-off-black text-sm">Outside CK Footprint</span>
+              <span className="font-bold text-off-black text-sm">Outside CK {truckMode ? 'Truck' : ''} Footprint</span>
             </div>
             <p className="text-3xl font-bold text-off-black">{fmtGallons(gap.gallons)}</p>
-            <p className="text-xs text-gray-500 mt-0.5">gallons in areas with no CK</p>
+            <p className="text-xs text-gray-500 mt-0.5">gallons in areas with no {truckMode ? 'truck-accessible ' : ''}CK</p>
             <p className="text-sm font-semibold text-gray-500 mt-2">{fmtDollars(gap.spend)}</p>
             <p className="text-xs text-gray-400 mt-1">{gap.transactions.toLocaleString()} transactions</p>
           </div>
@@ -235,7 +250,7 @@ function OpportunityPanel({ analysis, totalGallons }: { analysis: TransactionSum
         {capturable.gallons > 0 && (
           <div className="mt-5 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800">
             <span className="font-bold">{fmtGallons(capturable.gallons)} gallons ({fmtPct((capturable.gallons / totalGallons) * 100)})</span>{' '}
-            are currently going to competitors where a Circle K location already exists in the same area.
+            are currently going to competitors where a {truckMode ? 'truck-accessible Circle K location' : 'Circle K location'} already exists in the same area.
           </div>
         )}
       </div>
@@ -491,6 +506,23 @@ function FeatureSelector({
             <p className="text-xs text-gray-400 leading-tight mt-0.5">
               Faster load, no Mapbox API calls. Disables map pins and proximity analysis.
               Best for quick reviews — re-upload to enable full analysis.
+            </p>
+          </div>
+        </label>
+        <label className="flex items-start gap-2.5 cursor-pointer group">
+          <input
+            type="checkbox"
+            checked={flags.truckMode}
+            onChange={e => onChange('truckMode', e.target.checked)}
+            className="accent-brand-orange w-4 h-4 mt-0.5 shrink-0"
+          />
+          <div>
+            <span className="text-sm font-medium text-off-black group-hover:text-brand-orange transition-colors">
+              OTR / Truck Mode
+            </span>
+            <p className="text-xs text-gray-400 leading-tight mt-0.5">
+              Scopes the opportunity calculation to truck-accessible CK locations only (451 sites with truck lanes).
+              Fueling stats are unchanged — only the capturable opportunity reflects truck-viable sites. Re-upload to apply.
             </p>
           </div>
         </label>
@@ -1134,6 +1166,14 @@ export default function AnalysisPage() {
         .filter(s => s.coordinates?.lat && s.coordinates?.lng)
         .map(s => ({ lat: s.coordinates.lat, lng: s.coordinates.lng }))
 
+      const truckRecords = storeRecords.filter(s => s.truckAccessible)
+      const ckTruckZipSet = buildCKZipSet(truckRecords)
+      const ckTruckStoreCoords: CKStoreCoord[] = truckRecords
+        .filter(s => s.coordinates?.lat && s.coordinates?.lng)
+        .map(s => ({ lat: s.coordinates.lat, lng: s.coordinates.lng }))
+      const activeZipSet = featureFlagsRef.current.truckMode ? ckTruckZipSet : ckZipSet
+      const activeStoreCoords = featureFlagsRef.current.truckMode ? ckTruckStoreCoords : ckStoreCoords
+
       const pins: CKStorePin[] = storeRecords
         .filter(s => s.coordinates?.lat && s.coordinates?.lng)
         .map(s => ({
@@ -1149,7 +1189,7 @@ export default function AnalysisPage() {
 
       // 4. Initial analysis (ZIP-based, immediate)
       setLoadingStep('Running analysis…')
-      const result = analyzeTransactions(transactions, ckZipSet, { detectedFormat: fmt })
+      const result = analyzeTransactions(transactions, activeZipSet, { detectedFormat: fmt })
       setSummary(result)
       setRestoredFromCache(false)
 
@@ -1228,11 +1268,11 @@ export default function AnalysisPage() {
         }
       }
 
-      const enrichedResult = analyzeTransactions(transactions, ckZipSet, {
+      const enrichedResult = analyzeTransactions(transactions, activeZipSet, {
         detectedFormat: fmt,
         geocodedCoords,
         geocodedAddresses: geocodedAddrs,
-        ckStores: ckStoreCoords,
+        ckStores: activeStoreCoords,
       })
       setSummary(enrichedResult)
 
@@ -1415,6 +1455,11 @@ export default function AnalysisPage() {
                       <Zap size={11} />Quick mode — no geocoding
                     </span>
                   )}
+                  {featureFlags.truckMode && (
+                    <span className="text-xs bg-amber-100 text-amber-800 border border-amber-200 rounded px-2 py-0.5 flex items-center gap-1">
+                      🚛 OTR / Truck Mode
+                    </span>
+                  )}
                   {geocodingInProgress && geocodingProgress && (
                     <span className="text-xs bg-blue-50 text-blue-600 rounded px-2 py-0.5 flex items-center gap-1">
                       <span className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
@@ -1494,7 +1539,7 @@ export default function AnalysisPage() {
             )}
 
             {/* CK Opportunity Panel */}
-            <OpportunityPanel analysis={summary.ckCaptureAnalysis} totalGallons={summary.totalGallons} />
+            <OpportunityPanel analysis={summary.ckCaptureAnalysis} totalGallons={summary.totalGallons} truckMode={featureFlags.truckMode} />
 
             {/* Savings Calculator (if enabled) */}
             {featureFlags.savingsCalc && (
