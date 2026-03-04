@@ -53,7 +53,8 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'station state', 'state', 'site state', 'location state',
     'merchant state', 'fuel state', 'fueling state', 'st', 'store state',
     'prov', 'province',
-    // WEX variants
+    // WEX variants — "Merchant State / Province" normalizes to "merchant state province"
+    'merchant state province', 'merchant state  province',
     'trans state', 'transaction state', 'service state', 'fill state',
     'loc state', 'mcht state', 'merch state',
   ],
@@ -88,10 +89,13 @@ const FIELD_ALIASES: Record<string, string[]> = {
   stationAddress: [
     'station address', 'address', 'street', 'street address',
     'site address', 'location address', 'addr', 'address 1',
+    'merchant address', 'merchant street',
   ],
   zipCode: [
     'zipcode', 'zip', 'zip code', 'postal code', 'zip_code',
     'postalcode', 'postal', 'zip/postal',
+    // WEX — "Merchant Postal Code"
+    'merchant postal code', 'merchant zip', 'merchant zipcode',
   ],
   unitNumber: [
     'unit #', 'unit number', 'vehicle', 'card #', 'card number',
