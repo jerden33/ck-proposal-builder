@@ -365,6 +365,13 @@ export default function DashboardPage() {
                   <h3 className="text-lg font-bold text-off-black mb-1 line-clamp-1">
                     {a.account_name}
                   </h3>
+                  {profile?.is_super_admin && a.profiles && (
+                    <div className="flex items-center gap-1 text-xs text-gray-500 mb-2 bg-gray-50 px-2 py-1 rounded">
+                      <User size={12} />
+                      <span className="font-medium">Created by:</span>
+                      <span>{a.profiles.full_name || a.profiles.email}</span>
+                    </div>
+                  )}
                   <p className="text-xs text-gray-400 mb-3 truncate">{a.file_name}</p>
 
                   <div className="grid grid-cols-3 gap-2 mb-4 text-center">

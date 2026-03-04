@@ -153,6 +153,10 @@ export interface AnalysisRecord {
   data: Record<string, any>   // TransactionSummary blob
   created_at: string
   updated_at: string
+  profiles?: {
+    email: string
+    full_name: string | null
+  }
 }
 
 export interface AppSetting {

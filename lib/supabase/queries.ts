@@ -532,7 +532,20 @@ export async function getUserAnalyses(): Promise<AnalysisRecord[]> {
     return []
   }
 
-  return (data || []) as AnalysisRecord[]
+  const analyses = (data || []) as AnalysisRecord[]
+
+  // Attach profile data for super admins (same pattern as getUserProposals)
+  if (profile?.is_super_admin && analyses.length > 0) {
+    const userIds = Array.from(new Set(analyses.map(a => a.user_id)))
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, email, full_name')
+      .in('id', userIds)
+    const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || [])
+    return analyses.map(a => ({ ...a, profiles: profilesMap.get(a.user_id) || undefined }))
+  }
+
+  return analyses
 }
 
 export async function getAnalysis(id: string): Promise<AnalysisRecord | null> {
