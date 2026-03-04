@@ -1107,7 +1107,7 @@ function AnalysisPageInner() {
     if (!summary) return
     setSaving(true)
     setSaveError(null)
-    const result = await createAnalysis(customerName, fileName, { ...summary, rebateRate } as unknown as Record<string, unknown>)
+    const result = await createAnalysis(customerName, fileName, { ...summary, rebateRate, truckMode: featureFlags.truckMode } as unknown as Record<string, unknown>)
     if (result) {
       setSavedAnalysisId(result.id)
       // Update browser URL so a refresh keeps it linked, without full navigation
@@ -1755,6 +1755,7 @@ function AnalysisPageInner() {
                         ckStores={ckStorePins}
                         height={560}
                         geocodingInProgress={geocodingInProgress}
+                        truckMode={featureFlags.truckMode}
                       />
                     </div>
                   )}

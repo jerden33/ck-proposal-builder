@@ -54,7 +54,7 @@ function buildTransactionGeoJSON(points: MapPoint[]) {
   }
 }
 
-function buildCKGeoJSON(stores: CKStorePin[]) {
+function buildCKGeoJSON(stores: CKStorePin[], truckMode: boolean) {
   return {
     type: 'FeatureCollection' as const,
     features: stores.map(s => ({
@@ -65,7 +65,8 @@ function buildCKGeoJSON(stores: CKStorePin[]) {
         city: s.city,
         state: s.state,
         zip: s.zip,
-        truckAccessible: s.truckAccessible,
+        // Only surface truckAccessible distinction when truck mode is active
+        truckAccessible: truckMode && s.truckAccessible,
       },
     })),
   }
@@ -78,6 +79,7 @@ interface FuelingMapProps {
   ckStores: CKStorePin[]
   height?: number
   geocodingInProgress?: boolean
+  truckMode?: boolean
 }
 
 export function FuelingMap({
@@ -85,10 +87,13 @@ export function FuelingMap({
   ckStores,
   height = 520,
   geocodingInProgress = false,
+  truckMode = false,
 }: FuelingMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const loadedRef = useRef(false)
+  const truckModeRef = useRef(truckMode)
+  useEffect(() => { truckModeRef.current = truckMode }, [truckMode])
 
   // ── Initialize map once ──────────────────────────────────────────────────
   useEffect(() => {
@@ -111,7 +116,7 @@ export function FuelingMap({
       // All stores share one GeoJSON source; two layers give trucks visual priority
       map.addSource('ck-stores', {
         type: 'geojson',
-        data: buildCKGeoJSON(ckStores),
+        data: buildCKGeoJSON(ckStores, truckModeRef.current),
       })
       // Non-truck stores — small, semi-transparent
       map.addLayer({
@@ -240,13 +245,13 @@ export function FuelingMap({
     }
   }, [transactionPoints])
 
-  // ── Update CK stores source ───────────────────────────────────────────────
+  // ── Update CK stores source (re-run when stores or truckMode changes) ────
   useEffect(() => {
     if (!loadedRef.current || !mapRef.current) return
     const src = mapRef.current.getSource('ck-stores') as mapboxgl.GeoJSONSource | undefined
     if (!src) return
-    src.setData(buildCKGeoJSON(ckStores))
-  }, [ckStores])
+    src.setData(buildCKGeoJSON(ckStores, truckMode))
+  }, [ckStores, truckMode])
 
   if (!mapboxgl.accessToken) {
     return (
@@ -279,7 +284,14 @@ export function FuelingMap({
         <LegendDot color="#dc2626" label="Competitor — no CK within 10 mi" />
         <div className="border-t border-gray-200 pt-1.5 mt-1">
           <p className="text-gray-400 font-semibold uppercase tracking-wide mb-1.5" style={{ fontSize: 10 }}>Network</p>
-          <LegendDot color="#ED8B00" small label="Circle K store (not visited)" />
+          {truckMode ? (
+            <>
+              <LegendDot color="#ED8B00" label="Circle K — truck accessible" />
+              <LegendDot color="#ED8B00" small label="Circle K — standard" />
+            </>
+          ) : (
+            <LegendDot color="#ED8B00" small label="Circle K store" />
+          )}
         </div>
       </div>
     </div>

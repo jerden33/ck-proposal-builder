@@ -163,6 +163,8 @@ export interface TransactionSummary {
   proximityBreakdown: ProximityBreakdown | null
   // Rep-configured rebate rate (¢/gal), saved with analysis
   rebateRate?: number
+  // Whether OTR/truck mode was active when analysis was saved
+  truckMode?: boolean
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

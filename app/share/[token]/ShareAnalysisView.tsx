@@ -925,7 +925,8 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
                 <div className="mb-4">
                   <h3 className="font-bold text-off-black">Fueling Activity Map</h3>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    Transaction locations overlaid with Circle K network coverage. Orange dots are truck-accessible locations.
+                    Transaction locations overlaid with Circle K network coverage.
+                    {summary.truckMode && ' Larger orange dots are truck-accessible locations.'}
                   </p>
                 </div>
                 {summary.mapPoints.length > 0 ? (
@@ -933,6 +934,7 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
                     transactionPoints={summary.mapPoints}
                     ckStores={ckStorePins}
                     height={520}
+                    truckMode={summary.truckMode ?? false}
                   />
                 ) : (
                   <div className="flex items-center justify-center h-48 bg-gray-50 rounded-xl border border-gray-200 text-sm text-gray-400">
