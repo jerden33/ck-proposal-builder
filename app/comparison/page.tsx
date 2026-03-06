@@ -59,8 +59,8 @@ export default function ComparisonPage() {
   // Filter locations by proximity when search center changes
   useEffect(() => {
     if (!searchCenter) {
-      setFilteredCircleKStores([]);
-      setFilteredFedexLocations([]);
+      setFilteredCircleKStores(circleKStores);
+      setFilteredFedexLocations(fedexLocations);
       return;
     }
 
