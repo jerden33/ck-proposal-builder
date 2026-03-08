@@ -16,6 +16,7 @@ export interface FuelingTransaction {
   zipCode: string
   unitNumber: string
   driverCity: string
+  driverName: string      // full driver/cardholder name — '' if not in source
   amount: number
   productName: string
   isCircleK: boolean
@@ -27,6 +28,7 @@ export interface ParseResult {
   detectedFormat: string
   missingRequiredFields: string[]  // canonical names that weren't found in headers
   foundFields: string[]            // canonical names that were detected
+  hasDriverData: boolean           // true if any transaction has a non-empty driverName
 }
 
 // ─── Header alias map ─────────────────────────────────────────────────────────
@@ -105,6 +107,21 @@ const FIELD_ALIASES: Record<string, string[]> = {
   driverCity: [
     'driver city', 'home city', 'driver home city', 'driver location',
     'driver base city', 'base city',
+  ],
+  // Combined driver/cardholder name (preferred when present)
+  driverName: [
+    'driver name', 'driver full name', 'cardholder name', 'cardholder',
+    'employee name', 'employee', 'operator name', 'operator',
+    'authorized name', 'driver authorized name', 'account name',
+  ],
+  // Split first/last — combined in parser when no full-name column exists
+  driverFirstName: [
+    'driver first name', 'first name', 'cardholder first name',
+    'employee first name', 'driver fname', 'first',
+  ],
+  driverLastName: [
+    'driver last name', 'last name', 'cardholder last name',
+    'employee last name', 'driver lname', 'last',
   ],
   amount: [
     'amount', 'total', 'total amount', 'spend', 'cost', 'sale amount',
@@ -298,7 +315,7 @@ export function parseFleetCSV(content: string): ParseResult {
   let headerIdx = 0
   while (headerIdx < rawLines.length && !rawLines[headerIdx].trim()) headerIdx++
   if (headerIdx >= rawLines.length) {
-    return { transactions, errors: ['File is empty'], detectedFormat: 'Unknown', missingRequiredFields: REQUIRED_FIELDS, foundFields: [] }
+    return { transactions, errors: ['File is empty'], detectedFormat: 'Unknown', missingRequiredFields: REQUIRED_FIELDS, foundFields: [], hasDriverData: false }
   }
 
   const headers = parseCSVLine(rawLines[headerIdx])
@@ -371,6 +388,13 @@ export function parseFleetCSV(content: string): ParseResult {
       col(cols, colIdx['productName']) ||
       'Unknown'
 
+    // Driver name: prefer combined column; fall back to first + last
+    const rawFullName = col(cols, colIdx['driverName'])
+    const rawFirst    = col(cols, colIdx['driverFirstName'])
+    const rawLast     = col(cols, colIdx['driverLastName'])
+    const driverName  = rawFullName
+      || (rawFirst && rawLast ? `${rawFirst} ${rawLast}` : rawFirst || rawLast)
+
     transactions.push({
       transDate,
       transTime,
@@ -384,13 +408,15 @@ export function parseFleetCSV(content: string): ParseResult {
       zipCode: normalizeZip(col(cols, colIdx['zipCode'])),
       unitNumber: col(cols, colIdx['unitNumber']),
       driverCity: col(cols, colIdx['driverCity']),
+      driverName,
       amount,
       productName: col(cols, colIdx['productName']),
       isCircleK,
     })
   }
 
-  return { transactions, errors, detectedFormat, missingRequiredFields, foundFields }
+  const hasDriverData = transactions.some(t => !!t.driverName)
+  return { transactions, errors, detectedFormat, missingRequiredFields, foundFields, hasDriverData }
 }
 
 // Backward-compatible alias (used by existing imports)

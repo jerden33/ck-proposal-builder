@@ -54,6 +54,22 @@ export interface VehicleSummary {
   avgDaysBetweenFills: number // avg days between transaction dates (0 if < 2 fills)
 }
 
+/** Per-driver behavioral summary — keyed by driverName, parallel to VehicleSummary */
+export interface DriverSummary {
+  driverName: string
+  driverCity: string
+  unitNumbers: string[]       // unique vehicles this driver used
+  transactions: number
+  gallons: number
+  spend: number
+  ckGallons: number
+  ckTransactions: number
+  ckSharePct: number
+  capturableGallons: number
+  topCompetitorBrand: string
+  avgDaysBetweenFills: number
+}
+
 export interface HourlyBucket {
   hour: number   // 0–23
   gallons: number
@@ -152,6 +168,10 @@ export interface TransactionSummary {
   topCompetitorLocations: LocationSummary[]
   fuelTypeBreakdown: FuelTypeSummary[]
   vehicleBreakdown: VehicleSummary[]
+  // Driver-keyed breakdown — populated only when source data includes driver names
+  hasDriverData: boolean
+  driverBreakdown: DriverSummary[]
+  driverSegments: VehicleSegment[]
   // Behavioral / timing
   hasTimeData: boolean
   hourlyBreakdown: HourlyBucket[]    // empty if no time data
@@ -576,6 +596,71 @@ export function analyzeTransactions(
     }
   }).sort((a, b) => b.gallons - a.gallons)
 
+  // Driver breakdown — parallel to vehicle breakdown, keyed by driverName
+  type DriverAcc = Omit<DriverSummary, 'ckSharePct' | 'topCompetitorBrand' | 'avgDaysBetweenFills' | 'unitNumbers'> & {
+    competitorBrandGallons: Map<string, number>
+    fillDates: string[]
+    unitNumberSet: Set<string>
+  }
+  const driverMap = new Map<string, DriverAcc>()
+  const hasDriverData = transactions.some(t => !!t.driverName)
+  if (hasDriverData) {
+    for (const t of transactions) {
+      const key = t.driverName || 'Unknown'
+      const existing = driverMap.get(key) ?? {
+        driverName: key,
+        driverCity: t.driverCity,
+        transactions: 0, gallons: 0, spend: 0, ckGallons: 0, ckTransactions: 0,
+        capturableGallons: 0,
+        competitorBrandGallons: new Map<string, number>(),
+        fillDates: [] as string[],
+        unitNumberSet: new Set<string>(),
+      }
+      existing.transactions++
+      existing.gallons += t.gallons
+      existing.spend += t.amount
+      if (t.transDate) existing.fillDates.push(t.transDate)
+      if (t.unitNumber) existing.unitNumberSet.add(t.unitNumber)
+      if (t.isCircleK) {
+        existing.ckGallons += t.gallons
+        existing.ckTransactions++
+      } else {
+        if (ckZipSet.has(t.zipCode)) existing.capturableGallons += t.gallons
+        const brand = t.stationBrand || 'Unknown'
+        existing.competitorBrandGallons.set(brand, (existing.competitorBrandGallons.get(brand) ?? 0) + t.gallons)
+      }
+      driverMap.set(key, existing)
+    }
+  }
+  const driverBreakdown: DriverSummary[] = Array.from(driverMap.values()).map(d => {
+    let topBrand = ''; let topGal = 0
+    for (const [brand, gal] of Array.from(d.competitorBrandGallons)) {
+      if (gal > topGal) { topGal = gal; topBrand = brand }
+    }
+    const uniqueDates = Array.from(new Set(d.fillDates))
+      .map(s => new Date(toISODate(s) + 'T00:00:00'))
+      .filter(d => !isNaN(d.getTime()))
+      .sort((a, b) => a.getTime() - b.getTime())
+    const avgDaysBetweenFills = uniqueDates.length < 2 ? 0
+      : (uniqueDates[uniqueDates.length - 1].getTime() - uniqueDates[0].getTime())
+        / (1000 * 60 * 60 * 24) / (uniqueDates.length - 1)
+    return {
+      driverName: d.driverName, driverCity: d.driverCity,
+      unitNumbers: Array.from(d.unitNumberSet),
+      transactions: d.transactions, gallons: d.gallons, spend: d.spend,
+      ckGallons: d.ckGallons, ckTransactions: d.ckTransactions,
+      ckSharePct: d.gallons > 0 ? (d.ckGallons / d.gallons) * 100 : 0,
+      capturableGallons: d.capturableGallons,
+      topCompetitorBrand: topBrand ? normalizeBrandName(topBrand) : '—',
+      avgDaysBetweenFills: Math.round(avgDaysBetweenFills * 10) / 10,
+    }
+  }).sort((a, b) => b.gallons - a.gallons)
+
+  // Reuse segment logic for drivers (unitNumbers field holds driver names in driverSegments)
+  const driverSegments = buildVehicleSegments(
+    driverBreakdown.map(d => ({ ...d, unitNumber: d.driverName }))
+  )
+
   // Map points + proximity breakdown (requires geocoding)
   const { mapPoints, proximityBreakdown } = buildMapData(transactions, geocodedCoords, ckStores, totalGallons, geocodedAddresses)
 
@@ -595,6 +680,9 @@ export function analyzeTransactions(
     topCompetitorLocations,
     fuelTypeBreakdown,
     vehicleBreakdown,
+    hasDriverData,
+    driverBreakdown,
+    driverSegments,
     hasTimeData,
     hourlyBreakdown,
     dayOfWeekBreakdown,
@@ -735,6 +823,9 @@ function createEmptySummary(): TransactionSummary {
     topCompetitorLocations: [],
     fuelTypeBreakdown: [],
     vehicleBreakdown: [],
+    hasDriverData: false,
+    driverBreakdown: [],
+    driverSegments: [],
     hasTimeData: false,
     hourlyBreakdown: [],
     dayOfWeekBreakdown: [],
