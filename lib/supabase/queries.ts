@@ -519,7 +519,7 @@ export async function getUserAnalyses(): Promise<AnalysisRecord[]> {
 
   let query = supabase
     .from('analyses')
-    .select('id, user_id, account_name, file_name, detected_format, total_transactions, total_gallons, total_spend, date_range_start, date_range_end, status, created_at, updated_at')
+    .select('id, user_id, account_name, file_name, detected_format, total_transactions, total_gallons, total_spend, date_range_start, date_range_end, status, data, created_at, updated_at')
     .order('updated_at', { ascending: false })
 
   if (!profile?.is_super_admin) {

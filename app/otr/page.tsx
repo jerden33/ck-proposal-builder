@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect, Suspense } from 'react'
 import dynamic from 'next/dynamic'
 import * as XLSX from 'xlsx'
+import { useSearchParams } from 'next/navigation'
 import {
   Upload,
   Truck,
@@ -19,6 +20,7 @@ import {
   AlertCircle,
   Fuel,
   Navigation,
+  Save,
 } from 'lucide-react'
 import { Navbar } from '@/components/Navbar'
 import { parseFleetCSV } from '@/lib/transaction-parser'
@@ -31,7 +33,7 @@ import {
 } from '@/lib/transaction-analysis'
 import { geocodeLocations, geoKey } from '@/lib/geocoding'
 import { runOTRAnalysis, type OTRAnalysis } from '@/lib/otr-analysis'
-import { createAnalysis, createAnalysisShare } from '@/lib/supabase/queries'
+import { createAnalysis, createAnalysisShare, getAnalysis } from '@/lib/supabase/queries'
 import type { OTRMapStore } from '@/components/OTRMap'
 
 // Dynamically import the map (Mapbox can't SSR)
@@ -65,7 +67,8 @@ function computeMonthSpan(dateRange: { start: string; end: string }): number {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function OTRPage() {
+function OTRPageInner() {
+  const searchParams = useSearchParams()
   const [phase, setPhase] = useState<Phase>('upload')
   const [customerName, setCustomerName] = useState('')
   const [fileName, setFileName] = useState('')
@@ -78,12 +81,39 @@ export default function OTRPage() {
   const [savedId, setSavedId] = useState<string | null>(null)
   const [shareToken, setShareToken] = useState<string | null>(null)
   const [sharing, setSharing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [expandedTable, setExpandedTable] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const customerNameRef = useRef(customerName)
   useEffect(() => { customerNameRef.current = customerName }, [customerName])
+
+  // ── Load saved analysis from ?load=<id> ─────────────────────────────────────
+  useEffect(() => {
+    const loadId = searchParams.get('load')
+    if (!loadId) return
+    setPhase('parsing')
+    getAnalysis(loadId).then(record => {
+      if (!record) { setError('Saved analysis not found.'); setPhase('upload'); return }
+      const loaded = record.data as TransactionSummary
+      setSummary(loaded)
+      setOtrResult(loaded.otrAnalysis ?? null)
+      setCustomerName(record.account_name)
+      setFileName(record.file_name)
+      setSavedId(record.id)
+      // Load truck stores for map
+      fetch('/stores-data.json').then(r => r.json()).then((data) => {
+        const truckStores: OTRMapStore[] = (data.stores ?? [])
+          .filter((s: StoreRecord) => s.truckAccessible && s.coordinates?.lat && s.coordinates?.lng)
+          .map((s: StoreRecord) => ({ lat: s.coordinates.lat, lng: s.coordinates.lng, name: s.name, city: s.city, state: s.state }))
+        setCKStores(truckStores)
+      }).catch(() => {})
+      setPhase('done')
+    }).catch(() => { setError('Failed to load saved analysis.'); setPhase('upload') })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ── File processing pipeline ────────────────────────────────────────────────
 
@@ -208,23 +238,37 @@ export default function OTRPage() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  // ── Share ───────────────────────────────────────────────────────────────────
+  // ── Save / Share ─────────────────────────────────────────────────────────────
+
+  const saveAnalysis = async (): Promise<string | null> => {
+    if (!summary) return null
+    if (savedId) return savedId
+    const result = await createAnalysis(
+      customerNameRef.current || 'OTR Fleet',
+      fileName,
+      { ...summary, analysisType: 'otr' } as unknown as Record<string, unknown>
+    )
+    if (!result) return null
+    setSavedId(result.id)
+    window.history.replaceState(null, '', `/otr?load=${result.id}`)
+    return result.id
+  }
+
+  const handleSave = async () => {
+    if (!summary) return
+    setSaving(true)
+    setSaveError(null)
+    const id = await saveAnalysis()
+    if (!id) setSaveError('Failed to save — are you logged in?')
+    setSaving(false)
+  }
 
   const handleShare = async () => {
     if (!summary) return
     setSharing(true)
     try {
-      let id = savedId
-      if (!id) {
-        const result = await createAnalysis(
-          customerNameRef.current || 'OTR Fleet',
-          fileName,
-          summary as unknown as Record<string, unknown>
-        )
-        if (!result) throw new Error('Failed to save analysis')
-        id = result.id
-        setSavedId(id)
-      }
+      const id = await saveAnalysis()
+      if (!id) throw new Error('Failed to save analysis')
       const share = await createAnalysisShare(id, 'customer')
       if (!share) throw new Error('Failed to create share link')
       setShareToken(share.token)
@@ -413,11 +457,35 @@ export default function OTRPage() {
               {summary.totalTransactions.toLocaleString()} transactions · {fmtGallons(summary.totalGallons)} total · {fileName}
             </p>
           </div>
-          <button onClick={reset} className="btn-secondary flex items-center gap-2 text-sm shrink-0">
-            <RefreshCw size={15} />
-            New Analysis
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {savedId ? (
+              <span className="text-xs text-green-600 font-semibold flex items-center gap-1">
+                <CheckCircle size={13} />
+                Saved
+              </span>
+            ) : (
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50"
+              >
+                <Save size={15} />
+                {saving ? 'Saving…' : 'Save to Dashboard'}
+              </button>
+            )}
+            <button onClick={reset} className="btn-secondary flex items-center gap-2 text-sm">
+              <RefreshCw size={15} />
+              New Analysis
+            </button>
+          </div>
         </div>
+
+        {saveError && (
+          <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2 text-sm text-red-700">
+            <AlertCircle size={14} className="shrink-0" />
+            {saveError}
+          </div>
+        )}
 
         {/* Summary stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
@@ -640,5 +708,13 @@ export default function OTRPage() {
 
       </div>
     </div>
+  )
+}
+
+export default function OTRPage() {
+  return (
+    <Suspense>
+      <OTRPageInner />
+    </Suspense>
   )
 }

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getUserProfile, getUserProposals, archiveProposal, duplicateProposal, deleteProposal, getUserAnalyses, deleteAnalysis, updateAnalysisAccountName } from '@/lib/supabase/queries'
 import type { UserProfile, ProposalRecord, AnalysisRecord } from '@/lib/types'
-import { Plus, Search, FileText, Eye, Copy, Archive, Settings, LogOut, Calendar, ExternalLink, Trash2, User, BarChart2, Pencil, Check, X } from 'lucide-react'
+import { Plus, Search, FileText, Eye, Copy, Archive, Settings, LogOut, Calendar, ExternalLink, Trash2, User, BarChart2, Pencil, Check, X, Truck } from 'lucide-react'
 import Image from 'next/image'
 
 export default function DashboardPage() {
@@ -374,12 +374,23 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {analyses.map(a => (
+              {analyses.map(a => {
+                const isOTR = a.data?.analysisType === 'otr'
+                return (
                 <div key={a.id} className="card-interactive p-6 group">
                   <div className="flex items-start justify-between mb-3">
-                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
-                      {a.detected_format || 'Fleet Analysis'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {isOTR ? (
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 flex items-center gap-1.5">
+                          <Truck size={11} />
+                          OTR Corridor
+                        </span>
+                      ) : (
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                          {a.detected_format || 'Fleet Analysis'}
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2 text-xs text-gray-500">
                       <Calendar size={13} />
                       {new Date(a.created_at).toLocaleDateString()}
@@ -457,7 +468,7 @@ export default function DashboardPage() {
 
                   <div className="flex gap-2">
                     <button
-                      onClick={() => router.push(`/analysis?load=${a.id}`)}
+                      onClick={() => router.push(isOTR ? `/otr?load=${a.id}` : `/analysis?load=${a.id}`)}
                       className="flex-1 btn-secondary text-sm flex items-center justify-center gap-2"
                     >
                       <ExternalLink size={13} />
@@ -471,7 +482,8 @@ export default function DashboardPage() {
                     </button>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
