@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { getUserProfile } from '@/lib/supabase/queries'
 import type { UserProfile } from '@/lib/types'
-import { Settings, LogOut, LayoutDashboard, BarChart2 } from 'lucide-react'
+import { Settings, LogOut, LayoutDashboard, BarChart2, Truck } from 'lucide-react'
 
 export function Navbar() {
   const router = useRouter()
@@ -58,6 +58,14 @@ export function Navbar() {
             >
               <BarChart2 size={18} />
               Transaction Analysis
+            </button>
+
+            <button
+              onClick={() => router.push('/otr')}
+              className="btn-secondary flex items-center gap-2"
+            >
+              <Truck size={18} />
+              OTR Analysis
             </button>
 
             <button
