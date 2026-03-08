@@ -3,10 +3,17 @@
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import type { CKStorePin } from '@/components/FuelingMap'
+import type { OTRMapStore } from '@/components/OTRMap'
+import type { MapPoint } from '@/lib/transaction-analysis'
 
 const FuelingMap = dynamic(() => import('@/components/FuelingMap').then(m => m.FuelingMap), {
   ssr: false,
   loading: () => <div className="bg-gray-100 rounded-xl animate-pulse" style={{ height: 480 }} />,
+})
+
+const OTRMap = dynamic(() => import('@/components/OTRMap').then(m => m.OTRMap), {
+  ssr: false,
+  loading: () => <div className="bg-gray-100 rounded-xl animate-pulse" style={{ height: 420 }} />,
 })
 import Image from 'next/image'
 import {
@@ -430,7 +437,7 @@ function ProximityPanel({
 
 // ─── OTR Corridor Analysis Panel ─────────────────────────────────────────────
 
-function OTRCorridorPanel({ otr, months }: { otr: OTRAnalysis; months: number }) {
+function OTRCorridorPanel({ otr, months, mapPoints, truckStores }: { otr: OTRAnalysis; months: number; mapPoints: MapPoint[]; truckStores: OTRMapStore[] }) {
   const [expanded, setExpanded] = useState(false)
   const shown = expanded ? otr.corridorResults : otr.corridorResults.slice(0, 6)
   const totalOpp = otr.corridorResults.reduce((s, r) => s + r.captureGallons, 0)
@@ -529,6 +536,18 @@ function OTRCorridorPanel({ otr, months }: { otr: OTRAnalysis; months: number })
             <Info size={12} className="shrink-0 mt-0.5" />
             {fmtGallons(otr.offCorridorGallons)} gallons were fueled off major interstate corridors (local/regional routes).
           </p>
+        )}
+
+        {/* Corridor map */}
+        {mapPoints.length > 0 && (
+          <div className="mt-5 rounded-xl overflow-hidden border border-gray-200">
+            <OTRMap
+              transactionPoints={mapPoints}
+              ckStores={truckStores}
+              corridorResults={otr.corridorResults}
+              height={420}
+            />
+          </div>
         )}
       </div>
     </div>
@@ -856,7 +875,14 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
 
         {/* OTR Corridor Analysis (when rep ran it) */}
         {summary.otrAnalysis && summary.otrAnalysis.corridorResults.length > 0 && (
-          <OTRCorridorPanel otr={summary.otrAnalysis} months={months} />
+          <OTRCorridorPanel
+            otr={summary.otrAnalysis}
+            months={months}
+            mapPoints={summary.mapPoints ?? []}
+            truckStores={ckStorePins
+              .filter(p => p.truckAccessible)
+              .map(p => ({ lat: p.lat, lng: p.lng, name: p.name ?? '', city: p.city ?? '', state: p.state ?? '' }))}
+          />
         )}
 
         {/* Savings Calculator */}

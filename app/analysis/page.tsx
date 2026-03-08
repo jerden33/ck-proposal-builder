@@ -765,9 +765,23 @@ function VehiclesTab({
   const [mode, setMode] = useState<'driver' | 'vehicle'>(
     summary.hasDriverData ? 'driver' : 'vehicle'
   )
+  const [query, setQuery] = useState('')
   const byDriver = mode === 'driver' && summary.hasDriverData
-  const rows = byDriver ? summary.driverBreakdown : summary.vehicleBreakdown
-  const shown = showAll ? rows : rows.slice(0, 30)
+  const allRows = byDriver ? summary.driverBreakdown : summary.vehicleBreakdown
+
+  const rows = query.trim()
+    ? allRows.filter(row => {
+        const q = query.toLowerCase()
+        if ('driverName' in row) {
+          const d = row as DriverSummary
+          return d.driverName.toLowerCase().includes(q) || d.driverCity.toLowerCase().includes(q)
+        }
+        const v = row as (typeof summary.vehicleBreakdown)[0]
+        return v.unitNumber.toLowerCase().includes(q) || v.driverCity.toLowerCase().includes(q)
+      })
+    : allRows
+
+  const shown = (query.trim() || showAll) ? rows : rows.slice(0, 30)
   const entityLabel = byDriver ? 'drivers' : 'vehicles'
 
   return (
@@ -781,11 +795,20 @@ function VehiclesTab({
             Per-{byDriver ? 'driver' : 'unit'} breakdown sorted by total gallons
           </p>
         </div>
-        <ViewToggle
-          mode={mode} setMode={setMode}
-          hasDriver={summary.hasDriverData}
-          hasVehicle={summary.vehicleBreakdown.length > 0}
-        />
+        <div className="flex items-center gap-2 shrink-0">
+          <input
+            type="text"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder={`Search ${entityLabel}…`}
+            className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 w-44 focus:outline-none focus:ring-2 focus:ring-brand-orange/30 focus:border-brand-orange"
+          />
+          <ViewToggle
+            mode={mode} setMode={(m) => { setMode(m); setQuery('') }}
+            hasDriver={summary.hasDriverData}
+            hasVehicle={summary.vehicleBreakdown.length > 0}
+          />
+        </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -843,7 +866,7 @@ function VehiclesTab({
           </tbody>
         </table>
       </div>
-      {rows.length > 30 && (
+      {!query.trim() && rows.length > 30 && (
         <button
           onClick={() => setShowAll(!showAll)}
           className="mt-4 flex items-center gap-1 text-sm text-brand-orange hover:underline"
@@ -852,6 +875,9 @@ function VehiclesTab({
             ? <><ChevronUp size={16} />Show fewer</>
             : <><ChevronDown size={16} />Show all {rows.length} {entityLabel}</>}
         </button>
+      )}
+      {query.trim() && rows.length === 0 && (
+        <p className="mt-4 text-sm text-gray-400 text-center py-4">No results for "{query}"</p>
       )}
     </div>
   )
