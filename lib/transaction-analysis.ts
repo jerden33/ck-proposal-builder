@@ -181,6 +181,7 @@ export interface TransactionSummary {
   // Map data — populated after geocoding
   mapPoints: MapPoint[]
   proximityBreakdown: ProximityBreakdown | null
+  proximityBreakdownAll: ProximityBreakdown | null  // against all CK sites (not just truck)
   // Rep-configured rebate rate (¢/gal), saved with analysis
   rebateRate?: number
   // Whether OTR/truck mode was active when analysis was saved
@@ -421,11 +422,12 @@ export function analyzeTransactions(
     geocodedCoords?: Map<string, GeocodedCoord>    // key: geoKey(city, state)
     geocodedAddresses?: Map<string, GeocodedCoord> // key: addrGeoKey(addr, city, state)
     ckStores?: CKStoreCoord[]
+    ckStoresAll?: CKStoreCoord[]  // all CK sites (c-stores + truck), for mixed-fleet proximity
   }
 ): TransactionSummary {
   if (transactions.length === 0) return createEmptySummary()
 
-  const { detectedFormat = 'Unknown', geocodedCoords, geocodedAddresses, ckStores } = options ?? {}
+  const { detectedFormat = 'Unknown', geocodedCoords, geocodedAddresses, ckStores, ckStoresAll } = options ?? {}
 
   const totalTransactions = transactions.length
   const totalGallons = transactions.reduce((s, t) => s + t.gallons, 0)
@@ -662,7 +664,7 @@ export function analyzeTransactions(
   )
 
   // Map points + proximity breakdown (requires geocoding)
-  const { mapPoints, proximityBreakdown } = buildMapData(transactions, geocodedCoords, ckStores, totalGallons, geocodedAddresses)
+  const { mapPoints, proximityBreakdown, proximityBreakdownAll } = buildMapData(transactions, geocodedCoords, ckStores, totalGallons, geocodedAddresses, ckStoresAll)
 
   // Behavioural / timing
   const hasTimeData = transactions.some(t => !!t.transTime)
@@ -690,6 +692,7 @@ export function analyzeTransactions(
     fraudFlags,
     mapPoints,
     proximityBreakdown,
+    proximityBreakdownAll,
   }
 }
 
@@ -700,10 +703,11 @@ function buildMapData(
   geocodedCoords: Map<string, GeocodedCoord> | undefined,
   ckStores: CKStoreCoord[] | undefined,
   totalGallons: number,
-  geocodedAddresses?: Map<string, GeocodedCoord>
-): { mapPoints: MapPoint[]; proximityBreakdown: ProximityBreakdown | null } {
+  geocodedAddresses?: Map<string, GeocodedCoord>,
+  ckStoresAll?: CKStoreCoord[]
+): { mapPoints: MapPoint[]; proximityBreakdown: ProximityBreakdown | null; proximityBreakdownAll: ProximityBreakdown | null } {
   if (!geocodedCoords || geocodedCoords.size === 0) {
-    return { mapPoints: [], proximityBreakdown: null }
+    return { mapPoints: [], proximityBreakdown: null, proximityBreakdownAll: null }
   }
 
   // Aggregate transactions by individual fueling station (not city)
@@ -734,8 +738,7 @@ function buildMapData(
 
   const mapPoints: MapPoint[] = []
 
-  // Proximity buckets (non-CK only)
-  const prox = {
+  const mkProxBuckets = () => ({
     ckGallons:  0,
     within1mi:  { gallons: 0, transactions: 0, spend: 0 },
     within2mi:  { gallons: 0, transactions: 0, spend: 0 },
@@ -743,7 +746,11 @@ function buildMapData(
     within10mi: { gallons: 0, transactions: 0, spend: 0 },
     beyond10mi: { gallons: 0, transactions: 0, spend: 0 },
     geocodedGallons: 0,
-  }
+  })
+
+  // Proximity buckets (non-CK only)
+  const prox    = mkProxBuckets()
+  const proxAll = mkProxBuckets()  // against all CK sites
 
   for (const [, agg] of Array.from(stationMap)) {
     // Prefer address-level coords (precise) over city centroid
@@ -751,7 +758,8 @@ function buildMapData(
     const coord = geocodedAddresses?.get(addrKey) ?? geocodedCoords.get(geoKey(agg.city, agg.state))
     if (!coord) continue
 
-    const dist = ckStores ? nearestCKDistance(coord.lat, coord.lng, ckStores) : -1
+    const dist    = ckStores    ? nearestCKDistance(coord.lat, coord.lng, ckStores)    : -1
+    const distAll = ckStoresAll ? nearestCKDistance(coord.lat, coord.lng, ckStoresAll) : -1
     const allCK = agg.ckGallons === agg.gallons
 
     mapPoints.push({
@@ -768,40 +776,44 @@ function buildMapData(
       nearestCKDistanceMi: dist,
     })
 
-    prox.geocodedGallons += agg.gallons
-    prox.ckGallons += agg.ckGallons
+    prox.geocodedGallons    += agg.gallons
+    prox.ckGallons          += agg.ckGallons
+    proxAll.geocodedGallons += agg.gallons
+    proxAll.ckGallons       += agg.ckGallons
 
     const nonCKGallons = agg.gallons - agg.ckGallons
     const nonCKTrans = Math.round(agg.transactions * (nonCKGallons / Math.max(agg.gallons, 1)))
     const nonCKSpend = agg.spend * (nonCKGallons / Math.max(agg.gallons, 1))
 
-    if (dist >= 0 && !allCK) {
-      const bucket =
-        dist < 1 ? prox.within1mi :
-        dist < 2 ? prox.within2mi :
-        dist < 5 ? prox.within5mi :
-        dist < 10 ? prox.within10mi :
-        prox.beyond10mi
+    const bucketInto = (d: number, p: typeof prox) => {
+      const b = d < 1 ? p.within1mi : d < 2 ? p.within2mi : d < 5 ? p.within5mi : d < 10 ? p.within10mi : p.beyond10mi
+      b.gallons += nonCKGallons
+      b.transactions += nonCKTrans
+      b.spend += nonCKSpend
+    }
 
-      bucket.gallons += nonCKGallons
-      bucket.transactions += nonCKTrans
-      bucket.spend += nonCKSpend
+    if (!allCK) {
+      if (dist    >= 0) bucketInto(dist,    prox)
+      if (distAll >= 0) bucketInto(distAll, proxAll)
     }
   }
 
   const geocodedPct = totalGallons > 0 ? (prox.geocodedGallons / totalGallons) * 100 : 0
 
+  const toBreakdown = (p: typeof prox): ProximityBreakdown => ({
+    ckGallons:  p.ckGallons,
+    within1mi:  p.within1mi,
+    within2mi:  p.within2mi,
+    within5mi:  p.within5mi,
+    within10mi: p.within10mi,
+    beyond10mi: p.beyond10mi,
+    geocodedPct,
+  })
+
   return {
     mapPoints,
-    proximityBreakdown: {
-      ckGallons:   prox.ckGallons,
-      within1mi:   prox.within1mi,
-      within2mi:   prox.within2mi,
-      within5mi:   prox.within5mi,
-      within10mi:  prox.within10mi,
-      beyond10mi:  prox.beyond10mi,
-      geocodedPct,
-    },
+    proximityBreakdown:    ckStores    ? toBreakdown(prox)    : null,
+    proximityBreakdownAll: ckStoresAll ? toBreakdown(proxAll) : null,
   }
 }
 
@@ -833,6 +845,7 @@ function createEmptySummary(): TransactionSummary {
     fraudFlags: [],
     mapPoints: [],
     proximityBreakdown: null,
+    proximityBreakdownAll: null,
   }
 }
 
