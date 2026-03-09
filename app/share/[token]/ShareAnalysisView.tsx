@@ -366,9 +366,9 @@ function ProximityPanel({
   totalGallons: number
   isCustomer: boolean
 }) {
+  const within2mi       = prox.within1mi.gallons + prox.within2mi.gallons
   const opportunityGallons =
-    prox.within1mi.gallons + prox.within2mi.gallons +
-    prox.within5mi.gallons + prox.within10mi.gallons
+    within2mi + prox.within5mi.gallons + prox.within10mi.gallons
   const opportunityPct = totalGallons > 0 ? (opportunityGallons / totalGallons) * 100 : 0
 
   const rows = [
@@ -413,6 +413,14 @@ function ProximityPanel({
           </div>
         )}
       </div>
+      {within2mi > 0 && (
+        <div className="mb-4 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 mt-1" />
+          <p className="text-sm text-emerald-800">
+            <span className="font-bold">{fmtGallons(within2mi)}</span> gallons were fueled within <span className="font-bold">2 miles</span> of a Circle K — drivers drove right past without stopping.
+          </p>
+        </div>
+      )}
       <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 overflow-hidden">
         {rows.map(row => {
           const pct = totalGallons > 0 ? (row.gallons / totalGallons) * 100 : 0

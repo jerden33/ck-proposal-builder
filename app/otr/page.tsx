@@ -29,6 +29,7 @@ import {
   buildCKZipSet,
   fmtGallons,
   fmtPct,
+  fmtDollars,
   type TransactionSummary,
 } from '@/lib/transaction-analysis'
 import { geocodeLocations, geoKey } from '@/lib/geocoding'
@@ -660,6 +661,134 @@ function OTRPageInner() {
             )}
           </div>
         </div>
+
+        {/* Local & Regional Capture Analysis */}
+        {summary.proximityBreakdown && (() => {
+          const prox = summary.proximityBreakdown!
+          const within2mi = prox.within1mi.gallons + prox.within2mi.gallons
+          const within5mi  = prox.within5mi.gallons
+          const within10mi = prox.within10mi.gallons
+          const beyond10mi = prox.beyond10mi.gallons
+          const ckGal      = prox.ckGallons
+          const compTotal  = within2mi + within5mi + within10mi + beyond10mi
+          const grandTotal = ckGal + compTotal
+          const maxBar     = Math.max(ckGal, within2mi, within5mi, within10mi, beyond10mi, 1)
+
+          const proximityRows = [
+            { label: 'At Circle K (truck stop)', gallons: ckGal,      color: 'bg-green-500',   text: 'text-green-700',   note: 'Already loyal' },
+            { label: 'Within 2 mi of truck CK',  gallons: within2mi,  color: 'bg-emerald-400', text: 'text-emerald-700', note: 'Drove right past' },
+            { label: '2–5 mi of truck CK',        gallons: within5mi,  color: 'bg-amber-400',   text: 'text-amber-700',   note: 'Strong opportunity' },
+            { label: '5–10 mi of truck CK',       gallons: within10mi, color: 'bg-orange-400',  text: 'text-orange-700',  note: 'Moderate detour' },
+            { label: '10+ mi (coverage gap)',      gallons: beyond10mi, color: 'bg-red-400',     text: 'text-red-700',     note: 'No nearby truck CK' },
+          ]
+
+          const topBrands = summary.brandBreakdown.slice(0, 7)
+          const brandMax  = Math.max(...topBrands.map(b => b.gallons), 1)
+
+          return (
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-6">
+              <div className="bg-off-black px-6 py-4 flex items-center justify-between">
+                <div>
+                  <h2 className="text-white font-bold text-lg">Local & Regional Capture Analysis</h2>
+                  <p className="text-gray-400 text-sm mt-0.5">
+                    How close are competitor fills to a truck-accessible Circle K?
+                  </p>
+                </div>
+                <Fuel className="text-brand-orange shrink-0" size={22} />
+              </div>
+
+              <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+                {/* Proximity breakdown */}
+                <div>
+                  <h3 className="font-bold text-off-black mb-1 text-sm uppercase tracking-wide">Proximity to Truck-Accessible CK</h3>
+                  <p className="text-xs text-gray-400 mb-4">Competitor gallons ranked by aerial distance to nearest truck stop CK</p>
+
+                  {within2mi > 0 && (
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mb-4 flex items-start gap-2.5">
+                      <CheckCircle size={14} className="text-emerald-600 shrink-0 mt-0.5" />
+                      <p className="text-xs text-emerald-800 leading-snug">
+                        <strong>{fmtGallons(within2mi)}</strong> competitor gallons fueled within 2 miles of a truck CK
+                        {months > 0 ? ` — ${fmtGallons((within2mi / months) * 12)} annualized.` : '.'}
+                        {' '}These drivers drove right past one.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="space-y-2.5">
+                    {proximityRows.map(({ label, gallons, color, text, note }) => {
+                      const pct = grandTotal > 0 ? (gallons / grandTotal) * 100 : 0
+                      return (
+                        <div key={label}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-gray-700">{label}</span>
+                            <span className={`text-xs font-semibold ${text}`}>{fmtGallons(gallons)} <span className="text-gray-400 font-normal">({fmtPct(pct)})</span></span>
+                          </div>
+                          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div className={`h-2 ${color} rounded-full`} style={{ width: `${(gallons / maxBar) * 100}%` }} />
+                          </div>
+                          <p className="text-xs text-gray-400 mt-0.5">{note}</p>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {prox.geocodedPct < 90 && (
+                    <p className="mt-4 text-xs text-gray-400 flex items-start gap-1.5">
+                      <Info size={12} className="shrink-0 mt-0.5" />
+                      {fmtPct(prox.geocodedPct)} of gallons geocoded — proximity covers geocoded transactions only.
+                    </p>
+                  )}
+                </div>
+
+                {/* Top competitor brands */}
+                <div>
+                  <h3 className="font-bold text-off-black mb-1 text-sm uppercase tracking-wide">Where Drivers Are Fueling</h3>
+                  <p className="text-xs text-gray-400 mb-4">All transactions · gallons by brand</p>
+                  <div className="space-y-2.5">
+                    {topBrands.map(b => {
+                      const pct = summary.totalGallons > 0 ? (b.gallons / summary.totalGallons) * 100 : 0
+                      return (
+                        <div key={b.brand}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className={`text-xs font-medium ${b.isCircleK ? 'text-brand-orange' : 'text-gray-700'}`}>
+                              {b.displayName || b.brand}
+                            </span>
+                            <span className={`text-xs font-semibold ${b.isCircleK ? 'text-brand-orange' : 'text-gray-700'}`}>
+                              {fmtGallons(b.gallons)} <span className="text-gray-400 font-normal">({fmtPct(pct)})</span>
+                            </span>
+                          </div>
+                          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-2 rounded-full ${b.isCircleK ? 'bg-brand-orange' : 'bg-gray-400'}`}
+                              style={{ width: `${(b.gallons / brandMax) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {summary.brandBreakdown.length > 7 && (
+                    <p className="mt-3 text-xs text-gray-400">+ {summary.brandBreakdown.length - 7} more brands</p>
+                  )}
+                  <div className="mt-5 pt-4 border-t border-gray-100 grid grid-cols-2 gap-3">
+                    <div className="bg-gray-50 rounded-lg p-3 text-center">
+                      <p className="text-xs text-gray-500 mb-0.5">Competitor Spend</p>
+                      <p className="font-bold text-off-black text-sm">
+                        {fmtDollars(summary.brandBreakdown.filter(b => !b.isCircleK).reduce((s, b) => s + b.spend, 0))}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3 text-center">
+                      <p className="text-xs text-gray-500 mb-0.5">Unique Brands</p>
+                      <p className="font-bold text-off-black text-sm">{summary.brandBreakdown.filter(b => !b.isCircleK).length}</p>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Share section */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-8">
