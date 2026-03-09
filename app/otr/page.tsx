@@ -543,9 +543,9 @@ function OTRPageInner() {
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-6">
           <div className="bg-off-black px-6 py-4 flex items-center justify-between">
             <div>
-              <h2 className="text-white font-bold text-lg">Interstate Corridor Map</h2>
+              <h2 className="text-white font-bold text-lg">Highway Corridor Map</h2>
               <p className="text-gray-400 text-sm mt-0.5">
-                Orange lines show corridors with fueling activity — intensity reflects opportunity gallons
+                Orange = interstate · Blue dashed = US highway · Intensity reflects opportunity gallons
               </p>
             </div>
             <MapPin className="text-brand-orange shrink-0" size={22} />
@@ -595,9 +595,11 @@ function OTRPageInner() {
                         <td className="py-3 pr-4">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-off-black">{r.corridorName}</span>
-                            <span className="text-xs text-gray-400">
-                              {r.direction === 'EW' ? 'E↔W' : 'N↕S'}
-                            </span>
+                            {r.isHighway ? (
+                              <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-sky-100 text-sky-700">US Hwy</span>
+                            ) : (
+                              <span className="text-xs text-gray-400">{r.direction === 'EW' ? 'E↔W' : 'N↕S'}</span>
+                            )}
                           </div>
                         </td>
                         <td className="text-right px-3 tabular-nums text-gray-700">

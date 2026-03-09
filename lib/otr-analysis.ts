@@ -27,6 +27,8 @@ export interface CorridorResult {
   corridorId: string
   corridorName: string
   direction: 'EW' | 'NS'
+  /** true for US/state highways, false for interstates */
+  isHighway: boolean
   /** Total gallons (CK + competitor) fueled on this corridor */
   totalGallons: number
   totalTransactions: number
@@ -677,6 +679,237 @@ export const CORRIDORS: CorridorDefinition[] = [
       { lat: 43.23, lng: -86.25 },  // Muskegon
     ],
   },
+
+  // ─── US Highways ──────────────────────────────────────────────────────────────
+
+  {
+    id: 'US-101',
+    name: 'US-101',
+    direction: 'NS',
+    states: ['CA', 'OR', 'WA'],
+    waypoints: [
+      { lat: 34.10, lng: -118.34 }, // Los Angeles
+      { lat: 34.42, lng: -119.70 }, // Santa Barbara
+      { lat: 35.28, lng: -120.66 }, // San Luis Obispo
+      { lat: 36.68, lng: -121.65 }, // Salinas
+      { lat: 37.78, lng: -122.42 }, // San Francisco
+      { lat: 38.44, lng: -122.71 }, // Santa Rosa
+      { lat: 39.15, lng: -123.21 }, // Ukiah
+      { lat: 40.80, lng: -124.16 }, // Eureka
+      { lat: 41.76, lng: -124.20 }, // Crescent City
+      { lat: 43.37, lng: -124.21 }, // Coos Bay
+      { lat: 44.96, lng: -124.01 }, // Lincoln City
+      { lat: 46.19, lng: -123.83 }, // Astoria
+      { lat: 46.97, lng: -123.82 }, // Aberdeen
+      { lat: 47.04, lng: -122.90 }, // Olympia
+    ],
+  },
+  {
+    id: 'US-1',
+    name: 'US-1',
+    direction: 'NS',
+    states: ['ME', 'NH', 'MA', 'RI', 'CT', 'NY', 'NJ', 'DE', 'MD', 'VA', 'NC', 'SC', 'GA', 'FL'],
+    waypoints: [
+      { lat: 47.26, lng: -68.59 }, // Fort Kent, ME
+      { lat: 44.80, lng: -68.78 }, // Bangor, ME
+      { lat: 43.66, lng: -70.26 }, // Portland, ME
+      { lat: 43.07, lng: -70.76 }, // Portsmouth, NH
+      { lat: 42.36, lng: -71.06 }, // Boston, MA
+      { lat: 41.82, lng: -71.42 }, // Providence, RI
+      { lat: 41.31, lng: -72.92 }, // New Haven, CT
+      { lat: 40.71, lng: -73.99 }, // New York City
+      { lat: 39.95, lng: -75.16 }, // Philadelphia, PA
+      { lat: 39.29, lng: -76.61 }, // Baltimore, MD
+      { lat: 38.91, lng: -77.04 }, // Washington, DC
+      { lat: 37.54, lng: -77.44 }, // Richmond, VA
+      { lat: 35.94, lng: -77.80 }, // Rocky Mount, NC
+      { lat: 34.20, lng: -79.83 }, // Florence, SC
+      { lat: 32.08, lng: -81.10 }, // Savannah, GA
+      { lat: 30.33, lng: -81.66 }, // Jacksonville, FL
+      { lat: 29.21, lng: -81.02 }, // Daytona Beach, FL
+      { lat: 26.12, lng: -80.14 }, // Fort Lauderdale, FL
+      { lat: 25.77, lng: -80.19 }, // Miami, FL
+    ],
+  },
+  {
+    id: 'US-2',
+    name: 'US-2',
+    direction: 'EW',
+    states: ['WA', 'ID', 'MT', 'ND', 'MN', 'WI', 'MI'],
+    waypoints: [
+      { lat: 47.98, lng: -122.20 }, // Everett, WA
+      { lat: 47.51, lng: -120.51 }, // Wenatchee, WA
+      { lat: 47.65, lng: -117.43 }, // Spokane, WA
+      { lat: 47.73, lng: -116.78 }, // Coeur d'Alene, ID
+      { lat: 48.43, lng: -114.31 }, // Whitefish, MT
+      { lat: 48.55, lng: -109.68 }, // Havre, MT
+      { lat: 48.25, lng: -106.63 }, // Malta, MT
+      { lat: 48.15, lng: -103.62 }, // Williston, ND
+      { lat: 48.23, lng: -101.30 }, // Minot, ND
+      { lat: 47.93, lng: -97.03 },  // Grand Forks, ND
+      { lat: 46.78, lng: -92.10 },  // Duluth, MN
+      { lat: 46.44, lng: -90.18 },  // Ironwood, MI
+      { lat: 46.49, lng: -84.35 },  // Sault Ste Marie, MI
+    ],
+  },
+  {
+    id: 'US-395',
+    name: 'US-395',
+    direction: 'NS',
+    states: ['CA', 'NV', 'OR', 'WA'],
+    waypoints: [
+      { lat: 34.06, lng: -117.64 }, // San Bernardino, CA
+      { lat: 35.37, lng: -117.99 }, // Mojave / Ridgecrest area
+      { lat: 37.35, lng: -118.40 }, // Bishop, CA
+      { lat: 38.96, lng: -119.93 }, // Carson City, NV
+      { lat: 39.53, lng: -119.81 }, // Reno, NV
+      { lat: 40.44, lng: -120.65 }, // Susanville, CA
+      { lat: 41.59, lng: -120.36 }, // Alturas, CA
+      { lat: 42.61, lng: -120.34 }, // Lakeview, OR
+      { lat: 43.52, lng: -118.96 }, // Burns, OR
+      { lat: 44.40, lng: -118.96 }, // John Day, OR
+      { lat: 45.35, lng: -118.79 }, // Pendleton, OR
+      { lat: 47.65, lng: -117.43 }, // Spokane, WA
+      { lat: 48.54, lng: -118.74 }, // Colville, WA
+    ],
+  },
+  {
+    id: 'US-97',
+    name: 'US-97',
+    direction: 'NS',
+    states: ['CA', 'OR', 'WA'],
+    waypoints: [
+      { lat: 41.89, lng: -121.88 }, // Weed, CA
+      { lat: 42.22, lng: -121.78 }, // Klamath Falls, OR
+      { lat: 43.58, lng: -121.50 }, // Bend, OR
+      { lat: 44.26, lng: -121.15 }, // Redmond, OR
+      { lat: 45.68, lng: -120.81 }, // Moro, OR
+      { lat: 46.60, lng: -120.51 }, // Yakima, WA
+      { lat: 47.35, lng: -120.33 }, // Ellensburg, WA
+      { lat: 47.51, lng: -120.51 }, // Wenatchee, WA
+      { lat: 48.36, lng: -119.52 }, // Okanogan, WA
+      { lat: 48.93, lng: -119.44 }, // Oroville, WA
+    ],
+  },
+  {
+    id: 'US-83',
+    name: 'US-83',
+    direction: 'NS',
+    states: ['TX', 'OK', 'KS', 'NE', 'SD', 'ND'],
+    waypoints: [
+      { lat: 29.36, lng: -100.90 }, // Del Rio, TX
+      { lat: 31.55, lng: -100.44 }, // San Angelo, TX
+      { lat: 33.56, lng: -99.73 },  // Childress, TX
+      { lat: 35.45, lng: -100.20 }, // Wheeler, TX
+      { lat: 36.40, lng: -99.40 },  // Woodward, OK
+      { lat: 37.04, lng: -100.92 }, // Liberal, KS
+      { lat: 37.75, lng: -100.02 }, // Dodge City, KS
+      { lat: 38.44, lng: -98.84 },  // Great Bend, KS
+      { lat: 40.00, lng: -98.07 },  // Superior, NE
+      { lat: 42.60, lng: -100.55 }, // Valentine, NE
+      { lat: 43.38, lng: -101.64 }, // Winner, SD
+      { lat: 44.37, lng: -100.35 }, // Pierre, SD
+      { lat: 45.47, lng: -100.43 }, // Mobridge, SD
+      { lat: 46.82, lng: -100.78 }, // Bismarck, ND
+      { lat: 48.23, lng: -101.30 }, // Minot, ND
+    ],
+  },
+  {
+    id: 'US-287',
+    name: 'US-287',
+    direction: 'NS',
+    states: ['TX', 'CO', 'WY', 'MT'],
+    waypoints: [
+      { lat: 30.07, lng: -94.10 },  // Port Arthur, TX
+      { lat: 32.73, lng: -97.29 },  // Fort Worth, TX
+      { lat: 33.91, lng: -98.49 },  // Wichita Falls, TX
+      { lat: 34.15, lng: -99.73 },  // Vernon, TX
+      { lat: 35.03, lng: -100.27 }, // Childress area, TX
+      { lat: 37.99, lng: -103.55 }, // La Junta, CO
+      { lat: 38.48, lng: -105.00 }, // Walsenburg / La Veta, CO
+      { lat: 40.59, lng: -105.08 }, // Fort Collins, CO
+      { lat: 41.31, lng: -105.59 }, // Laramie, WY
+      { lat: 42.83, lng: -108.73 }, // Lander, WY
+      { lat: 43.86, lng: -110.12 }, // Dubois, WY
+      { lat: 44.43, lng: -110.52 }, // Moran Junction, WY
+      { lat: 47.51, lng: -111.30 }, // Great Falls, MT
+    ],
+  },
+  {
+    id: 'US-41',
+    name: 'US-41',
+    direction: 'NS',
+    states: ['FL', 'GA', 'TN', 'KY', 'IN', 'WI', 'MI'],
+    waypoints: [
+      { lat: 25.77, lng: -80.19 }, // Miami, FL
+      { lat: 26.14, lng: -81.79 }, // Naples, FL
+      { lat: 27.34, lng: -82.45 }, // Sarasota, FL
+      { lat: 27.96, lng: -82.46 }, // Tampa, FL
+      { lat: 29.95, lng: -83.35 }, // Perry, FL
+      { lat: 30.44, lng: -84.28 }, // Tallahassee, FL
+      { lat: 31.09, lng: -85.02 }, // Dothan area, AL
+      { lat: 32.37, lng: -86.30 }, // Montgomery, AL
+      { lat: 33.52, lng: -86.80 }, // Birmingham, AL
+      { lat: 34.73, lng: -86.59 }, // Huntsville, AL
+      { lat: 36.17, lng: -86.78 }, // Nashville, TN
+      { lat: 36.81, lng: -87.49 }, // Clarksville, TN
+      { lat: 37.07, lng: -88.60 }, // Paducah, KY
+      { lat: 37.97, lng: -87.56 }, // Evansville, IN
+      { lat: 39.47, lng: -87.41 }, // Terre Haute, IN
+      { lat: 41.26, lng: -87.29 }, // Lowell / Gary, IN
+      { lat: 43.04, lng: -87.91 }, // Milwaukee, WI
+      { lat: 44.52, lng: -87.99 }, // Green Bay, WI
+      { lat: 45.56, lng: -87.39 }, // Marinette, WI
+      { lat: 46.50, lng: -87.88 }, // Marquette, MI
+    ],
+  },
+  {
+    id: 'US-90',
+    name: 'US-90',
+    direction: 'EW',
+    states: ['FL', 'AL', 'MS', 'LA', 'TX', 'NM', 'AZ'],
+    waypoints: [
+      { lat: 30.33, lng: -81.66 }, // Jacksonville, FL
+      { lat: 30.44, lng: -84.28 }, // Tallahassee, FL
+      { lat: 30.41, lng: -87.22 }, // Pensacola, FL
+      { lat: 30.70, lng: -88.04 }, // Mobile, AL
+      { lat: 30.37, lng: -89.09 }, // Biloxi, MS
+      { lat: 30.00, lng: -89.99 }, // New Orleans, LA
+      { lat: 30.45, lng: -91.19 }, // Baton Rouge, LA
+      { lat: 30.22, lng: -92.02 }, // Lafayette, LA
+      { lat: 30.07, lng: -93.70 }, // Beaumont, TX
+      { lat: 29.76, lng: -95.37 }, // Houston, TX
+      { lat: 29.42, lng: -98.49 }, // San Antonio, TX
+      { lat: 29.36, lng: -100.90 }, // Del Rio, TX
+      { lat: 30.35, lng: -102.67 }, // Sanderson, TX
+      { lat: 30.36, lng: -103.66 }, // Alpine, TX
+      { lat: 31.76, lng: -106.49 }, // El Paso, TX
+      { lat: 32.32, lng: -106.77 }, // Las Cruces, NM
+      { lat: 32.34, lng: -108.71 }, // Lordsburg, NM
+      { lat: 32.22, lng: -110.93 }, // Tucson, AZ
+    ],
+  },
+  {
+    id: 'US-50',
+    name: 'US-50',
+    direction: 'EW',
+    states: ['NV', 'UT', 'CO', 'KS', 'MO'],
+    waypoints: [
+      { lat: 39.18, lng: -119.76 }, // Carson City area, NV
+      { lat: 39.54, lng: -117.07 }, // Austin, NV
+      { lat: 39.25, lng: -114.87 }, // Ely, NV
+      { lat: 39.35, lng: -112.58 }, // Delta, UT
+      { lat: 38.55, lng: -107.87 }, // Delta / Montrose, CO
+      { lat: 38.55, lng: -106.93 }, // Gunnison, CO
+      { lat: 38.27, lng: -104.61 }, // Pueblo, CO
+      { lat: 38.83, lng: -104.82 }, // Colorado Springs, CO
+      { lat: 38.08, lng: -102.62 }, // Lamar, CO
+      { lat: 37.83, lng: -100.36 }, // Dodge City area, KS
+      { lat: 37.69, lng: -97.34 },  // Wichita, KS
+      { lat: 38.40, lng: -95.46 },  // Emporia, KS
+      { lat: 38.96, lng: -94.37 },  // Kansas City area, MO
+    ],
+  },
 ]
 
 // ─── Geometry helpers ─────────────────────────────────────────────────────────
@@ -834,6 +1067,7 @@ export function runOTRAnalysis(
         corridorId: c.id,
         corridorName: c.name,
         direction: c.direction,
+        isHighway: !c.id.startsWith('I-'),
         totalGallons: d.gallons,
         totalTransactions: d.transactions,
         ckGallons: d.ckGallons,

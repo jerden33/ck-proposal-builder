@@ -494,7 +494,11 @@ function OTRCorridorPanel({ otr, months, mapPoints, truckStores }: { otr: OTRAna
                   <td className="py-2.5 pr-4">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-off-black">{r.corridorName}</span>
-                      <span className="text-xs text-gray-400">{r.direction === 'EW' ? 'E↔W' : 'N↕S'}</span>
+                      {r.isHighway ? (
+                        <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-sky-100 text-sky-700">US Hwy</span>
+                      ) : (
+                        <span className="text-xs text-gray-400">{r.direction === 'EW' ? 'E↔W' : 'N↕S'}</span>
+                      )}
                     </div>
                   </td>
                   <td className="py-2.5 px-3 text-right font-medium">{fmtGallons(r.totalGallons)}</td>

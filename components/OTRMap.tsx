@@ -58,6 +58,7 @@ function buildCorridorGeoJSON(corridorResults: CorridorResult[]) {
           corridorId: c.id,
           name: c.name,
           active: !!r,
+          isHighway: !c.id.startsWith('I-'),
           captureGallons: r?.captureGallons ?? 0,
           totalGallons: r?.totalGallons ?? 0,
           ckGallons: r?.ckGallons ?? 0,
@@ -134,34 +135,58 @@ export function OTRMap({ transactionPoints, ckStores, corridorResults, height = 
       // ── Corridor lines ─────────────────────────────────────────────────────
       m.addSource('corridors', { type: 'geojson', data: buildCorridorGeoJSON(corridorResults) })
 
-      // All inactive corridors (road network context)
+      // Inactive interstates — gray
       m.addLayer({
         id: 'corridors-inactive',
         type: 'line',
         source: 'corridors',
-        filter: ['==', ['get', 'active'], false],
+        filter: ['all', ['==', ['get', 'active'], false], ['==', ['get', 'isHighway'], false]],
         paint: { 'line-color': '#e5e7eb', 'line-width': 1.2, 'line-opacity': 0.55 },
       })
 
-      // Active corridors — colored by opportunity intensity
+      // Inactive US highways — dashed light blue
+      m.addLayer({
+        id: 'corridors-inactive-hwy',
+        type: 'line',
+        source: 'corridors',
+        filter: ['all', ['==', ['get', 'active'], false], ['==', ['get', 'isHighway'], true]],
+        paint: { 'line-color': '#bfdbfe', 'line-width': 1.2, 'line-opacity': 0.6, 'line-dasharray': [4, 3] },
+      })
+
+      // Active interstates — amber → orange gradient
       m.addLayer({
         id: 'corridors-active',
         type: 'line',
         source: 'corridors',
-        filter: ['==', ['get', 'active'], true],
+        filter: ['all', ['==', ['get', 'active'], true], ['==', ['get', 'isHighway'], false]],
         paint: {
           'line-color': [
             'interpolate', ['linear'], ['get', 'intensity'],
-            0,   '#fde68a',   // amber-200 — low opportunity
-            0.3, '#f97316',   // orange-500 — moderate
-            1,   '#c2410c',   // orange-700 — high opportunity
+            0,   '#fde68a',   // amber-200
+            0.3, '#f97316',   // orange-500
+            1,   '#c2410c',   // orange-700
           ],
-          'line-width': [
-            'interpolate', ['linear'], ['get', 'intensity'],
-            0, 2.5,
-            1, 6,
-          ],
+          'line-width': ['interpolate', ['linear'], ['get', 'intensity'], 0, 2.5, 1, 6],
           'line-opacity': 0.9,
+        },
+      })
+
+      // Active US highways — sky → blue gradient
+      m.addLayer({
+        id: 'corridors-active-hwy',
+        type: 'line',
+        source: 'corridors',
+        filter: ['all', ['==', ['get', 'active'], true], ['==', ['get', 'isHighway'], true]],
+        paint: {
+          'line-color': [
+            'interpolate', ['linear'], ['get', 'intensity'],
+            0,   '#bae6fd',   // sky-200
+            0.3, '#0ea5e9',   // sky-500
+            1,   '#0369a1',   // sky-700
+          ],
+          'line-width': ['interpolate', ['linear'], ['get', 'intensity'], 0, 2.5, 1, 6],
+          'line-opacity': 0.9,
+          'line-dasharray': [6, 2],
         },
       })
 
@@ -228,23 +253,25 @@ export function OTRMap({ transactionPoints, ckStores, corridorResults, height = 
 
       // ── Corridor hover tooltip ─────────────────────────────────────────────
       const popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, offset: 5 })
-      m.on('mouseenter', 'corridors-active', (e) => {
+      const showCorridorPopup = (e: mapboxgl.MapLayerMouseEvent) => {
         m.getCanvas().style.cursor = 'pointer'
         const props = e.features?.[0]?.properties
         if (!props) return
+        const oppColor = props.isHighway ? '#0ea5e9' : '#f97316'
         popup.setLngLat(e.lngLat).setHTML(
           `<div style="font-family:system-ui,sans-serif;font-size:12px;padding:6px 8px;line-height:1.5">
             <strong style="font-size:13px">${props.name}</strong><br/>
             <span style="color:#6b7280">Total: ${fmtGallons(props.totalGallons)}</span><br/>
             <span style="color:#16a34a">Circle K: ${fmtGallons(props.ckGallons)}</span><br/>
-            <span style="color:#f97316">Opportunity: ${fmtGallons(props.captureGallons)}</span>
+            <span style="color:${oppColor}">Opportunity: ${fmtGallons(props.captureGallons)}</span>
           </div>`
         ).addTo(m)
-      })
-      m.on('mouseleave', 'corridors-active', () => {
-        m.getCanvas().style.cursor = ''
-        popup.remove()
-      })
+      }
+      const hideCorridorPopup = () => { m.getCanvas().style.cursor = ''; popup.remove() }
+      m.on('mouseenter', 'corridors-active',     showCorridorPopup)
+      m.on('mouseleave', 'corridors-active',     hideCorridorPopup)
+      m.on('mouseenter', 'corridors-active-hwy', showCorridorPopup)
+      m.on('mouseleave', 'corridors-active-hwy', hideCorridorPopup)
 
       // ── Transaction point tooltip ──────────────────────────────────────────
       const txPopup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, offset: 8 })
@@ -308,11 +335,19 @@ export function OTRMap({ transactionPoints, ckStores, corridorResults, height = 
           <span className="w-3 h-3 rounded-full bg-orange-600 shrink-0" />
           <span className="text-gray-600">CK Truck Location</span>
         </div>
-        <div className="border-t border-gray-100 pt-1.5 mt-1.5 flex items-center gap-1.5">
-          <span className="h-0.5 w-4 bg-amber-300 shrink-0" />
-          <span className="text-gray-400">→</span>
-          <span className="h-0.5 w-4 bg-orange-700 shrink-0" />
-          <span className="text-gray-400 ml-1">Corridor opportunity</span>
+        <div className="border-t border-gray-100 pt-1.5 mt-1.5 space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <span className="h-0.5 w-4 bg-amber-300 shrink-0" />
+            <span className="text-gray-400">→</span>
+            <span className="h-0.5 w-4 bg-orange-700 shrink-0" />
+            <span className="text-gray-400 ml-1">Interstate corridor</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-0.5 w-4 bg-sky-300 shrink-0" style={{ borderBottom: '2px dashed #7dd3fc' }} />
+            <span className="text-gray-400">→</span>
+            <span className="h-0.5 w-4 bg-sky-700 shrink-0" style={{ borderBottom: '2px dashed #0369a1' }} />
+            <span className="text-gray-400 ml-1">US highway corridor</span>
+          </div>
         </div>
       </div>
     </div>
