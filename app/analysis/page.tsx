@@ -180,17 +180,17 @@ function BrandBar({ brand, maxGallons }: { brand: BrandSummary; maxGallons: numb
 function OpportunityPanel({ analysis, totalGallons, truckMode = false }: { analysis: TransactionSummary['ckCaptureAnalysis']; totalGallons: number; truckMode?: boolean }) {
   const { captured, capturable, gap, captureRate, potentialRate } = analysis
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="bg-off-black px-6 py-4">
+    <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+      <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4">
         <div className="flex items-center gap-3 flex-wrap">
-          <h2 className="text-white font-bold text-lg">Circle K Fueling Opportunity</h2>
+          <h2 className="text-zinc-900 font-bold text-lg">Circle K Fueling Opportunity</h2>
           {truckMode && (
-            <span className="text-xs font-semibold bg-amber-500 text-white rounded px-2 py-0.5 flex items-center gap-1">
+            <span className="text-xs font-semibold bg-zinc-200 text-zinc-600 rounded px-2 py-0.5 flex items-center gap-1">
               🚛 OTR / Truck Mode
             </span>
           )}
         </div>
-        <p className="text-gray-400 text-sm mt-0.5">
+        <p className="text-zinc-500 text-sm mt-0.5">
           {truckMode
             ? "Opportunity scoped to truck-accessible CK locations only (451 sites with truck lanes)"
             : "Where your fleet's gallons go — and what Circle K can capture"}
@@ -201,10 +201,10 @@ function OpportunityPanel({ analysis, totalGallons, truckMode = false }: { analy
           <div>
             <div className="flex justify-between text-xs text-gray-500 mb-1">
               <span>Current Circle K capture</span>
-              <span className="font-semibold text-brand-orange">{fmtPct(captureRate)}</span>
+              <span className="font-semibold text-accent">{fmtPct(captureRate)}</span>
             </div>
-            <div className="h-3 bg-gray-100 rounded-full">
-              <div className="h-3 bg-brand-orange rounded-full" style={{ width: `${captureRate}%` }} />
+            <div className="h-3 bg-zinc-100 rounded-full">
+              <div className="h-3 bg-accent rounded-full" style={{ width: `${captureRate}%` }} />
             </div>
           </div>
           <div>
@@ -218,14 +218,14 @@ function OpportunityPanel({ analysis, totalGallons, truckMode = false }: { analy
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-xl border-2 border-brand-orange bg-orange-50 p-4">
+          <div className="rounded-xl border-2 border-accent bg-accent-muted/20 p-4">
             <div className="flex items-center gap-2 mb-3">
-              <CheckCircle size={18} className="text-brand-orange shrink-0" />
-              <span className="font-bold text-off-black text-sm">Already at Circle K</span>
+              <CheckCircle size={18} className="text-accent shrink-0" />
+              <span className="font-bold text-zinc-900 text-sm">Already at Circle K</span>
             </div>
-            <p className="text-3xl font-bold text-off-black">{fmtGallons(captured.gallons)}</p>
-            <p className="text-xs text-gray-500 mt-0.5">gallons</p>
-            <p className="text-sm font-semibold text-brand-orange mt-2">{fmtDollars(captured.spend)}</p>
+            <p className="text-3xl font-bold text-zinc-900">{fmtGallons(captured.gallons)}</p>
+            <p className="text-xs text-zinc-500 mt-0.5">gallons</p>
+            <p className="text-sm font-semibold text-accent mt-2">{fmtDollars(captured.spend)}</p>
             <p className="text-xs text-gray-400 mt-1">{captured.transactions.toLocaleString()} transactions</p>
           </div>
           <div className="rounded-xl border-2 border-green-500 bg-green-50 p-4">
@@ -338,13 +338,13 @@ function SavingsCalculatorPanel({
   const annualSavings  = annualGal  * (rebateRate / 100)
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="bg-off-black px-6 py-4 flex items-center justify-between">
+    <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+      <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
         <div>
-          <h2 className="text-white font-bold text-lg">Savings Calculator</h2>
-          <p className="text-gray-400 text-sm mt-0.5">Estimated value of switching capturable gallons to Circle K</p>
+          <h2 className="text-zinc-900 font-bold text-lg">Savings Calculator</h2>
+          <p className="text-zinc-500 text-sm mt-0.5">Estimated value of switching capturable gallons to Circle K</p>
         </div>
-        <DollarSign className="text-brand-orange" size={26} />
+        <DollarSign className="text-zinc-400" size={26} />
       </div>
       <div className="p-6">
         <div className="mb-6">
@@ -359,7 +359,7 @@ function SavingsCalculatorPanel({
               step={0.5}
               value={rebateRate}
               onChange={e => onRebateChange(Number(e.target.value))}
-              className="flex-1 accent-brand-orange h-2 cursor-pointer"
+              className="flex-1 h-2 cursor-pointer accent-[#0EA5E9]"
             />
             <div className="shrink-0 flex items-center gap-1.5">
               <input
@@ -369,7 +369,7 @@ function SavingsCalculatorPanel({
                 step={0.5}
                 value={rebateRate}
                 onChange={e => onRebateChange(Number(e.target.value))}
-                className="w-16 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-center font-bold focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                className="w-16 border border-zinc-200 rounded-lg px-2 py-1.5 text-sm text-center font-bold focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
               />
               <span className="text-sm text-gray-500 font-medium">¢/gal</span>
             </div>
@@ -415,18 +415,18 @@ function OTRAnalysisPanel({ otr, months }: {
   const annualOpp = months > 0 ? (totalOpp / months) * 12 : totalOpp
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="bg-off-black px-6 py-4 flex items-center justify-between">
+    <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+      <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-white font-bold text-lg">OTR Corridor Analysis</h2>
-            <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">OTR</span>
+            <h2 className="text-zinc-900 font-bold text-lg">OTR Corridor Analysis</h2>
+            <span className="bg-zinc-200 text-zinc-600 text-xs font-bold px-2 py-0.5 rounded-full">OTR</span>
           </div>
-          <p className="text-gray-400 text-sm mt-0.5">
+          <p className="text-zinc-500 text-sm mt-0.5">
             Opportunity mapped to major interstate corridors — not aerial radius
           </p>
         </div>
-        <Truck className="text-brand-orange shrink-0" size={26} />
+        <Truck className="text-zinc-400 shrink-0" size={26} />
       </div>
 
       {/* Summary strip */}
@@ -600,7 +600,7 @@ function FeatureSelector({
                 type="checkbox"
                 checked={flags[def.key]}
                 onChange={e => onChange(def.key, e.target.checked)}
-                className="accent-brand-orange w-4 h-4 mt-0.5 shrink-0"
+                className="accent-[#0EA5E9] w-4 h-4 mt-0.5 shrink-0"
               />
               <div>
                 <div className="flex items-center gap-1.5">
@@ -631,7 +631,7 @@ function FeatureSelector({
             type="checkbox"
             checked={flags.skipGeocoding}
             onChange={e => onChange('skipGeocoding', e.target.checked)}
-            className="accent-brand-orange w-4 h-4 mt-0.5 shrink-0"
+            className="accent-[#0EA5E9] w-4 h-4 mt-0.5 shrink-0"
           />
           <div>
             <span className="text-sm font-medium text-off-black group-hover:text-brand-orange transition-colors">
@@ -648,7 +648,7 @@ function FeatureSelector({
             type="checkbox"
             checked={flags.truckMode}
             onChange={e => onChange('truckMode', e.target.checked)}
-            className="accent-brand-orange w-4 h-4 mt-0.5 shrink-0"
+            className="accent-[#0EA5E9] w-4 h-4 mt-0.5 shrink-0"
           />
           <div>
             <span className="text-sm font-medium text-off-black group-hover:text-brand-orange transition-colors">
@@ -728,7 +728,7 @@ function FeatureToggleBar({
                 type="checkbox"
                 checked={flags[def.key]}
                 onChange={e => onChange(def.key, e.target.checked)}
-                className="accent-brand-orange w-4 h-4 mt-0.5 shrink-0"
+                className="accent-[#0EA5E9] w-4 h-4 mt-0.5 shrink-0"
               />
               <div>
                 <div className="flex items-center gap-1.5">
@@ -801,7 +801,7 @@ function VehiclesTab({
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder={`Search ${entityLabel}…`}
-            className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 w-44 focus:outline-none focus:ring-2 focus:ring-brand-orange/30 focus:border-brand-orange"
+            className="text-xs border border-zinc-200 rounded-lg px-3 py-1.5 w-44 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
           />
           <ViewToggle
             mode={mode} setMode={(m) => { setMode(m); setQuery('') }}
@@ -901,13 +901,13 @@ function ViewToggle({
     <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs font-semibold shrink-0">
       <button
         onClick={() => setMode('driver')}
-        className={`px-3 py-1.5 transition-colors ${mode === 'driver' ? 'bg-off-black text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+        className={`px-3 py-1.5 transition-colors ${mode === 'driver' ? 'bg-zinc-800 text-white' : 'bg-white text-zinc-600 hover:bg-zinc-50'}`}
       >
         By Driver
       </button>
       <button
         onClick={() => setMode('vehicle')}
-        className={`px-3 py-1.5 border-l border-gray-200 transition-colors ${mode === 'vehicle' ? 'bg-off-black text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+        className={`px-3 py-1.5 border-l border-zinc-200 transition-colors ${mode === 'vehicle' ? 'bg-zinc-800 text-white' : 'bg-white text-zinc-600 hover:bg-zinc-50'}`}
       >
         By Vehicle
       </button>
@@ -1717,7 +1717,7 @@ function AnalysisPageInner() {
                 value={customerName}
                 onChange={e => setCustomerName(e.target.value)}
                 placeholder="e.g. Heartland Logistics"
-                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                className="w-full border border-zinc-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
               />
             </div>
 
@@ -1732,14 +1732,14 @@ function AnalysisPageInner() {
               onClick={() => fileInputRef.current?.click()}
               className={`border-2 border-dashed rounded-2xl p-14 text-center cursor-pointer transition-all ${
                 isDragging
-                  ? 'border-brand-orange bg-orange-50'
-                  : 'border-gray-300 bg-white hover:border-brand-orange hover:bg-orange-50'
+                  ? 'border-accent bg-accent-muted/20'
+                  : 'border-zinc-300 bg-white hover:border-accent hover:bg-accent-muted/10'
               }`}
             >
               <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls,.txt" onChange={handleFileChange} className="hidden" />
               {loading ? (
                 <div>
-                  <div className="w-10 h-10 border-4 border-brand-orange border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                  <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
                   <p className="text-gray-600 font-medium">{loadingStep}</p>
                 </div>
               ) : (
@@ -1762,7 +1762,7 @@ function AnalysisPageInner() {
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Required columns</p>
                 <div className="flex flex-wrap gap-1.5">
                   {['Date', 'City', 'State', 'Gallons', 'Fuel Type'].map(c => (
-                    <span key={c} className="bg-orange-100 text-orange-700 text-xs rounded px-2 py-0.5 font-mono font-semibold">{c}</span>
+                    <span key={c} className="bg-zinc-100 text-zinc-600 text-xs rounded px-2 py-0.5 font-mono font-semibold">{c}</span>
                   ))}
                 </div>
               </div>
@@ -1794,7 +1794,7 @@ function AnalysisPageInner() {
                   value={customerName}
                   onChange={e => setCustomerName(e.target.value)}
                   placeholder="Enter account name…"
-                  className="text-2xl font-bold text-off-black bg-transparent border-b-2 border-transparent hover:border-gray-200 focus:border-brand-orange focus:outline-none placeholder:font-normal placeholder:text-gray-300 w-full"
+                  className="text-2xl font-bold text-zinc-900 bg-transparent border-b-2 border-transparent hover:border-zinc-200 focus:border-accent focus:outline-none placeholder:font-normal placeholder:text-zinc-300 w-full"
                 />
                 <p className="text-sm text-gray-400 mt-0.5">
                   {fileName} &bull; {summary.dateRange.start}
@@ -1938,8 +1938,8 @@ function AnalysisPageInner() {
                       onClick={() => setActiveTab(tab.id)}
                       className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium whitespace-nowrap transition-colors ${
                         activeTab === tab.id
-                          ? 'border-b-2 border-brand-orange text-brand-orange bg-orange-50'
-                          : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                          ? 'border-b-2 border-accent text-accent bg-accent-muted/20'
+                          : 'text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50'
                       }`}
                     >
                       {tab.icon}

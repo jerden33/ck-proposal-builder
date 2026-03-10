@@ -15,7 +15,6 @@ const OTRMap = dynamic(() => import('@/components/OTRMap').then(m => m.OTRMap), 
   ssr: false,
   loading: () => <div className="bg-gray-100 rounded-xl animate-pulse" style={{ height: 420 }} />,
 })
-import Image from 'next/image'
 import {
   CheckCircle,
   AlertCircle,
@@ -29,6 +28,7 @@ import {
   Mail,
   User,
   Truck,
+  Zap,
 } from 'lucide-react'
 import type { OTRAnalysis } from '@/lib/otr-analysis'
 import {
@@ -132,11 +132,11 @@ function OpportunityPanel({
   const { captured, capturable, gap, captureRate, potentialRate } = analysis
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="bg-off-black px-6 py-4">
-        <h2 className="text-white font-bold text-lg">
+      <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4">
+        <h2 className="text-zinc-900 font-bold text-lg">
           {isCustomer ? 'Your Fueling Optimization Opportunity' : 'Circle K Fueling Opportunity'}
         </h2>
-        <p className="text-gray-400 text-sm mt-0.5">
+        <p className="text-zinc-500 text-sm mt-0.5">
           {isCustomer
             ? "Where your fleet's gallons go — and potential savings with the Circle K network"
             : "Where your fleet's gallons go — and what Circle K can capture"}
@@ -145,12 +145,12 @@ function OpportunityPanel({
       <div className="p-6">
         <div className="mb-6 space-y-3">
           <div>
-            <div className="flex justify-between text-xs text-gray-500 mb-1">
+            <div className="flex justify-between text-xs text-zinc-500 mb-1">
               <span>Current Circle K fueling</span>
-              <span className="font-semibold text-brand-orange">{fmtPct(captureRate)}</span>
+              <span className="font-semibold text-accent">{fmtPct(captureRate)}</span>
             </div>
-            <div className="h-3 bg-gray-100 rounded-full">
-              <div className="h-3 bg-brand-orange rounded-full" style={{ width: `${captureRate}%` }} />
+            <div className="h-3 bg-zinc-100 rounded-full">
+              <div className="h-3 bg-accent rounded-full" style={{ width: `${captureRate}%` }} />
             </div>
           </div>
           <div>
@@ -164,14 +164,14 @@ function OpportunityPanel({
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-xl border-2 border-brand-orange bg-orange-50 p-4">
+          <div className="rounded-xl border-2 border-accent bg-accent-muted/20 p-4">
             <div className="flex items-center gap-2 mb-3">
-              <CheckCircle size={18} className="text-brand-orange shrink-0" />
-              <span className="font-bold text-off-black text-sm">Already at Circle K</span>
+              <CheckCircle size={18} className="text-accent shrink-0" />
+              <span className="font-bold text-zinc-900 text-sm">Already at Circle K</span>
             </div>
-            <p className="text-3xl font-bold text-off-black">{fmtGallons(captured.gallons)}</p>
-            <p className="text-xs text-gray-500 mt-0.5">gallons</p>
-            <p className="text-sm font-semibold text-brand-orange mt-2">{fmtDollars(captured.spend)}</p>
+            <p className="text-3xl font-bold text-zinc-900">{fmtGallons(captured.gallons)}</p>
+            <p className="text-xs text-zinc-500 mt-0.5">gallons</p>
+            <p className="text-sm font-semibold text-accent mt-2">{fmtDollars(captured.spend)}</p>
             <p className="text-xs text-gray-400 mt-1">{captured.transactions.toLocaleString()} transactions</p>
           </div>
           <div className="rounded-xl border-2 border-green-500 bg-green-50 p-4">
@@ -252,12 +252,12 @@ function SavingsCalculatorPanel({
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="bg-off-black px-6 py-4 flex items-center justify-between">
+      <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
         <div>
-          <h2 className="text-white font-bold text-lg">Potential Savings Calculator</h2>
-          <p className="text-gray-400 text-sm mt-0.5">Estimated annual rebate value at Circle K</p>
+          <h2 className="text-zinc-900 font-bold text-lg">Potential Savings Calculator</h2>
+          <p className="text-zinc-500 text-sm mt-0.5">Estimated annual rebate value at Circle K</p>
         </div>
-        <DollarSign className="text-brand-orange" size={26} />
+        <DollarSign className="text-zinc-400" size={26} />
       </div>
       <div className="p-6">
         <div className="mb-6">
@@ -274,7 +274,7 @@ function SavingsCalculatorPanel({
               value={rebateRate}
               onChange={e => !isCustomer && setRebateRate(Number(e.target.value))}
               disabled={isCustomer}
-              className={`flex-1 accent-brand-orange h-2 ${isCustomer ? 'cursor-default opacity-60' : 'cursor-pointer'}`}
+              className={`flex-1 h-2 accent-[#0EA5E9] ${isCustomer ? 'cursor-default opacity-60' : 'cursor-pointer'}`}
             />
             <div className="shrink-0 flex items-center gap-1.5">
               <input
@@ -285,7 +285,7 @@ function SavingsCalculatorPanel({
                 value={rebateRate}
                 onChange={e => !isCustomer && setRebateRate(Number(e.target.value))}
                 readOnly={isCustomer}
-                className={`w-16 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-center font-bold focus:outline-none ${isCustomer ? 'bg-gray-50 text-gray-600 cursor-default' : 'focus:ring-2 focus:ring-brand-orange'}`}
+                className={`w-16 border border-zinc-200 rounded-lg px-2 py-1.5 text-sm text-center font-bold focus:outline-none ${isCustomer ? 'bg-zinc-50 text-zinc-600 cursor-default' : 'focus:ring-2 focus:ring-accent/30 focus:border-accent'}`}
               />
               <span className="text-sm text-gray-500 font-medium">¢/gal</span>
             </div>
@@ -453,17 +453,17 @@ function OTRCorridorPanel({ otr, months, mapPoints, truckStores }: { otr: OTRAna
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="bg-off-black px-6 py-4 flex items-center justify-between">
+      <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-white font-bold text-lg">OTR Corridor Analysis</h2>
-            <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">OTR</span>
+            <h2 className="text-zinc-900 font-bold text-lg">OTR Corridor Analysis</h2>
+            <span className="bg-zinc-200 text-zinc-600 text-xs font-bold px-2 py-0.5 rounded-full">OTR</span>
           </div>
-          <p className="text-gray-400 text-sm mt-0.5">
+          <p className="text-zinc-500 text-sm mt-0.5">
             Fueling opportunity measured along major interstate corridors
           </p>
         </div>
-        <Truck className="text-brand-orange shrink-0" size={26} />
+        <Truck className="text-zinc-400 shrink-0" size={26} />
       </div>
 
       {/* Summary tiles */}
@@ -811,16 +811,20 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
   return (
     <div className="min-h-screen bg-off-white">
       {/* Header bar */}
-      <div className="bg-off-black border-b border-gray-800 px-6 py-3 flex items-center justify-between">
+      <div className="bg-white border-b border-zinc-200 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {/* CK Pro logo */}
-          <Image src="/circle-k-pro-logo.png" alt="Circle K Pro" width={110} height={33} className="h-8 w-auto" />
-          <div className="w-px h-5 bg-gray-700" />
-          <span className="text-gray-400 text-sm">Fleet Analysis Report</span>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-accent rounded-md flex items-center justify-center">
+              <Zap size={12} className="text-white" strokeWidth={2.5} />
+            </div>
+            <span className="font-semibold text-zinc-800 text-sm">Fleet Insights</span>
+          </div>
+          <div className="w-px h-4 bg-zinc-200" />
+          <span className="text-zinc-400 text-sm">Fleet Analysis Report</span>
         </div>
         {!isCustomer && (
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <span className="bg-gray-700 text-gray-300 px-2 py-1 rounded-full text-xs font-semibold">Internal</span>
+          <div className="flex items-center gap-2 text-xs text-zinc-400">
+            <span className="bg-zinc-100 text-zinc-600 px-2 py-1 rounded-full text-xs font-semibold">Internal</span>
             <span>{share.view_count} view{share.view_count !== 1 ? 's' : ''}</span>
           </div>
         )}

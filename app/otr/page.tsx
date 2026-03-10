@@ -300,7 +300,7 @@ function OTRPageInner() {
         <div className="max-w-2xl mx-auto px-6 py-16">
           {/* Hero */}
           <div className="text-center mb-10">
-            <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full mb-4">
+            <div className="inline-flex items-center gap-2 bg-zinc-100 text-zinc-700 text-xs font-bold px-3 py-1.5 rounded-full mb-4">
               <Truck size={13} />
               OTR Fleet Analysis
             </div>
@@ -331,7 +331,7 @@ function OTRPageInner() {
                 value={customerName}
                 onChange={e => setCustomerName(e.target.value)}
                 placeholder="e.g. Acme Logistics"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent"
+                className="w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
               />
             </div>
 
@@ -527,16 +527,16 @@ function OTRPageInner() {
             <div
               key={label}
               className={`rounded-xl border p-5 shadow-sm ${
-                accent ? 'bg-off-black border-off-black' : 'bg-white border-gray-200'
+                accent ? 'bg-accent border-accent' : 'bg-white border-zinc-200'
               }`}
             >
               <div className={`flex items-center gap-2 mb-2 text-xs font-semibold uppercase tracking-wider ${
-                accent ? 'text-amber-400' : 'text-gray-500'
+                accent ? 'text-white/70' : 'text-zinc-500'
               }`}>
                 <Icon size={13} />
                 {label}
               </div>
-              <p className={`text-2xl font-bold ${accent ? 'text-white' : 'text-off-black'}`}>
+              <p className={`text-2xl font-bold ${accent ? 'text-white' : 'text-zinc-900'}`}>
                 {value}
               </p>
               <p className={`text-xs mt-0.5 ${accent ? 'text-gray-400' : 'text-gray-400'}`}>{sub}</p>
@@ -546,14 +546,14 @@ function OTRPageInner() {
 
         {/* Map */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-6">
-          <div className="bg-off-black px-6 py-4 flex items-center justify-between">
+          <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
             <div>
-              <h2 className="text-white font-bold text-lg">Highway Corridor Map</h2>
-              <p className="text-gray-400 text-sm mt-0.5">
+              <h2 className="text-zinc-900 font-bold text-lg">Highway Corridor Map</h2>
+              <p className="text-zinc-500 text-sm mt-0.5">
                 Orange = interstate · Blue dashed = US highway · Intensity reflects opportunity gallons
               </p>
             </div>
-            <MapPin className="text-brand-orange shrink-0" size={22} />
+            <MapPin className="text-zinc-400 shrink-0" size={22} />
           </div>
           <Suspense fallback={<div className="bg-gray-100 animate-pulse" style={{ height: 580 }} />}>
             <OTRMap
@@ -567,14 +567,14 @@ function OTRPageInner() {
 
         {/* Corridor table */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-6">
-          <div className="bg-off-black px-6 py-4 flex items-center justify-between">
+          <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
             <div>
-              <h2 className="text-white font-bold text-lg">Corridor Breakdown</h2>
-              <p className="text-gray-400 text-sm mt-0.5">
+              <h2 className="text-zinc-900 font-bold text-lg">Corridor Breakdown</h2>
+              <p className="text-zinc-500 text-sm mt-0.5">
                 Ranked by total gallons · capturable = competitor fill within 30 mi of a truck-accessible CK
               </p>
             </div>
-            <BarChart2 className="text-brand-orange shrink-0" size={22} />
+            <BarChart2 className="text-zinc-400 shrink-0" size={22} />
           </div>
 
           <div className="p-5">
@@ -585,7 +585,7 @@ function OTRPageInner() {
                     <th className="text-left pb-3 pr-4">Corridor</th>
                     <th className="text-right pb-3 px-3">Total Gal</th>
                     <th className="text-right pb-3 px-3 text-green-700">CK Captured</th>
-                    <th className="text-right pb-3 px-3 text-amber-700">Opportunity</th>
+                    <th className="text-right pb-3 px-3 text-zinc-600">Opportunity</th>
                     <th className="text-right pb-3 px-3 text-gray-400">Gap</th>
                     <th className="text-right pb-3 px-3">CK Sites</th>
                     <th className="text-right pb-3">Top Competitor</th>
@@ -617,7 +617,7 @@ function OTRPageInner() {
                           )}
                         </td>
                         <td className="text-right px-3 tabular-nums">
-                          <span className="text-amber-700 font-semibold">{fmtGallons(r.captureGallons)}</span>
+                          <span className="text-accent font-semibold">{fmtGallons(r.captureGallons)}</span>
                           {oppPct > 0 && (
                             <span className="text-xs text-gray-400 ml-1">({fmtPct(oppPct)})</span>
                           )}
@@ -628,8 +628,8 @@ function OTRPageInner() {
                         <td className="text-right px-3">
                           <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${
                             r.truckCKStoreCount > 0
-                              ? 'bg-orange-100 text-orange-700'
-                              : 'bg-gray-100 text-gray-400'
+                              ? 'bg-accent-muted text-accent'
+                              : 'bg-zinc-100 text-zinc-400'
                           }`}>
                             {r.truckCKStoreCount}
                           </span>
@@ -647,7 +647,7 @@ function OTRPageInner() {
             {otrResult.corridorResults.length > 12 && (
               <button
                 onClick={() => setExpandedTable(v => !v)}
-                className="mt-3 flex items-center gap-1 text-sm text-brand-orange hover:underline"
+                className="mt-3 flex items-center gap-1 text-sm text-accent hover:underline"
               >
                 {expandedTable
                   ? <><ChevronUp size={14} />Show fewer</>
@@ -769,12 +769,12 @@ function OTRPageInner() {
 
           return (
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-6">
-              <div className="bg-off-black px-6 py-4 flex items-center justify-between">
+              <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
                 <div>
-                  <h2 className="text-white font-bold text-lg">Fleet Fuel Profile</h2>
-                  <p className="text-gray-400 text-sm mt-0.5">Fuel mix · proximity to Circle K · key competitors</p>
+                  <h2 className="text-zinc-900 font-bold text-lg">Fleet Fuel Profile</h2>
+                  <p className="text-zinc-500 text-sm mt-0.5">Fuel mix · proximity to Circle K · key competitors</p>
                 </div>
-                <Fuel className="text-brand-orange shrink-0" size={22} />
+                <Fuel className="text-zinc-400 shrink-0" size={22} />
               </div>
 
               <div className="p-6 space-y-6">
@@ -888,14 +888,14 @@ function OTRPageInner() {
         {/* Top CK Opportunity Locations */}
         {summary.topCKOpportunityLocations.length > 0 && (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-6">
-            <div className="bg-off-black px-6 py-4 flex items-center justify-between">
+            <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
               <div>
-                <h2 className="text-white font-bold text-lg">Top Circle K Opportunity Locations</h2>
-                <p className="text-gray-400 text-sm mt-0.5">
+                <h2 className="text-zinc-900 font-bold text-lg">Top Circle K Opportunity Locations</h2>
+                <p className="text-zinc-500 text-sm mt-0.5">
                   Truck-accessible CK stores with the most competitor gallons fueled within 5 miles
                 </p>
               </div>
-              <MapPin className="text-brand-orange shrink-0" size={22} />
+              <MapPin className="text-zinc-400 shrink-0" size={22} />
             </div>
             <div className="p-6">
               <div className="overflow-x-auto">
