@@ -199,11 +199,11 @@ export function OTRMap({ transactionPoints, ckStores, corridorResults, height = 
         type: 'circle',
         source: 'ck-stores',
         paint: {
-          'circle-color': '#ea580c',
-          'circle-radius': 5,
-          'circle-stroke-width': 1.5,
+          'circle-color': '#1d4ed8',
+          'circle-radius': 6,
+          'circle-stroke-width': 2,
           'circle-stroke-color': '#fff',
-          'circle-opacity': 0.85,
+          'circle-opacity': 0.9,
         },
       })
 
@@ -352,7 +352,7 @@ export function OTRMap({ transactionPoints, ckStores, corridorResults, height = 
           <span className="text-gray-600">Competitor (no CK nearby)</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-orange-600 shrink-0" />
+          <span className="w-3 h-3 rounded-full bg-blue-700 shrink-0" />
           <span className="text-gray-600">CK Truck Location</span>
         </div>
         <div className="flex items-center gap-2">
