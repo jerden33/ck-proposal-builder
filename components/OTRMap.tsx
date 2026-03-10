@@ -60,8 +60,10 @@ function buildCorridorGeoJSON(corridorResults: CorridorResult[]) {
           active: !!r,
           isHighway: !c.id.startsWith('I-'),
           captureGallons: r?.captureGallons ?? 0,
+          nearMissGallons: r?.nearMissGallons ?? 0,
           totalGallons: r?.totalGallons ?? 0,
           ckGallons: r?.ckGallons ?? 0,
+          gapGallons: r?.gapGallons ?? 0,
           intensity: r ? r.captureGallons / maxCapture : 0,
         },
       }
@@ -259,11 +261,13 @@ export function OTRMap({ transactionPoints, ckStores, corridorResults, height = 
         if (!props) return
         const oppColor = props.isHighway ? '#0ea5e9' : '#f97316'
         popup.setLngLat(e.lngLat).setHTML(
-          `<div style="font-family:system-ui,sans-serif;font-size:12px;padding:6px 8px;line-height:1.5">
+          `<div style="font-family:system-ui,sans-serif;font-size:12px;padding:6px 8px;line-height:1.7">
             <strong style="font-size:13px">${props.name}</strong><br/>
             <span style="color:#6b7280">Total: ${fmtGallons(props.totalGallons)}</span><br/>
             <span style="color:#16a34a">Circle K: ${fmtGallons(props.ckGallons)}</span><br/>
-            <span style="color:${oppColor}">Opportunity: ${fmtGallons(props.captureGallons)}</span>
+            <span style="color:#d97706">Near-Miss (≤5 mi): ${fmtGallons(props.nearMissGallons)}</span><br/>
+            <span style="color:${oppColor}">Opportunity (≤30 mi): ${fmtGallons(props.captureGallons)}</span><br/>
+            <span style="color:#dc2626">True Gap: ${fmtGallons(props.gapGallons)}</span>
           </div>`
         ).addTo(m)
       }
@@ -340,14 +344,15 @@ export function OTRMap({ transactionPoints, ckStores, corridorResults, height = 
             <span className="h-0.5 w-4 bg-amber-300 shrink-0" />
             <span className="text-gray-400">→</span>
             <span className="h-0.5 w-4 bg-orange-700 shrink-0" />
-            <span className="text-gray-400 ml-1">Interstate corridor</span>
+            <span className="text-gray-400 ml-1">Interstate</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="h-0.5 w-4 bg-sky-300 shrink-0" style={{ borderBottom: '2px dashed #7dd3fc' }} />
             <span className="text-gray-400">→</span>
             <span className="h-0.5 w-4 bg-sky-700 shrink-0" style={{ borderBottom: '2px dashed #0369a1' }} />
-            <span className="text-gray-400 ml-1">US highway corridor</span>
+            <span className="text-gray-400 ml-1">US/state highway</span>
           </div>
+          <p className="text-gray-400 text-[10px] pt-0.5">Hover corridors for detail</p>
         </div>
       </div>
     </div>

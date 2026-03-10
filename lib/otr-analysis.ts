@@ -34,9 +34,14 @@ export interface CorridorResult {
   totalTransactions: number
   /** Gallons already at a CK truck stop on this corridor */
   ckGallons: number
+  /**
+   * Non-CK fills ≤5 mi from a truck-accessible CK — driver passed a CK.
+   * Highest-priority capture: improve pricing, loyalty, or awareness.
+   */
+  nearMissGallons: number
   /** Non-CK gallons where a truck-accessible CK exists within OPPORTUNITY_MI on the corridor */
   captureGallons: number
-  /** Non-CK gallons with no truck-accessible CK within OPPORTUNITY_MI on the corridor */
+  /** Non-CK gallons with no truck-accessible CK within OPPORTUNITY_MI — needs new location */
   gapGallons: number
   captureRate: number    // ckGallons / totalGallons × 100
   potentialRate: number  // (ckGallons + captureGallons) / totalGallons × 100
@@ -44,6 +49,10 @@ export interface CorridorResult {
   truckCKStoreCount: number
   /** Top competitor brand by gallons on this corridor */
   topCompetitorBrand: string
+  /** Full competitor brand breakdown sorted by gallons descending */
+  competitorBreakdown: Array<{ brand: string; gallons: number }>
+  /** Total gallons by US state on this corridor, sorted desc */
+  stateBreakdown: Record<string, number>
 }
 
 export interface CKStorePinLite {
@@ -910,6 +919,137 @@ export const CORRIDORS: CorridorDefinition[] = [
       { lat: 38.96, lng: -94.37 },  // Kansas City area, MO
     ],
   },
+
+  // ─── State & Secondary US Highways ────────────────────────────────────────
+
+  {
+    // Central Valley freight corridor — one of the highest-volume agricultural
+    // truck routes in the US.  Distinctly separate from I-5 (coast) and I-80 (north).
+    id: 'CA-99',
+    name: 'CA-99',
+    direction: 'NS',
+    states: ['CA'],
+    waypoints: [
+      { lat: 35.37, lng: -119.02 }, // Bakersfield
+      { lat: 36.21, lng: -119.35 }, // Tulare
+      { lat: 36.74, lng: -119.79 }, // Fresno
+      { lat: 37.30, lng: -120.48 }, // Merced
+      { lat: 37.64, lng: -120.95 }, // Modesto
+      { lat: 38.58, lng: -121.49 }, // Sacramento
+      { lat: 39.15, lng: -121.59 }, // Marysville
+      { lat: 39.73, lng: -121.84 }, // Chico
+      { lat: 40.59, lng: -122.39 }, // Redding
+    ],
+  },
+
+  {
+    // Mississippi River corridor — parallels I-55 but diverges significantly
+    // through rural MS and up through MO/IA/MN.  Key ag and timber freight route.
+    id: 'US-61',
+    name: 'US-61',
+    direction: 'NS',
+    states: ['LA', 'MS', 'TN', 'MO', 'IA', 'WI', 'MN'],
+    waypoints: [
+      { lat: 29.95, lng: -90.07 }, // New Orleans
+      { lat: 30.45, lng: -91.19 }, // Baton Rouge
+      { lat: 31.56, lng: -91.40 }, // Natchez, MS
+      { lat: 32.34, lng: -90.88 }, // Vicksburg, MS
+      { lat: 33.41, lng: -90.88 }, // Greenville, MS
+      { lat: 34.20, lng: -90.57 }, // Clarksdale, MS
+      { lat: 35.15, lng: -90.05 }, // Memphis, TN
+      { lat: 37.31, lng: -89.51 }, // Cape Girardeau, MO
+      { lat: 38.63, lng: -90.20 }, // St. Louis, MO
+      { lat: 39.71, lng: -91.35 }, // Hannibal, MO
+      { lat: 42.50, lng: -90.66 }, // Dubuque, IA
+      { lat: 43.80, lng: -91.24 }, // La Crosse, WI
+      { lat: 44.98, lng: -93.27 }, // St. Paul, MN
+    ],
+  },
+
+  {
+    // Southern cross-country corridor through NM desert.  Runs ~150 mi south
+    // of I-40; serves Alamogordo, Roswell, and Clovis traffic not on I-10/I-25.
+    id: 'US-70',
+    name: 'US-70',
+    direction: 'EW',
+    states: ['AZ', 'NM', 'TX', 'OK', 'AR', 'TN', 'NC'],
+    waypoints: [
+      { lat: 33.40, lng: -110.79 }, // Globe, AZ
+      { lat: 32.83, lng: -109.71 }, // Safford, AZ
+      { lat: 32.22, lng: -108.71 }, // Lordsburg, NM
+      { lat: 32.32, lng: -106.77 }, // Las Cruces, NM
+      { lat: 32.90, lng: -105.96 }, // Alamogordo, NM
+      { lat: 33.39, lng: -104.52 }, // Roswell, NM
+      { lat: 34.19, lng: -103.19 }, // Portales / Clovis, NM
+      { lat: 34.38, lng: -100.91 }, // Childress, TX
+      { lat: 34.68, lng: -98.40 },  // Altus, OK
+      { lat: 35.47, lng: -97.52 },  // Oklahoma City
+      { lat: 35.38, lng: -94.40 },  // Fort Smith, AR
+      { lat: 35.15, lng: -90.05 },  // Memphis, TN
+      { lat: 36.17, lng: -86.78 },  // Nashville, TN
+      { lat: 35.26, lng: -77.58 },  // Goldsboro, NC
+    ],
+  },
+
+  {
+    // South Texas gulf-coast corridor.  Serves Corpus Christi, Victoria, and
+    // the RGV — genuinely distinct from I-35 (which runs further inland).
+    id: 'US-77',
+    name: 'US-77',
+    direction: 'NS',
+    states: ['TX', 'OK', 'KS', 'NE'],
+    waypoints: [
+      { lat: 25.90, lng: -97.50 }, // Brownsville
+      { lat: 26.19, lng: -97.70 }, // Harlingen
+      { lat: 27.51, lng: -97.86 }, // Kingsville
+      { lat: 27.80, lng: -97.40 }, // Corpus Christi
+      { lat: 28.81, lng: -97.00 }, // Victoria
+      { lat: 29.36, lng: -96.10 }, // Wharton
+      { lat: 32.38, lng: -96.85 }, // Waxahachie
+      { lat: 33.64, lng: -96.61 }, // Sherman, TX
+      { lat: 34.47, lng: -97.01 }, // Ardmore, OK
+      { lat: 37.69, lng: -97.34 }, // Wichita, KS
+      { lat: 40.74, lng: -96.71 }, // Lincoln, NE
+    ],
+  },
+
+  {
+    // Cross-corridor through the TX pine belt and into Louisiana.  Runs south of
+    // I-20 from Lubbock east through Nacogdoches and into central Louisiana.
+    id: 'US-84',
+    name: 'US-84',
+    direction: 'EW',
+    states: ['TX', 'LA'],
+    waypoints: [
+      { lat: 33.58, lng: -101.85 }, // Lubbock
+      { lat: 32.94, lng: -100.90 }, // Snyder
+      { lat: 32.45, lng: -99.73 },  // Abilene area
+      { lat: 31.71, lng: -98.99 },  // Brownwood
+      { lat: 31.29, lng: -97.79 },  // Gatesville / Hillsboro area
+      { lat: 32.09, lng: -95.64 },  // Athens, TX
+      { lat: 31.61, lng: -94.65 },  // Nacogdoches
+      { lat: 31.48, lng: -93.62 },  // Center, TX
+      { lat: 31.12, lng: -93.60 },  // Many / Logansport, LA border
+      { lat: 31.54, lng: -92.41 },  // Winnfield, LA
+      { lat: 31.31, lng: -92.42 },  // Alexandria, LA
+    ],
+  },
+
+  {
+    // Florida Gulf Coast highway — coastal route through the panhandle connecting
+    // Pensacola, Panama City, and Tallahassee south of I-10.
+    id: 'US-98',
+    name: 'US-98',
+    direction: 'EW',
+    states: ['FL', 'AL'],
+    waypoints: [
+      { lat: 30.21, lng: -85.68 }, // Panama City, FL
+      { lat: 30.33, lng: -86.47 }, // Fort Walton Beach
+      { lat: 30.42, lng: -87.22 }, // Pensacola, FL
+      { lat: 30.59, lng: -87.88 }, // Foley / Gulf Shores, AL
+      { lat: 30.69, lng: -88.04 }, // Mobile, AL (joins US-90)
+    ],
+  },
 ]
 
 // ─── Geometry helpers ─────────────────────────────────────────────────────────
@@ -960,6 +1100,13 @@ const TRANSACTION_SNAP_MI = 15
 const CK_STORE_SNAP_MI = 8
 
 /**
+ * Near-miss threshold: if the nearest truck CK on the corridor is within this
+ * distance, the driver effectively drove past a CK.  These are the highest-priority
+ * capture opportunities (pricing, loyalty, awareness).
+ */
+const NEAR_MISS_MI = 5
+
+/**
  * On-corridor opportunity threshold: if a truck-accessible CK is within this
  * many miles of a non-CK fill (both on the same corridor), we call it capturable.
  * 30 mi ≈ reasonable detour range for an OTR driver.
@@ -992,13 +1139,15 @@ export function runOTRAnalysis(
   // 2. Accumulate per-corridor stats from map points
   type CorridorAcc = {
     gallons: number; transactions: number
-    ckGallons: number; captureGallons: number; gapGallons: number
+    ckGallons: number; nearMissGallons: number; captureGallons: number; gapGallons: number
     competitorBrands: Map<string, number>
+    stateGallons: Map<string, number>
   }
   const acc = new Map<string, CorridorAcc>()
   CORRIDORS.forEach(c => acc.set(c.id, {
-    gallons: 0, transactions: 0, ckGallons: 0, captureGallons: 0, gapGallons: 0,
+    gallons: 0, transactions: 0, ckGallons: 0, nearMissGallons: 0, captureGallons: 0, gapGallons: 0,
     competitorBrands: new Map(),
+    stateGallons: new Map(),
   }))
 
   let offCorridorGallons = 0
@@ -1026,26 +1175,33 @@ export function runOTRAnalysis(
     data.gallons += pt.gallons
     data.transactions += pt.transactions
 
+    // Track gallons by state for geographic segmentation
+    const stateKey = pt.state || 'Unknown'
+    data.stateGallons.set(stateKey, (data.stateGallons.get(stateKey) ?? 0) + pt.gallons)
+
     if (pt.isCircleK) {
       data.ckGallons += pt.gallons
     } else {
-      // Is there a truck-accessible CK within OPPORTUNITY_MI on the same corridor?
+      // Find nearest truck-accessible CK on the same corridor
       const truckCKs = ckOnCorridor.get(bestId) ?? []
       let nearestMi = Infinity
       for (const ck of truckCKs) {
         const d = haversineDistanceMi(pt.lat, pt.lng, ck.lat, ck.lng)
         if (d < nearestMi) nearestMi = d
       }
+
+      // Near-miss: driver was within 5 mi of a CK truck stop
+      if (nearestMi <= NEAR_MISS_MI) data.nearMissGallons += pt.gallons
+
       if (nearestMi <= OPPORTUNITY_MI) {
         data.captureGallons += pt.gallons
       } else {
         data.gapGallons += pt.gallons
       }
 
-      // Track competitor brand for top-brand calc
+      // Track competitor brand for full breakdown
       if (pt.label) {
-        const prev = data.competitorBrands.get(pt.label) ?? 0
-        data.competitorBrands.set(pt.label, prev + pt.gallons)
+        data.competitorBrands.set(pt.label, (data.competitorBrands.get(pt.label) ?? 0) + pt.gallons)
       }
     }
   }
@@ -1057,11 +1213,17 @@ export function runOTRAnalysis(
       const d = acc.get(c.id)!
       const truckCKCount = ckOnCorridor.get(c.id)!.length
 
-      let topCompetitorBrand = '—'
-      let topGallons = 0
-      Array.from(d.competitorBrands.entries()).forEach(([brand, gal]) => {
-        if (gal > topGallons) { topGallons = gal; topCompetitorBrand = brand }
-      })
+      // Build competitor breakdown sorted by gallons
+      const competitorBreakdown = Array.from(d.competitorBrands.entries())
+        .map(([brand, gallons]) => ({ brand, gallons }))
+        .sort((a, b) => b.gallons - a.gallons)
+
+      const topCompetitorBrand = competitorBreakdown[0]?.brand ?? '—'
+
+      // Build state breakdown sorted by gallons
+      const stateBreakdown = Object.fromEntries(
+        Array.from(d.stateGallons.entries()).sort((a, b) => b[1] - a[1])
+      )
 
       return {
         corridorId: c.id,
@@ -1071,12 +1233,15 @@ export function runOTRAnalysis(
         totalGallons: d.gallons,
         totalTransactions: d.transactions,
         ckGallons: d.ckGallons,
+        nearMissGallons: d.nearMissGallons,
         captureGallons: d.captureGallons,
         gapGallons: d.gapGallons,
         captureRate:   d.gallons > 0 ? (d.ckGallons / d.gallons) * 100 : 0,
         potentialRate: d.gallons > 0 ? ((d.ckGallons + d.captureGallons) / d.gallons) * 100 : 0,
         truckCKStoreCount: truckCKCount,
         topCompetitorBrand,
+        competitorBreakdown,
+        stateBreakdown,
       }
     })
     .sort((a, b) => b.totalGallons - a.totalGallons)

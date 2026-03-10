@@ -459,11 +459,29 @@ function ProximityPanel({
 
 // ─── OTR Corridor Analysis Panel ─────────────────────────────────────────────
 
+/** Truncate a brand/station name to a clean display label (max 18 chars). */
+function shortBrand(name: string): string {
+  if (!name || name === '—') return '—'
+  // Strip trailing location codes like "#432", "# 12", store numbers
+  const clean = name.replace(/\s*#\s*\d+.*$/i, '').trim()
+  return clean.length > 18 ? clean.slice(0, 16) + '…' : clean
+}
+
+/** Top-N state abbreviations for a corridor sorted by gallons. */
+function topStates(breakdown: Record<string, number>, n = 3): string {
+  const entries = Object.entries(breakdown ?? {})
+  if (!entries.length) return ''
+  return entries.slice(0, n).map(([s]) => s).join(' · ')
+}
+
 function OTRCorridorPanel({ otr, months, mapPoints, truckStores }: { otr: OTRAnalysis; months: number; mapPoints: MapPoint[]; truckStores: OTRMapStore[] }) {
   const [expanded, setExpanded] = useState(false)
   const shown = expanded ? otr.corridorResults : otr.corridorResults.slice(0, 6)
-  const totalOpp = otr.corridorResults.reduce((s, r) => s + r.captureGallons, 0)
-  const annualOpp = months > 0 ? (totalOpp / months) * 12 : totalOpp
+
+  const totalOpp      = otr.corridorResults.reduce((s, r) => s + r.captureGallons, 0)
+  const totalNearMiss = otr.corridorResults.reduce((s, r) => s + (r.nearMissGallons ?? 0), 0)
+  const annualOpp     = months > 0 ? (totalOpp / months) * 12 : totalOpp
+  const annualNearMiss = months > 0 ? (totalNearMiss / months) * 12 : totalNearMiss
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
@@ -474,7 +492,7 @@ function OTRCorridorPanel({ otr, months, mapPoints, truckStores }: { otr: OTRAna
             <span className="bg-zinc-200 text-zinc-600 text-xs font-bold px-2 py-0.5 rounded-full">OTR</span>
           </div>
           <p className="text-zinc-500 text-sm mt-0.5">
-            Fueling opportunity measured along major interstate corridors
+            Fueling opportunity along interstates and major US/state highways
           </p>
         </div>
         <Truck className="text-zinc-400 shrink-0" size={26} />
@@ -482,87 +500,163 @@ function OTRCorridorPanel({ otr, months, mapPoints, truckStores }: { otr: OTRAna
 
       {/* Summary tiles */}
       <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-gray-200 border-b border-gray-200">
-        {[
-          { label: 'Active Corridors',    value: otr.corridorResults.length.toString() },
-          { label: 'On-Corridor Gallons', value: fmtGallons(otr.totalCorridorGallons) },
-          { label: 'Annual Opportunity',  value: fmtGallons(annualOpp), accent: true },
-          { label: 'Off-Corridor',        value: fmtGallons(otr.offCorridorGallons), dim: true },
-        ].map(({ label, value, accent, dim }) => (
-          <div key={label} className="px-4 py-3 text-center">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-0.5">{label}</p>
-            <p className={`text-xl font-bold ${accent ? 'text-green-600' : dim ? 'text-gray-400' : 'text-off-black'}`}>{value}</p>
-          </div>
-        ))}
+        <div className="px-4 py-3 text-center">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-0.5">Active Corridors</p>
+          <p className="text-xl font-bold text-off-black">{otr.corridorResults.length}</p>
+        </div>
+        <div className="px-4 py-3 text-center">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-0.5">On-Corridor Gallons</p>
+          <p className="text-xl font-bold text-off-black">{fmtGallons(otr.totalCorridorGallons)}</p>
+        </div>
+        <div className="px-4 py-3 text-center">
+          <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-0.5">Near-Miss (Annual)</p>
+          <p className="text-xl font-bold text-amber-600">{fmtGallons(annualNearMiss)}</p>
+          <p className="text-[10px] text-gray-400 mt-0.5">drove past a CK</p>
+        </div>
+        <div className="px-4 py-3 text-center">
+          <p className="text-xs font-semibold text-green-700 uppercase tracking-wider mb-0.5">Annual Opportunity</p>
+          <p className="text-xl font-bold text-green-600">{fmtGallons(annualOpp)}</p>
+          <p className="text-[10px] text-gray-400 mt-0.5">within 30 mi of a CK</p>
+        </div>
+      </div>
+
+      {/* Legend strip */}
+      <div className="px-5 pt-4 pb-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-500 border-b border-gray-100">
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500" />
+          <strong>Near-Miss</strong> — fill ≤5 mi from a CK truck stop (driver drove past)
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-600" />
+          <strong>Opportunity</strong> — fill within 30 mi of a CK (on-corridor)
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-400" />
+          <strong>True Gap</strong> — no CK within 30 mi (site selection opportunity)
+        </span>
       </div>
 
       <div className="p-5">
-        <p className="text-xs text-gray-400 mb-3">
-          Each corridor shows your fleet's fueling activity on that interstate.
-          <span className="text-green-700 font-medium"> Opportunity gallons</span> are fills where a truck-accessible Circle K
-          exists on the same corridor within 30 miles.
-        </p>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200">
-                {['Corridor', 'Gallons', 'CK Now', 'Opp. Gallons', 'Gap Gallons', 'Truck CK Stores', 'Potential', 'Top Competitor'].map(h => (
-                  <th key={h} className={`py-2 text-xs font-semibold uppercase tracking-wider text-gray-500 ${h === 'Corridor' || h === 'Top Competitor' ? 'text-left pr-4' : 'text-right px-3'}`}>{h}</th>
-                ))}
+                <th className="py-2 text-xs font-semibold uppercase tracking-wider text-gray-500 text-left pr-4">Corridor</th>
+                <th className="py-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-500 text-right">Gallons</th>
+                <th className="py-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-500 text-right">CK%</th>
+                <th className="py-2 px-3 text-xs font-semibold uppercase tracking-wider text-amber-600 text-right">Near-Miss</th>
+                <th className="py-2 px-3 text-xs font-semibold uppercase tracking-wider text-green-700 text-right">Opportunity</th>
+                <th className="py-2 px-3 text-xs font-semibold uppercase tracking-wider text-red-400 text-right">True Gap</th>
+                <th className="py-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-500 text-right">CK Stops</th>
+                <th className="py-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-500 text-right">Potential</th>
+                <th className="py-2 pl-3 text-xs font-semibold uppercase tracking-wider text-gray-500 text-left">Competitors</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {shown.map(r => (
-                <tr key={r.corridorId} className="hover:bg-gray-50">
-                  <td className="py-2.5 pr-4">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-off-black">{r.corridorName}</span>
-                      {r.isHighway ? (
-                        <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600">US Hwy</span>
-                      ) : (
-                        <span className="text-xs text-zinc-400">{r.direction === 'EW' ? 'E↔W' : 'N↕S'}</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-medium">{fmtGallons(r.totalGallons)}</td>
-                  <td className="py-2.5 px-3 text-right">
-                    <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-semibold ${r.captureRate >= 20 ? 'bg-green-100 text-green-700' : r.captureRate > 0 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {fmtPct(r.captureRate)}
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 text-right">
-                    {r.captureGallons > 0
-                      ? <span className="text-green-700 font-semibold">{fmtGallons(r.captureGallons)}</span>
-                      : <span className="text-zinc-300">—</span>}
-                  </td>
-                  <td className="py-2.5 px-3 text-right text-zinc-400 text-xs">{r.gapGallons > 0 ? fmtGallons(r.gapGallons) : '—'}</td>
-                  <td className="py-2.5 px-3 text-right">
-                    <span className={`text-xs font-semibold ${r.truckCKStoreCount >= 5 ? 'text-green-600' : r.truckCKStoreCount > 0 ? 'text-orange-600' : 'text-red-500'}`}>
-                      {r.truckCKStoreCount}
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <div className="w-16 h-2 bg-zinc-100 rounded-full overflow-hidden">
-                        <div className="h-2 bg-green-500 rounded-full" style={{ width: `${Math.min(r.potentialRate, 100)}%` }} />
+              {shown.map(r => {
+                const topStatesLabel = topStates(r.stateBreakdown ?? {})
+                const competitors = (r.competitorBreakdown ?? []).slice(0, 3)
+                return (
+                  <tr key={r.corridorId} className="hover:bg-gray-50 align-top">
+                    {/* Corridor name + states */}
+                    <td className="py-2.5 pr-4">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-off-black">{r.corridorName}</span>
+                        {r.isHighway
+                          ? <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-sky-100 text-sky-700">Hwy</span>
+                          : <span className="text-xs text-zinc-400">{r.direction === 'EW' ? 'E↔W' : 'N↕S'}</span>
+                        }
                       </div>
-                      <span className="text-xs text-zinc-500 w-8 text-right">{fmtPct(r.potentialRate)}</span>
-                    </div>
-                  </td>
-                  <td className="py-2.5 pl-3 text-xs text-zinc-500 max-w-[120px] truncate">{r.topCompetitorBrand}</td>
-                </tr>
-              ))}
+                      {topStatesLabel && (
+                        <p className="text-[10px] text-gray-400 mt-0.5">{topStatesLabel}</p>
+                      )}
+                    </td>
+
+                    {/* Total gallons */}
+                    <td className="py-2.5 px-3 text-right font-medium text-off-black">{fmtGallons(r.totalGallons)}</td>
+
+                    {/* CK capture rate */}
+                    <td className="py-2.5 px-3 text-right">
+                      <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-semibold ${
+                        r.captureRate >= 20 ? 'bg-green-100 text-green-700'
+                        : r.captureRate > 0 ? 'bg-orange-100 text-orange-700'
+                        : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        {fmtPct(r.captureRate)}
+                      </span>
+                    </td>
+
+                    {/* Near-miss gallons */}
+                    <td className="py-2.5 px-3 text-right">
+                      {(r.nearMissGallons ?? 0) > 0
+                        ? <span className="text-amber-600 font-semibold">{fmtGallons(r.nearMissGallons)}</span>
+                        : <span className="text-zinc-200">—</span>}
+                    </td>
+
+                    {/* Opportunity gallons (0-30 mi) */}
+                    <td className="py-2.5 px-3 text-right">
+                      {r.captureGallons > 0
+                        ? <span className="text-green-700 font-semibold">{fmtGallons(r.captureGallons)}</span>
+                        : <span className="text-zinc-200">—</span>}
+                    </td>
+
+                    {/* True gap gallons */}
+                    <td className="py-2.5 px-3 text-right text-red-400 text-xs">
+                      {r.gapGallons > 0 ? fmtGallons(r.gapGallons) : <span className="text-zinc-200">—</span>}
+                    </td>
+
+                    {/* CK truck store count */}
+                    <td className="py-2.5 px-3 text-right">
+                      <span className={`text-xs font-semibold ${
+                        r.truckCKStoreCount >= 5 ? 'text-green-600'
+                        : r.truckCKStoreCount > 0 ? 'text-orange-600'
+                        : 'text-red-500'
+                      }`}>
+                        {r.truckCKStoreCount}
+                      </span>
+                    </td>
+
+                    {/* Potential rate bar */}
+                    <td className="py-2.5 px-3 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <div className="w-14 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                          <div className="h-1.5 bg-green-500 rounded-full" style={{ width: `${Math.min(r.potentialRate, 100)}%` }} />
+                        </div>
+                        <span className="text-xs text-zinc-500 w-8 text-right">{fmtPct(r.potentialRate)}</span>
+                      </div>
+                    </td>
+
+                    {/* Competitor breakdown — top 3 brands */}
+                    <td className="py-2.5 pl-3 max-w-[150px]">
+                      {competitors.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {competitors.map((c, i) => (
+                            <span key={i} className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 font-medium leading-tight">
+                              {shortBrand(c.brand)}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-zinc-300 text-xs">—</span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
-        {otr.corridorResults.length > 8 && (
+
+        {otr.corridorResults.length > 6 && (
           <button onClick={() => setExpanded(v => !v)} className="mt-3 flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800 transition-colors">
             {expanded ? <><ChevronUp size={15} />Show fewer</> : <><ChevronDown size={15} />Show all {otr.corridorResults.length} corridors</>}
           </button>
         )}
+
         {otr.offCorridorGallons > 0 && (
           <p className="mt-4 text-xs text-gray-400 flex items-start gap-1.5">
             <Info size={12} className="shrink-0 mt-0.5" />
-            {fmtGallons(otr.offCorridorGallons)} gallons were fueled off major interstate corridors (local/regional routes).
+            {fmtGallons(otr.offCorridorGallons)} gallons were fueled off covered corridors (local routes not mapped to a major corridor).
           </p>
         )}
 
