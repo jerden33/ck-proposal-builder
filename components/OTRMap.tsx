@@ -223,8 +223,24 @@ export function OTRMap({ transactionPoints, ckStores, corridorResults, height = 
         filter: ['has', 'point_count'],
         paint: {
           'circle-color': '#6b7280',
-          'circle-radius': ['step', ['get', 'point_count'], 8, 10, 12, 50, 16],
-          'circle-opacity': 0.6,
+          'circle-radius': ['step', ['get', 'point_count'], 10, 10, 14, 50, 18],
+          'circle-opacity': 0.55,
+        },
+      })
+
+      // Cluster count labels
+      m.addLayer({
+        id: 'tx-cluster-count',
+        type: 'symbol',
+        source: 'transactions',
+        filter: ['has', 'point_count'],
+        layout: {
+          'text-field': '{point_count_abbreviated}',
+          'text-size': 11,
+          'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+        },
+        paint: {
+          'text-color': '#ffffff',
         },
       })
 
@@ -338,6 +354,10 @@ export function OTRMap({ transactionPoints, ckStores, corridorResults, height = 
         <div className="flex items-center gap-2">
           <span className="w-3 h-3 rounded-full bg-orange-600 shrink-0" />
           <span className="text-gray-600">CK Truck Location</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full bg-gray-500 shrink-0 opacity-60" />
+          <span className="text-gray-600">Clustered fills (zoom in)</span>
         </div>
         <div className="border-t border-gray-100 pt-1.5 mt-1.5 space-y-1.5">
           <div className="flex items-center gap-1.5">
