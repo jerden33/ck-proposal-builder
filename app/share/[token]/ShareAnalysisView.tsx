@@ -977,7 +977,7 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-gray-200">
-                        {['State', 'Transactions', 'Gallons', 'Spend', 'CK Gallons', 'CK Share'].map(h => (
+                        {['State', 'Transactions', 'Gallons', 'Spend', 'CK Gallons', 'Opp. Gallons', 'CK Share'].map(h => (
                           <th key={h} className={`py-2 ${h === 'State' ? 'text-left pr-4' : 'text-right px-4'} text-xs font-semibold uppercase tracking-wider text-gray-500`}>{h}</th>
                         ))}
                       </tr>
@@ -989,7 +989,10 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
                           <td className="py-2.5 px-4 text-right text-gray-600">{row.transactions.toLocaleString()}</td>
                           <td className="py-2.5 px-4 text-right font-medium">{fmtGallons(row.gallons)}</td>
                           <td className="py-2.5 px-4 text-right text-gray-600">{fmtDollars(row.spend)}</td>
-                          <td className="py-2.5 px-4 text-right text-brand-orange font-medium">{fmtGallons(row.ckGallons)}</td>
+                          <td className="py-2.5 px-4 text-right text-accent font-medium">{fmtGallons(row.ckGallons)}</td>
+                          <td className="py-2.5 px-4 text-right text-green-600 font-medium">
+                            {row.capturableGallons > 0 ? fmtGallons(row.capturableGallons) : <span className="text-gray-300">—</span>}
+                          </td>
                           <td className="py-2.5 pl-4 text-right">
                             <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${row.ckSharePct >= 20 ? 'bg-green-100 text-green-700' : row.ckSharePct > 0 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
                               {fmtPct(row.ckSharePct)}

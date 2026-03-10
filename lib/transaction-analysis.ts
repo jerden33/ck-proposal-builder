@@ -24,6 +24,7 @@ export interface StateSummary {
   ckTransactions: number
   ckGallons: number
   ckSharePct: number
+  capturableGallons: number  // non-CK gallons where a CK exists in the same ZIP
 }
 
 export interface LocationSummary {
@@ -522,9 +523,10 @@ export function analyzeTransactions(
   const stateMap = new Map<string, StateSummary>()
   for (const t of transactions) {
     const state = t.stationState || 'Unknown'
-    const existing = stateMap.get(state) ?? { state, transactions: 0, gallons: 0, spend: 0, ckTransactions: 0, ckGallons: 0, ckSharePct: 0 }
+    const existing = stateMap.get(state) ?? { state, transactions: 0, gallons: 0, spend: 0, ckTransactions: 0, ckGallons: 0, ckSharePct: 0, capturableGallons: 0 }
     existing.transactions++; existing.gallons += t.gallons; existing.spend += t.amount
     if (t.isCircleK) { existing.ckTransactions++; existing.ckGallons += t.gallons }
+    else if (ckZipSet.has(t.zipCode)) { existing.capturableGallons += t.gallons }
     stateMap.set(state, existing)
   }
   const stateBreakdown = Array.from(stateMap.values())
