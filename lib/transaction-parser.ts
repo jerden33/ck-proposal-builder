@@ -50,6 +50,7 @@ const FIELD_ALIASES: Record<string, string[]> = {
   city: [
     'station city', 'city', 'site city', 'location city', 'trans city',
     'merchant city', 'fuel city', 'fueling city', 'store city',
+    'truck stop city',
   ],
   state: [
     'station state', 'state', 'site state', 'location state',
@@ -59,6 +60,7 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'merchant state province', 'merchant state  province',
     'trans state', 'transaction state', 'service state', 'fill state',
     'loc state', 'mcht state', 'merch state',
+    'truck stop state',
   ],
   gallons: [
     'gallons', 'quantity', 'gal', 'volume', 'fuel quantity', 'qty',
@@ -69,6 +71,9 @@ const FIELD_ALIASES: Record<string, string[]> = {
     // WEX standard export uses "Units" for fuel quantity
     'units',
     'net qty', 'net quantity', 'billed quantity', 'billed qty',
+    // Product-typed gallons columns (e.g. "#2 Diesel Gallons" → "2 diesel gallons" after normalizeKey)
+    '2 diesel gallons', 'diesel gallons', 'gasoline gallons', 'gas gallons',
+    'unleaded gallons', 'def gallons',
   ],
   // Price-per-unit/gallon — used to derive total amount when no amount column exists
   ppu: [
@@ -83,6 +88,7 @@ const FIELD_ALIASES: Record<string, string[]> = {
   stationName: [
     'station name', 'site name', 'location name', 'merchant name',
     'store name', 'location description',
+    'truck stop name',
   ],
   stationBrand: [
     'station brand name', 'brand', 'network', 'station brand',
@@ -92,12 +98,14 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'station address', 'address', 'street', 'street address',
     'site address', 'location address', 'addr', 'address 1',
     'merchant address', 'merchant street',
+    'service center address',
   ],
   zipCode: [
     'zipcode', 'zip', 'zip code', 'postal code', 'zip_code',
     'postalcode', 'postal', 'zip/postal',
     // WEX — "Merchant Postal Code"
     'merchant postal code', 'merchant zip', 'merchant zipcode',
+    'service center zip code',
   ],
   unitNumber: [
     'unit #', 'unit number', 'vehicle', 'card #', 'card number',
@@ -330,6 +338,7 @@ export function parseFleetCSV(content: string): ParseResult {
   else if (headerJoined.includes('posting date') || headerJoined.includes('post date')) detectedFormat = 'WEX / Fleet One'
   else if (headerJoined.includes('invoice date')) detectedFormat = 'Fuelman / Fleetcor'
   else if (headerJoined.includes('unitgallons') || headerJoined.includes('unit/gallons')) detectedFormat = 'RCPA'
+  else if (headerJoined.includes('truck stop name') || headerJoined.includes('truck stop city')) detectedFormat = 'OTR Fuel Card'
 
   for (let i = headerIdx + 1; i < rawLines.length; i++) {
     const line = rawLines[i].trim()
