@@ -33,7 +33,7 @@ function pointColor(p: MapPoint): string {
   if (p.isCircleK) return '#16a34a'          // green — fueled at CK
   const d = p.nearestCKDistanceMi
   if (d < 0) return '#9ca3af'                // gray — no distance data
-  if (d < 10) return '#f59e0b'               // amber — competitor, CK nearby
+  if (d < 10) return '#eab308'               // yellow — competitor, CK nearby
   return '#dc2626'                           // red — competitor, no CK nearby
 }
 
@@ -194,18 +194,32 @@ export function OTRMap({ transactionPoints, ckStores, corridorResults, height = 
 
       // ── CK truck store pins ────────────────────────────────────────────────
       m.addSource('ck-stores', { type: 'geojson', data: buildCKGeoJSON(ckStores) })
-      m.addLayer({
-        id: 'ck-stores-layer',
-        type: 'circle',
-        source: 'ck-stores',
-        paint: {
-          'circle-color': '#1d4ed8',
-          'circle-radius': 6,
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#fff',
-          'circle-opacity': 0.9,
-        },
-      })
+
+      const truckSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="22" viewBox="0 0 36 22">
+        <rect x="1" y="3" width="21" height="13" rx="2" fill="#ea580c"/>
+        <rect x="23" y="6" width="11" height="10" rx="2" fill="#ea580c"/>
+        <rect x="24.5" y="7.5" width="7" height="5" rx="1" fill="#fef3c7" opacity="0.9"/>
+        <rect x="33" y="12" width="2.5" height="4" rx="0.5" fill="#c2410c"/>
+        <circle cx="6" cy="18" r="3.5" fill="#1f2937"/><circle cx="6" cy="18" r="1.4" fill="#9ca3af"/>
+        <circle cx="17" cy="18" r="3.5" fill="#1f2937"/><circle cx="17" cy="18" r="1.4" fill="#9ca3af"/>
+        <circle cx="29" cy="18" r="3.5" fill="#1f2937"/><circle cx="29" cy="18" r="1.4" fill="#9ca3af"/>
+      </svg>`
+      const truckImg = new Image(36, 22)
+      truckImg.onload = () => {
+        if (!m.hasImage('ck-truck')) m.addImage('ck-truck', truckImg)
+        m.addLayer({
+          id: 'ck-stores-layer',
+          type: 'symbol',
+          source: 'ck-stores',
+          layout: {
+            'icon-image': 'ck-truck',
+            'icon-size': 1,
+            'icon-allow-overlap': true,
+            'icon-anchor': 'bottom',
+          },
+        })
+      }
+      truckImg.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(truckSvg)
 
       // ── Transaction points ─────────────────────────────────────────────────
       m.addSource('transactions', {
@@ -344,7 +358,7 @@ export function OTRMap({ transactionPoints, ckStores, corridorResults, height = 
           <span className="text-gray-600">Fueled at Circle K</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-amber-500 shrink-0" />
+          <span className="w-3 h-3 rounded-full bg-yellow-400 shrink-0" />
           <span className="text-gray-600">Competitor (CK within 10 mi)</span>
         </div>
         <div className="flex items-center gap-2">
@@ -352,7 +366,7 @@ export function OTRMap({ transactionPoints, ckStores, corridorResults, height = 
           <span className="text-gray-600">Competitor (no CK nearby)</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-blue-700 shrink-0" />
+          <span className="text-base leading-none">🚛</span>
           <span className="text-gray-600">CK Truck Location</span>
         </div>
         <div className="flex items-center gap-2">
