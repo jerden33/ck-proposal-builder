@@ -34,21 +34,10 @@ export async function getUserProposals(): Promise<ProposalRecord[]> {
   const supabase = createClient()
   const user = await getCurrentUser()
 
-  console.log('[getUserProposals] Current user:', user?.id, user?.email)
-
-  if (!user) {
-    console.log('[getUserProposals] No user found, returning empty array')
-    return []
-  }
+  if (!user) return []
 
   // Check if user is super admin (only super admins can see all proposals)
   const profile = await getUserProfile()
-  console.log('[getUserProposals] User profile:', {
-    id: profile?.id,
-    email: profile?.email,
-    is_admin: profile?.is_admin,
-    is_super_admin: profile?.is_super_admin
-  })
 
   // Build query - fetch proposals WITHOUT join to avoid FK dependency
   let query = supabase
@@ -58,10 +47,7 @@ export async function getUserProposals(): Promise<ProposalRecord[]> {
 
   // Only super admins can see all proposals, everyone else sees only their own
   if (!profile?.is_super_admin) {
-    console.log('[getUserProposals] User is NOT super admin, filtering to own proposals only')
     query = query.eq('user_id', user.id)
-  } else {
-    console.log('[getUserProposals] User IS super admin, fetching ALL proposals')
   }
 
   const { data: proposals, error } = await query
@@ -70,8 +56,6 @@ export async function getUserProposals(): Promise<ProposalRecord[]> {
     console.error('[getUserProposals] Error fetching proposals:', error)
     return []
   }
-
-  console.log('[getUserProposals] Found', proposals?.length || 0, 'proposals')
 
   // If super admin and we have proposals, fetch user profiles separately
   if (profile?.is_super_admin && proposals && proposals.length > 0) {
@@ -376,69 +360,45 @@ export async function getImageSettings(): Promise<import('@/lib/types').ImageSet
 }
 
 export async function updateProductImage(productId: string, imageUrl: string | null): Promise<boolean> {
-  console.log('[updateProductImage] START - productId:', productId, 'imageUrl:', imageUrl)
-
   const supabase = createClient()
   const user = await getCurrentUser()
 
-  console.log('[updateProductImage] Current user:', user?.id)
+  if (!user) return false
 
-  if (!user) {
-    console.error('[updateProductImage] FAIL - No user found')
-    return false
-  }
-
-  // Check if user is admin
   const profile = await getUserProfile()
-  console.log('[updateProductImage] User profile:', { id: profile?.id, email: profile?.email, is_admin: profile?.is_admin })
-
-  if (!profile?.is_admin) {
-    console.error('[updateProductImage] FAIL - User is not admin')
-    return false
-  }
-
-  console.log('[updateProductImage] Fetching current product_images from database...')
+  if (!profile?.is_admin) return false
 
   // Get current product_images setting
-  const { data: currentSetting, error: fetchError } = await supabase
+  const { data: currentSetting } = await supabase
     .from('app_settings')
     .select('value')
     .eq('key', 'product_images')
     .single()
 
-  console.log('[updateProductImage] Current setting:', currentSetting, 'Fetch error:', fetchError)
-
-  let productImages: any = { fleet: null, universal: null, digital: null }
+  let productImages: Record<string, string | null> = { fleet: null, universal: null, digital: null }
   if (currentSetting) {
     try {
       productImages = JSON.parse(currentSetting.value)
-      console.log('[updateProductImage] Parsed existing images:', productImages)
     } catch (e) {
       console.error('[updateProductImage] Failed to parse JSON:', e)
     }
   }
 
-  // Update the specific product
   productImages[productId] = imageUrl
-  console.log('[updateProductImage] Updated images object:', productImages)
-
-  const stringified = JSON.stringify(productImages)
-  console.log('[updateProductImage] Stringified for database:', stringified)
 
   const { error } = await supabase
     .from('app_settings')
     .update({
-      value: stringified,
+      value: JSON.stringify(productImages),
       updated_at: new Date().toISOString()
     })
     .eq('key', 'product_images')
 
   if (error) {
-    console.error('[updateProductImage] FAIL - Database update error:', error)
+    console.error('Error updating product image:', error)
     return false
   }
 
-  console.log('[updateProductImage] SUCCESS - Image URL saved to database!')
   return true
 }
 

@@ -46,8 +46,6 @@ export function MapComponent({ center, stores, height = 400 }: MapComponentProps
   useEffect(() => {
     if (!map.current || !mapLoaded) return
 
-    console.log(`[MapComponent] Rendering map with ${stores.length} stores`)
-
     // Clear existing markers
     const markers = document.querySelectorAll('.mapboxgl-marker')
     markers.forEach(marker => marker.remove())
@@ -115,7 +113,6 @@ export function MapComponent({ center, stores, height = 400 }: MapComponentProps
         return store.distance <= 15
       })
 
-      console.log(`[MapComponent] Fitting bounds to ${nearbyStoresForZoom.length} stores within 15 miles (of ${stores.length} total plotted)`)
 
       nearbyStoresForZoom.forEach(store => {
         bounds.extend([store.coordinates.lng, store.coordinates.lat])

@@ -339,7 +339,7 @@ function AnnualizedPanel({ summary, months }: { summary: TransactionSummary; mon
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
       <div className="flex items-center gap-2 mb-4">
-        <TrendingUp size={16} className="text-brand-orange" />
+        <TrendingUp size={16} className="text-accent" />
         <h3 className="font-bold text-off-black text-sm">Annualized Projections</h3>
         <span className="text-xs text-gray-400">{months.toFixed(1)} mo of data → extrapolated to 12 mo</span>
       </div>
@@ -421,16 +421,16 @@ function ProximityPanel({
           </p>
         </div>
         {opportunityGallons > 0 && (
-          <div className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-1.5 text-xs text-blue-800 text-right shrink-0 ml-4">
+          <div className="rounded-lg bg-zinc-50 border border-zinc-200 px-3 py-1.5 text-xs text-zinc-600 text-right shrink-0 ml-4">
             <span className="font-bold">{fmtGallons(opportunityGallons)} gal</span><br />
             <span className="opacity-80">within 10 mi of CK ({fmtPct(opportunityPct)})</span>
           </div>
         )}
       </div>
       {within2mi > 0 && (
-        <div className="mb-4 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 mt-1" />
-          <p className="text-sm text-emerald-800">
+        <div className="mb-4 bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0 mt-1" />
+          <p className="text-sm text-green-800">
             <span className="font-bold">{fmtGallons(within2mi)}</span> gallons were fueled within <span className="font-bold">2 miles</span> of a Circle K — drivers drove right past without stopping.
           </p>
         </div>
@@ -445,7 +445,7 @@ function ProximityPanel({
                 {isCustomer ? row.customerLabel : row.label}
               </span>
               {row.badge && row.gallons > 0 && (
-                <span className="text-xs bg-blue-100 text-blue-700 rounded px-1.5 py-0.5 font-semibold">{row.badge}</span>
+                <span className="text-xs bg-green-50 text-green-700 rounded px-1.5 py-0.5 font-semibold">{row.badge}</span>
               )}
               <span className="text-sm font-semibold text-off-black w-24 text-right">{fmtGallons(row.gallons)} gal</span>
               <span className="text-xs text-gray-400 w-12 text-right">{fmtPct(pct)}</span>
@@ -505,8 +505,8 @@ function OTRCorridorPanel({ otr, months, mapPoints, truckStores }: { otr: OTRAna
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200">
-                {['Corridor', 'Gallons', 'CK Now', 'Opportunity', 'Truck CK Stops', 'Potential'].map(h => (
-                  <th key={h} className={`py-2 text-xs font-semibold uppercase tracking-wider text-gray-500 ${h === 'Corridor' ? 'text-left pr-4' : 'text-right px-3'}`}>{h}</th>
+                {['Corridor', 'Gallons', 'CK Now', 'Opp. Gallons', 'Gap Gallons', 'Truck CK Stores', 'Potential', 'Top Competitor'].map(h => (
+                  <th key={h} className={`py-2 text-xs font-semibold uppercase tracking-wider text-gray-500 ${h === 'Corridor' || h === 'Top Competitor' ? 'text-left pr-4' : 'text-right px-3'}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -517,9 +517,9 @@ function OTRCorridorPanel({ otr, months, mapPoints, truckStores }: { otr: OTRAna
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-off-black">{r.corridorName}</span>
                       {r.isHighway ? (
-                        <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-sky-100 text-sky-700">US Hwy</span>
+                        <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600">US Hwy</span>
                       ) : (
-                        <span className="text-xs text-gray-400">{r.direction === 'EW' ? 'E↔W' : 'N↕S'}</span>
+                        <span className="text-xs text-zinc-400">{r.direction === 'EW' ? 'E↔W' : 'N↕S'}</span>
                       )}
                     </div>
                   </td>
@@ -532,8 +532,9 @@ function OTRCorridorPanel({ otr, months, mapPoints, truckStores }: { otr: OTRAna
                   <td className="py-2.5 px-3 text-right">
                     {r.captureGallons > 0
                       ? <span className="text-green-700 font-semibold">{fmtGallons(r.captureGallons)}</span>
-                      : <span className="text-gray-300">—</span>}
+                      : <span className="text-zinc-300">—</span>}
                   </td>
+                  <td className="py-2.5 px-3 text-right text-zinc-400 text-xs">{r.gapGallons > 0 ? fmtGallons(r.gapGallons) : '—'}</td>
                   <td className="py-2.5 px-3 text-right">
                     <span className={`text-xs font-semibold ${r.truckCKStoreCount >= 5 ? 'text-green-600' : r.truckCKStoreCount > 0 ? 'text-orange-600' : 'text-red-500'}`}>
                       {r.truckCKStoreCount}
@@ -541,19 +542,20 @@ function OTRCorridorPanel({ otr, months, mapPoints, truckStores }: { otr: OTRAna
                   </td>
                   <td className="py-2.5 px-3 text-right">
                     <div className="flex items-center justify-end gap-1.5">
-                      <div className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="w-16 h-2 bg-zinc-100 rounded-full overflow-hidden">
                         <div className="h-2 bg-green-500 rounded-full" style={{ width: `${Math.min(r.potentialRate, 100)}%` }} />
                       </div>
-                      <span className="text-xs text-gray-500 w-8 text-right">{fmtPct(r.potentialRate)}</span>
+                      <span className="text-xs text-zinc-500 w-8 text-right">{fmtPct(r.potentialRate)}</span>
                     </div>
                   </td>
+                  <td className="py-2.5 pl-3 text-xs text-zinc-500 max-w-[120px] truncate">{r.topCompetitorBrand}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        {otr.corridorResults.length > 6 && (
-          <button onClick={() => setExpanded(v => !v)} className="mt-3 flex items-center gap-1 text-sm text-brand-orange hover:underline">
+        {otr.corridorResults.length > 8 && (
+          <button onClick={() => setExpanded(v => !v)} className="mt-3 flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800 transition-colors">
             {expanded ? <><ChevronUp size={15} />Show fewer</> : <><ChevronDown size={15} />Show all {otr.corridorResults.length} corridors</>}
           </button>
         )}
@@ -680,7 +682,7 @@ function TimePatternsSection({ summary }: { summary: TransactionSummary }) {
           Total gallons per hour &nbsp;·&nbsp;
           <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-green-600 inline-block" /> Circle K</span>
           &nbsp;
-          <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-blue-400 inline-block" /> Competitor</span>
+          <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-zinc-400 inline-block" /> Competitor</span>
         </p>
         <div className="flex items-end gap-px" style={{ height: 120 }}>
           {summary.hourlyBreakdown.map(h => {
@@ -690,7 +692,7 @@ function TimePatternsSection({ summary }: { summary: TransactionSummary }) {
             return (
               <div key={h.hour} className="flex-1 flex flex-col justify-end group relative" style={{ height: '100%' }}>
                 <div className="w-full flex flex-col justify-end" style={{ height: `${totalH}%` }}>
-                  <div className="w-full bg-blue-400 rounded-t-sm" style={{ height: `${compH > 0 ? (compH / totalH) * 100 : 0}%` }} />
+                  <div className="w-full bg-zinc-400 rounded-t-sm" style={{ height: `${compH > 0 ? (compH / totalH) * 100 : 0}%` }} />
                   <div className="w-full bg-green-600" style={{ height: `${ckH > 0 ? (ckH / totalH) * 100 : 0}%` }} />
                 </div>
                 {h.gallons > 0 && (
@@ -724,7 +726,7 @@ function TimePatternsSection({ summary }: { summary: TransactionSummary }) {
                 <span className="w-8 text-xs font-medium text-gray-600 shrink-0">{d.dayName.slice(0, 3)}</span>
                 <div className="flex-1 h-6 bg-gray-100 rounded-full overflow-hidden flex">
                   <div className="h-full bg-green-600 rounded-l-full" style={{ width: `${ckPct}%` }} />
-                  <div className="h-full bg-blue-400" style={{ width: `${compPct}%` }} />
+                  <div className="h-full bg-zinc-400" style={{ width: `${compPct}%` }} />
                 </div>
                 <span className="w-24 text-right text-xs font-semibold text-off-black shrink-0">{fmtGallons(d.gallons)} gal</span>
                 <span className="w-16 text-right text-xs text-gray-400 shrink-0">{d.transactions.toLocaleString()} trans</span>
@@ -747,8 +749,8 @@ function RepContactCard({ rep }: { rep: RepData }) {
         <p className="text-orange-100 text-sm mt-0.5">Get in touch to learn more or get started</p>
       </div>
       <div className="p-6 flex flex-col sm:flex-row gap-5 items-start sm:items-center">
-        <div className="w-14 h-14 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
-          <User size={26} className="text-brand-orange" />
+        <div className="w-14 h-14 rounded-full bg-zinc-100 flex items-center justify-center shrink-0">
+          <User size={26} className="text-zinc-500" />
         </div>
         <div className="space-y-2">
           {rep.full_name && (
@@ -756,7 +758,7 @@ function RepContactCard({ rep }: { rep: RepData }) {
           )}
           <a
             href={`mailto:${rep.email}`}
-            className="inline-flex items-center gap-2 text-brand-orange hover:underline font-medium"
+            className="inline-flex items-center gap-2 text-accent hover:underline font-medium"
           >
             <Mail size={16} />
             {rep.email}
@@ -936,8 +938,8 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium whitespace-nowrap transition-colors ${
                   activeTab === tab.id
-                    ? 'border-b-2 border-brand-orange text-brand-orange bg-orange-50'
-                    : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                    ? 'border-b-2 border-accent text-accent bg-accent-muted/20'
+                    : 'text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50'
                 }`}
               >
                 {tab.label}
@@ -962,7 +964,7 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
                   ))}
                 </div>
                 {summary.brandBreakdown.length > 15 && (
-                  <button onClick={() => setShowAllBrands(v => !v)} className="mt-4 flex items-center gap-1 text-sm text-brand-orange hover:underline">
+                  <button onClick={() => setShowAllBrands(v => !v)} className="mt-4 flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800 transition-colors">
                     {showAllBrands ? <><ChevronUp size={16} />Show fewer</> : <><ChevronDown size={16} />Show all {summary.brandBreakdown.length} brands</>}
                   </button>
                 )}
@@ -1087,7 +1089,7 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
                   </table>
                 </div>
                 {summary.vehicleBreakdown.length > 30 && (
-                  <button onClick={() => setShowAllVehicles(v => !v)} className="mt-4 flex items-center gap-1 text-sm text-brand-orange hover:underline">
+                  <button onClick={() => setShowAllVehicles(v => !v)} className="mt-4 flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800 transition-colors">
                     {showAllVehicles ? <><ChevronUp size={16} />Show fewer</> : <><ChevronDown size={16} />Show all {summary.vehicleBreakdown.length} vehicles</>}
                   </button>
                 )}

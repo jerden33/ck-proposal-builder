@@ -31,7 +31,6 @@ export async function loadStoreData(): Promise<void> {
     const data = await response.json()
     storeData = data.stores || []
     dataLoaded = true
-    console.log(`Loaded ${storeData.length} Circle K stores`)
   } catch (error) {
     console.error('Error loading store data:', error)
     storeData = []
@@ -112,14 +111,9 @@ export function getCoverageStats(center: Coordinates): {
   truckAccessible2mi: number
   truckAccessible10mi: number
 } {
-  console.log(`[getCoverageStats] Calculating for coordinates:`, center)
-  console.log(`[getCoverageStats] Total stores in database: ${storeData.length}`)
-
   const within2 = findStoresWithinRadius(center, 2)
   const within10 = findStoresWithinRadius(center, 10)
   const within25 = findStoresWithinRadius(center, 25)
-
-  console.log(`[getCoverageStats] Stores found: ${within2.length} within 2mi, ${within10.length} within 10mi, ${within25.length} within 25mi`)
 
   return {
     within2mi: within2.length,
