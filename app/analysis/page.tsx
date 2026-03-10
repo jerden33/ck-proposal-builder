@@ -1514,13 +1514,13 @@ function AnalysisPageInner() {
       const ckZipSet = buildCKZipSet(storeRecords)
       const ckStoreCoords: CKStoreCoord[] = storeRecords
         .filter(s => s.coordinates?.lat && s.coordinates?.lng)
-        .map(s => ({ lat: s.coordinates.lat, lng: s.coordinates.lng }))
+        .map(s => ({ lat: s.coordinates.lat, lng: s.coordinates.lng, name: s.name, city: s.city, state: s.state, truckAccessible: s.truckAccessible }))
 
       const truckRecords = storeRecords.filter(s => s.truckAccessible)
       const ckTruckZipSet = buildCKZipSet(truckRecords)
       const ckTruckStoreCoords: CKStoreCoord[] = truckRecords
         .filter(s => s.coordinates?.lat && s.coordinates?.lng)
-        .map(s => ({ lat: s.coordinates.lat, lng: s.coordinates.lng }))
+        .map(s => ({ lat: s.coordinates.lat, lng: s.coordinates.lng, name: s.name, city: s.city, state: s.state, truckAccessible: true }))
       const activeZipSet = featureFlagsRef.current.truckMode ? ckTruckZipSet : ckZipSet
       const activeStoreCoords = featureFlagsRef.current.truckMode ? ckTruckStoreCoords : ckStoreCoords
 
@@ -2049,6 +2049,43 @@ function AnalysisPageInner() {
                           </tbody>
                         </table>
                       </div>
+
+                      {/* Top CK Opportunity Locations */}
+                      {summary.topCKOpportunityLocations.length > 0 && (
+                        <div className="mt-8">
+                          <div className="mb-4">
+                            <h3 className="font-bold text-off-black">Top Circle K Opportunity Locations</h3>
+                            <p className="text-xs text-gray-400 mt-0.5">Circle K stores with the most competitor gallons fueled within 5 miles — sorted by capture potential</p>
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b border-gray-200">
+                                  {['Circle K Location', 'City / State', 'Truck Stop', 'Competitor Gallons', 'Stations', 'Comp. Spend'].map(h => (
+                                    <th key={h} className={`py-2 ${['Circle K Location', 'City / State', 'Truck Stop'].includes(h) ? 'text-left px-4 first:pl-0' : 'text-right px-4'} text-xs font-semibold uppercase tracking-wider text-gray-500`}>{h}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-100">
+                                {summary.topCKOpportunityLocations.map((loc, i) => (
+                                  <tr key={i} className="hover:bg-gray-50">
+                                    <td className="py-2.5 pr-4 font-medium text-off-black max-w-[200px] truncate">{loc.ckName}</td>
+                                    <td className="py-2.5 px-4 text-gray-500 text-xs whitespace-nowrap">{loc.city}, {loc.state}</td>
+                                    <td className="py-2.5 px-4">
+                                      {loc.truckAccessible
+                                        ? <span className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 rounded px-2 py-0.5 font-semibold">Truck</span>
+                                        : <span className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-500 rounded px-2 py-0.5">C-Store</span>}
+                                    </td>
+                                    <td className="py-2.5 px-4 text-right font-semibold text-brand-orange">{fmtGallons(loc.competitorGallons)}</td>
+                                    <td className="py-2.5 px-4 text-right text-gray-600">{loc.nearbyStationCount}</td>
+                                    <td className="py-2.5 pl-4 text-right text-gray-600">{fmtDollars(loc.competitorSpend)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 

@@ -160,10 +160,10 @@ function OTRPageInner() {
       )
 
       const truckZipSet = buildCKZipSet(truckRecords)
-      const truckStoreCoords = truckRecords.map(s => ({ lat: s.coordinates.lat, lng: s.coordinates.lng }))
+      const truckStoreCoords = truckRecords.map(s => ({ lat: s.coordinates.lat, lng: s.coordinates.lng, name: s.name, city: s.city, state: s.state, truckAccessible: true as const }))
       const allStoreCoords = storeRecords
         .filter(s => s.coordinates?.lat && s.coordinates?.lng)
-        .map(s => ({ lat: s.coordinates.lat, lng: s.coordinates.lng }))
+        .map(s => ({ lat: s.coordinates.lat, lng: s.coordinates.lng, name: s.name, city: s.city, state: s.state, truckAccessible: s.truckAccessible }))
       const mapStores: OTRMapStore[] = truckRecords.map(s => ({
         lat: s.coordinates.lat,
         lng: s.coordinates.lng,
@@ -884,6 +884,60 @@ function OTRPageInner() {
             </div>
           )
         })()}
+
+        {/* Top CK Opportunity Locations */}
+        {summary.topCKOpportunityLocations.length > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-6">
+            <div className="bg-off-black px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-white font-bold text-lg">Top Circle K Opportunity Locations</h2>
+                <p className="text-gray-400 text-sm mt-0.5">
+                  Truck-accessible CK stores with the most competitor gallons fueled within 5 miles
+                </p>
+              </div>
+              <MapPin className="text-brand-orange shrink-0" size={22} />
+            </div>
+            <div className="p-6">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      {['Circle K Location', 'City / State', 'Type', 'Competitor Gallons Nearby', 'Stations', 'Comp. Spend'].map(h => (
+                        <th key={h} className={`py-2 ${['Circle K Location', 'City / State', 'Type'].includes(h) ? 'text-left px-4 first:pl-0' : 'text-right px-4'} text-xs font-semibold uppercase tracking-wider text-gray-500`}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {summary.topCKOpportunityLocations.map((loc, i) => {
+                      const annualized = months > 0 ? (loc.competitorGallons / months) * 12 : 0
+                      return (
+                        <tr key={i} className="hover:bg-gray-50">
+                          <td className="py-3 pr-4 font-medium text-off-black max-w-[200px] truncate">{loc.ckName}</td>
+                          <td className="py-3 px-4 text-gray-500 text-xs whitespace-nowrap">{loc.city}, {loc.state}</td>
+                          <td className="py-3 px-4">
+                            {loc.truckAccessible
+                              ? <span className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 rounded px-2 py-0.5 font-semibold"><Truck size={10} />Truck</span>
+                              : <span className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-500 rounded px-2 py-0.5">C-Store</span>}
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <span className="font-semibold text-brand-orange">{fmtGallons(loc.competitorGallons)}</span>
+                            {annualized > 0 && <span className="block text-xs text-gray-400">{fmtGallons(annualized)} / yr</span>}
+                          </td>
+                          <td className="py-3 px-4 text-right text-gray-600">{loc.nearbyStationCount}</td>
+                          <td className="py-3 pl-4 text-right text-gray-600">{fmtDollars(loc.competitorSpend)}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-3 text-xs text-gray-400 flex items-start gap-1.5">
+                <Info size={12} className="shrink-0 mt-0.5" />
+                Competitor gallons aggregated from geocoded fueling stops within 5 miles of each CK location.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Share section */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-8">

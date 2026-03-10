@@ -182,6 +182,7 @@ export interface TransactionSummary {
   mapPoints: MapPoint[]
   proximityBreakdown: ProximityBreakdown | null
   proximityBreakdownAll: ProximityBreakdown | null  // against all CK sites (not just truck)
+  topCKOpportunityLocations: CKOpportunityLocation[]  // CK stores with most nearby competitor gallons
   // Rep-configured rebate rate (¢/gal), saved with analysis
   rebateRate?: number
   // Whether OTR/truck mode was active when analysis was saved
@@ -223,6 +224,24 @@ export function haversineDistanceMi(lat1: number, lng1: number, lat2: number, ln
 export interface CKStoreCoord {
   lat: number
   lng: number
+  // optional enrichment — used for CK opportunity aggregation
+  name?: string
+  city?: string
+  state?: string
+  truckAccessible?: boolean
+}
+
+export interface CKOpportunityLocation {
+  ckName: string
+  city: string
+  state: string
+  lat: number
+  lng: number
+  truckAccessible: boolean
+  competitorGallons: number
+  competitorTransactions: number
+  competitorSpend: number
+  nearbyStationCount: number   // distinct competitor stations within radius
 }
 
 /** Find the nearest CK store distance in miles for a given coordinate */
@@ -238,6 +257,22 @@ export function nearestCKDistance(
     if (d < min) min = d
   }
   return min
+}
+
+/** Find the nearest CK store and its distance for a given coordinate */
+function findNearestCKStore(
+  lat: number,
+  lng: number,
+  ckStores: CKStoreCoord[]
+): { store: CKStoreCoord; distanceMi: number } | null {
+  if (ckStores.length === 0) return null
+  let best: CKStoreCoord | null = null
+  let bestDist = Infinity
+  for (const store of ckStores) {
+    const d = haversineDistanceMi(lat, lng, store.lat, store.lng)
+    if (d < bestDist) { bestDist = d; best = store }
+  }
+  return best ? { store: best, distanceMi: bestDist } : null
 }
 
 export function buildCKZipSet(stores: Array<{ zip: string }>): Set<string> {
@@ -663,8 +698,8 @@ export function analyzeTransactions(
     driverBreakdown.map(d => ({ ...d, unitNumber: d.driverName }))
   )
 
-  // Map points + proximity breakdown (requires geocoding)
-  const { mapPoints, proximityBreakdown, proximityBreakdownAll } = buildMapData(transactions, geocodedCoords, ckStores, totalGallons, geocodedAddresses, ckStoresAll)
+  // Map points + proximity breakdown + CK opportunity locations (requires geocoding)
+  const { mapPoints, proximityBreakdown, proximityBreakdownAll, topCKOpportunityLocations } = buildMapData(transactions, geocodedCoords, ckStores, totalGallons, geocodedAddresses, ckStoresAll)
 
   // Behavioural / timing
   const hasTimeData = transactions.some(t => !!t.transTime)
@@ -693,6 +728,7 @@ export function analyzeTransactions(
     mapPoints,
     proximityBreakdown,
     proximityBreakdownAll,
+    topCKOpportunityLocations,
   }
 }
 
@@ -705,9 +741,9 @@ function buildMapData(
   totalGallons: number,
   geocodedAddresses?: Map<string, GeocodedCoord>,
   ckStoresAll?: CKStoreCoord[]
-): { mapPoints: MapPoint[]; proximityBreakdown: ProximityBreakdown | null; proximityBreakdownAll: ProximityBreakdown | null } {
+): { mapPoints: MapPoint[]; proximityBreakdown: ProximityBreakdown | null; proximityBreakdownAll: ProximityBreakdown | null; topCKOpportunityLocations: CKOpportunityLocation[] } {
   if (!geocodedCoords || geocodedCoords.size === 0) {
-    return { mapPoints: [], proximityBreakdown: null, proximityBreakdownAll: null }
+    return { mapPoints: [], proximityBreakdown: null, proximityBreakdownAll: null, topCKOpportunityLocations: [] }
   }
 
   // Aggregate transactions by individual fueling station (not city)
@@ -751,6 +787,7 @@ function buildMapData(
   // Proximity buckets (non-CK only)
   const prox    = mkProxBuckets()
   const proxAll = mkProxBuckets()  // against all CK sites
+  const ckOppMap = new Map<string, CKOpportunityLocation>()
 
   for (const [, agg] of Array.from(stationMap)) {
     // Prefer address-level coords (precise) over city centroid
@@ -758,8 +795,10 @@ function buildMapData(
     const coord = geocodedAddresses?.get(addrKey) ?? geocodedCoords.get(geoKey(agg.city, agg.state))
     if (!coord) continue
 
-    const dist    = ckStores    ? nearestCKDistance(coord.lat, coord.lng, ckStores)    : -1
-    const distAll = ckStoresAll ? nearestCKDistance(coord.lat, coord.lng, ckStoresAll) : -1
+    const ckNearest    = ckStores?.length    ? findNearestCKStore(coord.lat, coord.lng, ckStores)    : null
+    const ckNearestAll = ckStoresAll?.length ? findNearestCKStore(coord.lat, coord.lng, ckStoresAll) : null
+    const dist    = ckNearest    ? ckNearest.distanceMi    : -1
+    const distAll = ckNearestAll ? ckNearestAll.distanceMi : -1
     const allCK = agg.ckGallons === agg.gallons
 
     mapPoints.push({
@@ -795,6 +834,24 @@ function buildMapData(
     if (!allCK) {
       if (dist    >= 0) bucketInto(dist,    prox)
       if (distAll >= 0) bucketInto(distAll, proxAll)
+      // Attribute competitor gallons to the nearest CK within 5 mi
+      if (ckNearest && ckNearest.distanceMi <= 5) {
+        const k = `${ckNearest.store.lat.toFixed(6)},${ckNearest.store.lng.toFixed(6)}`
+        const entry = ckOppMap.get(k) ?? {
+          ckName: ckNearest.store.name ?? 'Circle K',
+          city: ckNearest.store.city ?? '',
+          state: ckNearest.store.state ?? '',
+          lat: ckNearest.store.lat,
+          lng: ckNearest.store.lng,
+          truckAccessible: ckNearest.store.truckAccessible ?? false,
+          competitorGallons: 0, competitorTransactions: 0, competitorSpend: 0, nearbyStationCount: 0,
+        }
+        entry.competitorGallons += nonCKGallons
+        entry.competitorTransactions += nonCKTrans
+        entry.competitorSpend += nonCKSpend
+        entry.nearbyStationCount++
+        ckOppMap.set(k, entry)
+      }
     }
   }
 
@@ -810,10 +867,15 @@ function buildMapData(
     geocodedPct,
   })
 
+  const topCKOpportunityLocations = Array.from(ckOppMap.values())
+    .sort((a, b) => b.competitorGallons - a.competitorGallons)
+    .slice(0, 15)
+
   return {
     mapPoints,
     proximityBreakdown:    ckStores    ? toBreakdown(prox)    : null,
     proximityBreakdownAll: ckStoresAll ? toBreakdown(proxAll) : null,
+    topCKOpportunityLocations,
   }
 }
 
@@ -846,6 +908,7 @@ function createEmptySummary(): TransactionSummary {
     mapPoints: [],
     proximityBreakdown: null,
     proximityBreakdownAll: null,
+    topCKOpportunityLocations: [],
   }
 }
 
