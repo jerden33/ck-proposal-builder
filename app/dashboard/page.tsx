@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { getUserProfile, getUserProposals, archiveProposal, duplicateProposal, deleteProposal, getUserAnalyses, deleteAnalysis, updateAnalysisAccountName } from '@/lib/supabase/queries'
 import type { UserProfile, ProposalRecord, AnalysisRecord } from '@/lib/types'
-import { Plus, Search, FileText, Eye, Copy, Archive, Settings, LogOut, Calendar, ExternalLink, Trash2, User, BarChart2, Pencil, Check, X, Truck } from 'lucide-react'
-import Image from 'next/image'
+import { Plus, Search, FileText, Eye, Copy, Archive, Calendar, ExternalLink, Trash2, User, BarChart2, Pencil, Check, X, Truck } from 'lucide-react'
+import { Navbar } from '@/components/Navbar'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -34,13 +33,6 @@ export default function DashboardPage() {
     setProposals(userProposals)
     setAnalyses(userAnalyses)
     setLoading(false)
-  }
-
-  const handleLogout = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
   }
 
   const handleArchive = async (id: string) => {
@@ -116,60 +108,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-off-white to-white">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Image
-                src="/circle-k-pro-logo.png"
-                alt="Circle K Pro"
-                width={120}
-                height={36}
-                className="w-32 h-auto"
-              />
-              <div className="h-8 w-px bg-gray-300"></div>
-              <h1 className="text-xl font-bold text-off-black">Proposal Builder</h1>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="text-right mr-4">
-                <p className="text-sm font-semibold text-off-black">{profile?.full_name || profile?.email}</p>
-                <p className="text-xs text-gray-500">
-                  {profile?.is_super_admin ? 'Super Administrator' : profile?.is_admin ? 'Administrator' : 'User'}
-                </p>
-              </div>
-
-              <button
-                onClick={() => router.push('/analysis')}
-                className="btn-secondary flex items-center gap-2"
-              >
-                <BarChart2 size={18} />
-                Transaction Analysis
-              </button>
-
-              {(profile?.is_admin || profile?.is_super_admin) && (
-                <button
-                  onClick={() => router.push('/admin')}
-                  className="btn-secondary flex items-center gap-2"
-                >
-                  <Settings size={18} />
-                  Admin
-                </button>
-              )}
-
-              <button
-                onClick={handleLogout}
-                className="btn-secondary flex items-center gap-2"
-              >
-                <LogOut size={18} />
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-off-white">
+      <Navbar />
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
