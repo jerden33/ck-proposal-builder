@@ -295,7 +295,7 @@ function OTRPageInner() {
 
   if (phase === 'upload') {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-off-white">
         <Navbar />
         <div className="max-w-2xl mx-auto px-6 py-16">
           {/* Hero */}
@@ -390,11 +390,11 @@ function OTRPageInner() {
       : 0
 
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-off-white">
         <Navbar />
         <div className="max-w-md mx-auto px-6 py-24 text-center">
-          <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-6">
-            <Truck size={24} className="text-amber-700 animate-pulse" />
+          <div className="w-14 h-14 rounded-full bg-zinc-100 flex items-center justify-center mx-auto mb-6">
+            <Truck size={24} className="text-zinc-500 animate-pulse" />
           </div>
           <h2 className="text-xl font-bold text-off-black mb-2">
             {phase === 'parsing' ? 'Parsing transactions…' : 'Geocoding locations…'}
@@ -404,9 +404,9 @@ function OTRPageInner() {
               <p className="text-sm text-gray-500 mb-5">
                 Locating {geocodingProgress.total.toLocaleString()} unique fueling points on the map
               </p>
-              <div className="bg-gray-200 rounded-full h-2.5 w-full mb-2">
+              <div className="bg-zinc-200 rounded-full h-1.5 w-full mb-2">
                 <div
-                  className="bg-brand-orange h-2.5 rounded-full transition-all duration-300"
+                  className="bg-accent h-1.5 rounded-full transition-all duration-300"
                   style={{ width: `${pct}%` }}
                 />
               </div>
@@ -436,7 +436,7 @@ function OTRPageInner() {
   const shareUrl = shareToken ? `${window.location.origin}/share/${shareToken}` : null
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-off-white">
       <Navbar />
       <div className="max-w-7xl mx-auto px-6 py-6">
 
@@ -444,7 +444,7 @@ function OTRPageInner() {
         <div className="flex items-start justify-between mb-6">
           <div>
             <div className="flex items-center gap-2.5 mb-1.5">
-              <span className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-full">
+              <span className="inline-flex items-center gap-1.5 bg-zinc-100 text-zinc-600 text-xs font-semibold px-2.5 py-1 rounded-full">
                 <Truck size={11} />
                 OTR Corridor Analysis
               </span>
@@ -493,55 +493,48 @@ function OTRPageInner() {
         )}
 
         {/* Summary stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-          {[
-            {
-              label: 'Active Corridors',
-              value: otrResult.corridorResults.length.toString(),
-              sub: `of 39 interstates`,
-              icon: Navigation,
-              accent: false,
-            },
-            {
-              label: 'On-Corridor Gallons',
-              value: fmtGallons(otrResult.totalCorridorGallons),
-              sub: fmtPct(otrResult.totalCorridorGallons / (summary.totalGallons || 1) * 100) + ' of total',
-              icon: Fuel,
-              accent: false,
-            },
-            {
-              label: 'CK Captured',
-              value: fmtGallons(totalCK),
-              sub: fmtPct(totalCK / (otrResult.totalCorridorGallons || 1) * 100) + ' capture rate',
-              icon: CheckCircle,
-              accent: false,
-            },
-            {
-              label: 'Annual Opportunity',
-              value: fmtGallons(annualOpp),
-              sub: months !== 12 ? `annualized from ${months.toFixed(1)} mo` : 'capturable gallons',
-              icon: TrendingUp,
-              accent: true,
-            },
-          ].map(({ label, value, sub, icon: Icon, accent }) => (
-            <div
-              key={label}
-              className={`rounded-xl border p-5 shadow-sm ${
-                accent ? 'bg-accent border-accent' : 'bg-white border-zinc-200'
-              }`}
-            >
-              <div className={`flex items-center gap-2 mb-2 text-xs font-semibold uppercase tracking-wider ${
-                accent ? 'text-white/70' : 'text-zinc-500'
-              }`}>
-                <Icon size={13} />
-                {label}
+        <div className="rounded-xl border border-zinc-200 overflow-hidden bg-zinc-100 shadow-sm mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-px">
+            {[
+              {
+                label: 'Active Corridors',
+                value: otrResult.corridorResults.length.toString(),
+                sub: `of 39 interstates`,
+                accent: false,
+              },
+              {
+                label: 'On-Corridor Gallons',
+                value: fmtGallons(otrResult.totalCorridorGallons),
+                sub: fmtPct(otrResult.totalCorridorGallons / (summary.totalGallons || 1) * 100) + ' of total',
+                accent: false,
+              },
+              {
+                label: 'CK Captured',
+                value: fmtGallons(totalCK),
+                sub: fmtPct(totalCK / (otrResult.totalCorridorGallons || 1) * 100) + ' capture rate',
+                accent: false,
+              },
+              {
+                label: 'Annual Opportunity',
+                value: fmtGallons(annualOpp),
+                sub: months !== 12 ? `annualized from ${months.toFixed(1)} mo` : 'capturable gallons',
+                accent: true,
+              },
+            ].map(({ label, value, sub, accent }) => (
+              <div
+                key={label}
+                className={`px-5 py-4 ${accent ? 'bg-accent' : 'bg-white'}`}
+              >
+                <p className={`text-xs font-medium uppercase tracking-wider mb-1.5 ${accent ? 'text-white/70' : 'text-zinc-400'}`}>
+                  {label}
+                </p>
+                <p className={`text-2xl font-bold leading-none ${accent ? 'text-white' : 'text-zinc-900'}`}>
+                  {value}
+                </p>
+                <p className={`text-xs mt-1.5 ${accent ? 'text-white/60' : 'text-zinc-400'}`}>{sub}</p>
               </div>
-              <p className={`text-2xl font-bold ${accent ? 'text-white' : 'text-zinc-900'}`}>
-                {value}
-              </p>
-              <p className={`text-xs mt-0.5 ${accent ? 'text-gray-400' : 'text-gray-400'}`}>{sub}</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         {/* Map */}

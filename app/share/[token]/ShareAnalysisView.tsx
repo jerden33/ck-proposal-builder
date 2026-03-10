@@ -89,10 +89,10 @@ function computeMonthSpan(dateRange: { start: string; end: string }): number {
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{label}</p>
-      <p className="text-2xl font-bold text-off-black leading-tight">{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-0.5 truncate">{sub}</p>}
+    <div className="bg-white px-5 py-4">
+      <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1.5">{label}</p>
+      <p className="text-2xl font-bold text-zinc-900 leading-none">{value}</p>
+      {sub && <p className="text-xs text-zinc-400 mt-1.5 leading-tight truncate">{sub}</p>}
     </div>
   )
 }
@@ -143,69 +143,83 @@ function OpportunityPanel({
         </p>
       </div>
       <div className="p-6">
-        <div className="mb-6 space-y-3">
+        {/* Hero capture rate */}
+        <div className="flex items-end gap-6 mb-5">
           <div>
-            <div className="flex justify-between text-xs text-zinc-500 mb-1">
+            <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1">Current CK Share</p>
+            <p className="text-4xl font-bold text-zinc-900 leading-none">{fmtPct(captureRate)}</p>
+          </div>
+          <span className="text-zinc-200 text-2xl font-light pb-0.5">→</span>
+          <div>
+            <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1">Potential</p>
+            <p className="text-4xl font-bold text-green-600 leading-none">{fmtPct(potentialRate)}</p>
+          </div>
+        </div>
+
+        {/* Slim progress bars */}
+        <div className="space-y-2 mb-6">
+          <div>
+            <div className="flex justify-between text-xs text-zinc-400 mb-1">
               <span>Current Circle K fueling</span>
-              <span className="font-semibold text-accent">{fmtPct(captureRate)}</span>
+              <span className="font-semibold text-zinc-600">{fmtPct(captureRate)}</span>
             </div>
-            <div className="h-3 bg-zinc-100 rounded-full">
-              <div className="h-3 bg-accent rounded-full" style={{ width: `${captureRate}%` }} />
+            <div className="h-1.5 bg-zinc-100 rounded-full">
+              <div className="h-1.5 bg-accent rounded-full transition-all" style={{ width: `${captureRate}%` }} />
             </div>
           </div>
           <div>
-            <div className="flex justify-between text-xs text-gray-500 mb-1">
+            <div className="flex justify-between text-xs text-zinc-400 mb-1">
               <span>Potential with Circle K network</span>
-              <span className="font-semibold text-green-600">{fmtPct(potentialRate)}</span>
+              <span className="font-semibold text-zinc-600">{fmtPct(potentialRate)}</span>
             </div>
-            <div className="h-3 bg-gray-100 rounded-full">
-              <div className="h-3 bg-green-500 rounded-full" style={{ width: `${potentialRate}%` }} />
+            <div className="h-1.5 bg-zinc-100 rounded-full">
+              <div className="h-1.5 bg-green-500 rounded-full transition-all" style={{ width: `${potentialRate}%` }} />
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-xl border-2 border-accent bg-accent-muted/20 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <CheckCircle size={18} className="text-accent shrink-0" />
-              <span className="font-bold text-zinc-900 text-sm">Already at Circle K</span>
+
+        {/* Data grid */}
+        <div className="rounded-xl border border-zinc-200 overflow-hidden bg-zinc-100">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-px">
+            <div className="bg-white px-5 py-4">
+              <div className="flex items-center gap-1.5 mb-3">
+                <span className="w-2 h-2 rounded-full bg-accent shrink-0" />
+                <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Already at Circle K</span>
+              </div>
+              <p className="text-2xl font-bold text-zinc-900">{fmtGallons(captured.gallons)}</p>
+              <p className="text-xs text-zinc-400 mt-0.5">{captured.transactions.toLocaleString()} transactions</p>
+              {captured.spend > 0 && <p className="text-sm font-semibold text-zinc-700 mt-2">{fmtDollars(captured.spend)}</p>}
             </div>
-            <p className="text-3xl font-bold text-zinc-900">{fmtGallons(captured.gallons)}</p>
-            <p className="text-xs text-zinc-500 mt-0.5">gallons</p>
-            <p className="text-sm font-semibold text-accent mt-2">{fmtDollars(captured.spend)}</p>
-            <p className="text-xs text-gray-400 mt-1">{captured.transactions.toLocaleString()} transactions</p>
-          </div>
-          <div className="rounded-xl border-2 border-green-500 bg-green-50 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <AlertCircle size={18} className="text-green-600 shrink-0" />
-              <span className="font-bold text-off-black text-sm">
-                {isCustomer ? 'Savings Opportunity' : 'Opportunity — CK Available'}
-              </span>
+            <div className="bg-white px-5 py-4">
+              <div className="flex items-center gap-1.5 mb-3">
+                <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
+                <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                  {isCustomer ? 'Savings Opportunity' : 'Opportunity — CK Nearby'}
+                </span>
+              </div>
+              <p className="text-2xl font-bold text-zinc-900">{fmtGallons(capturable.gallons)}</p>
+              <p className="text-xs text-zinc-400 mt-0.5">{capturable.transactions.toLocaleString()} transactions</p>
+              {capturable.spend > 0 && <p className="text-sm font-semibold text-zinc-700 mt-2">{fmtDollars(capturable.spend)}</p>}
             </div>
-            <p className="text-3xl font-bold text-off-black">{fmtGallons(capturable.gallons)}</p>
-            <p className="text-xs text-gray-500 mt-0.5">gallons at non-CK stations</p>
-            <p className="text-sm font-semibold text-green-600 mt-2">{fmtDollars(capturable.spend)}</p>
-            <p className="text-xs text-gray-400 mt-1">
-              {capturable.transactions.toLocaleString()} transactions where CK exists in same area
-            </p>
-          </div>
-          <div className="rounded-xl border-2 border-gray-200 bg-gray-50 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <XCircle size={18} className="text-gray-400 shrink-0" />
-              <span className="font-bold text-off-black text-sm">Outside CK Footprint</span>
+            <div className="bg-white px-5 py-4">
+              <div className="flex items-center gap-1.5 mb-3">
+                <span className="w-2 h-2 rounded-full bg-zinc-300 shrink-0" />
+                <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Outside CK Footprint</span>
+              </div>
+              <p className="text-2xl font-bold text-zinc-900">{fmtGallons(gap.gallons)}</p>
+              <p className="text-xs text-zinc-400 mt-0.5">{gap.transactions.toLocaleString()} transactions</p>
+              {gap.spend > 0 && <p className="text-sm font-semibold text-zinc-700 mt-2">{fmtDollars(gap.spend)}</p>}
             </div>
-            <p className="text-3xl font-bold text-off-black">{fmtGallons(gap.gallons)}</p>
-            <p className="text-xs text-gray-500 mt-0.5">gallons in areas with no CK</p>
-            <p className="text-sm font-semibold text-gray-500 mt-2">{fmtDollars(gap.spend)}</p>
-            <p className="text-xs text-gray-400 mt-1">{gap.transactions.toLocaleString()} transactions</p>
           </div>
         </div>
+
         {capturable.gallons > 0 && (
-          <div className="mt-5 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800">
-            <span className="font-bold">{fmtGallons(capturable.gallons)} gallons ({fmtPct((capturable.gallons / totalGallons) * 100)})</span>{' '}
+          <p className="mt-4 text-sm text-zinc-500">
+            <span className="font-semibold text-zinc-800">{fmtGallons(capturable.gallons)} gallons ({fmtPct((capturable.gallons / totalGallons) * 100)})</span>{' '}
             {isCustomer
-              ? 'are currently going to other stations where a Circle K location already exists nearby — a direct savings opportunity.'
-              : 'are currently going to competitors where a Circle K location already exists in the same area.'}
-          </div>
+              ? 'are going to other stations where a Circle K already exists nearby — a direct savings opportunity.'
+              : 'are going to competitors where a Circle K already exists in the same area.'}
+          </p>
         )}
       </div>
     </div>
@@ -857,17 +871,19 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
         </div>
 
         {/* Summary stats */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <StatCard label="Transactions" value={summary.totalTransactions.toLocaleString()} />
-          <StatCard label="Total Gallons" value={fmtGallons(summary.totalGallons)} />
-          <StatCard label="Total Spend" value={fmtDollars(summary.totalSpend)} />
-          <StatCard label="Vehicles" value={summary.uniqueVehicles.toLocaleString()} />
-          <StatCard label="Stations" value={summary.uniqueStations.toLocaleString()} />
-          <StatCard
-            label="States"
-            value={summary.uniqueStates.length.toString()}
-            sub={summary.uniqueStates.slice(0, 6).join(', ') + (summary.uniqueStates.length > 6 ? '…' : '')}
-          />
+        <div className="rounded-xl border border-zinc-200 overflow-hidden bg-zinc-100 shadow-sm">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-px">
+            <StatCard label="Transactions" value={summary.totalTransactions.toLocaleString()} />
+            <StatCard label="Total Gallons" value={fmtGallons(summary.totalGallons)} />
+            <StatCard label="Total Spend" value={fmtDollars(summary.totalSpend)} />
+            <StatCard label="Vehicles" value={summary.uniqueVehicles.toLocaleString()} />
+            <StatCard label="Stations" value={summary.uniqueStations.toLocaleString()} />
+            <StatCard
+              label="States"
+              value={summary.uniqueStates.length.toString()}
+              sub={summary.uniqueStates.slice(0, 6).join(', ') + (summary.uniqueStates.length > 6 ? '…' : '')}
+            />
+          </div>
         </div>
 
         {/* Annualized */}
