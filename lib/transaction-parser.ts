@@ -29,7 +29,15 @@ export interface ParseResult {
   missingRequiredFields: string[]  // canonical names that weren't found in headers
   foundFields: string[]            // canonical names that were detected
   hasDriverData: boolean           // true if any transaction has a non-empty driverName
+  isMobileFueling: boolean         // true if majority of gallons are from mobile fuel delivery vendors
 }
+
+// Vendors that deliver fuel to a customer's location — not physical stations.
+// Proximity analysis is meaningless for these because there's no "pump" to compare against.
+const MOBILE_FUEL_VENDORS = new Set([
+  'DIESEL DIRECT', 'BOOSTER', 'BOOSTER FUELS', 'YOSHI', 'YOSHI MOBILITY',
+  'FILLD', 'SPIFFY', 'FRESH FUEL', 'BATCH MOBILE',
+])
 
 // ─── Header alias map ─────────────────────────────────────────────────────────
 // Keys are canonical field names; values are lists of header aliases (lowercase)
@@ -88,7 +96,7 @@ const FIELD_ALIASES: Record<string, string[]> = {
   stationName: [
     'station name', 'site name', 'location name', 'merchant name',
     'store name', 'location description',
-    'truck stop name',
+    'truck stop name', 'service center',
   ],
   stationBrand: [
     'station brand name', 'brand', 'network', 'station brand',
@@ -141,6 +149,7 @@ const FIELD_ALIASES: Record<string, string[]> = {
   productName: [
     'product name', 'product', 'item', 'fuel grade', 'grade',
     'fuel product', 'product description', 'product desc',
+    'fuel',
   ],
 }
 
@@ -425,7 +434,20 @@ export function parseFleetCSV(content: string): ParseResult {
   }
 
   const hasDriverData = transactions.some(t => !!t.driverName)
-  return { transactions, errors, detectedFormat, missingRequiredFields, foundFields, hasDriverData }
+
+  // Detect mobile fueling: check stationName and productName against known vendors.
+  // "BATCH MOBILE FUEL ONLY" in the product name is also a strong signal.
+  const totalGallons = transactions.reduce((s, t) => s + t.gallons, 0)
+  const mobileGallons = transactions
+    .filter(t => {
+      const name = (t.stationName ?? '').toUpperCase().trim()
+      const prod = (t.productName ?? '').toUpperCase()
+      return MOBILE_FUEL_VENDORS.has(name) || prod.includes('BATCH MOBILE')
+    })
+    .reduce((s, t) => s + t.gallons, 0)
+  const isMobileFueling = totalGallons > 0 && mobileGallons / totalGallons > 0.3
+
+  return { transactions, errors, detectedFormat, missingRequiredFields, foundFields, hasDriverData, isMobileFueling }
 }
 
 // Backward-compatible alias (used by existing imports)

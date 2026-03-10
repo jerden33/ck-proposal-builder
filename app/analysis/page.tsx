@@ -280,7 +280,7 @@ function OpportunityPanel({ analysis, totalGallons, truckMode = false }: { analy
 
 // ─── Proximity Panel (shown in Map tab) ───────────────────────────────────────
 
-function ProximityPanel({ prox, totalGallons }: { prox: NonNullable<TransactionSummary['proximityBreakdown']>; totalGallons: number }) {
+function ProximityPanel({ prox, totalGallons, isMobileFueling }: { prox: NonNullable<TransactionSummary['proximityBreakdown']>; totalGallons: number; isMobileFueling: boolean }) {
   // Combine all within-10mi buckets into one "opportunity" figure — matches map logic
   const opportunityGallons =
     prox.within1mi.gallons + prox.within2mi.gallons +
@@ -295,6 +295,14 @@ function ProximityPanel({ prox, totalGallons }: { prox: NonNullable<TransactionS
 
   return (
     <div className="space-y-3">
+      {isMobileFueling && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+          <span className="mt-0.5 shrink-0">⚠️</span>
+          <span>
+            <strong>Mobile fueling detected.</strong> This report contains fuel deliveries (e.g. Diesel Direct) made directly to the customer's location — not purchases at a fixed pump. Proximity-to-CK figures are based on the delivery city only and are not meaningful for conversion analysis.
+          </span>
+        </div>
+      )}
       <div className="flex items-start justify-between">
         <div>
           <h3 className="font-bold text-off-black">Distance-Based Proximity to Circle K</h3>
@@ -1336,6 +1344,7 @@ function AnalysisPageInner() {
   const [customerName, setCustomerName] = useState('')
   const [fileName, setFileName] = useState('')
   const [detectedFormat, setDetectedFormat] = useState('')
+  const [isMobileFueling, setIsMobileFueling] = useState(false)
   const [missingFields, setMissingFields] = useState<string[]>([])
   const [summary, setSummary] = useState<TransactionSummary | null>(null)
   const [ckStorePins, setCKStorePins] = useState<CKStorePin[]>([])
@@ -1508,9 +1517,10 @@ function AnalysisPageInner() {
       // 2. Parse
       setLoadingStep('Detecting format and parsing transactions…')
       const parseResult = parseFleetCSV(content)
-      const { transactions, detectedFormat: fmt, missingRequiredFields } = parseResult
+      const { transactions, detectedFormat: fmt, missingRequiredFields, isMobileFueling: isMobile } = parseResult
 
       setDetectedFormat(fmt)
+      setIsMobileFueling(isMobile)
       setMissingFields(missingRequiredFields)
 
       if (transactions.length === 0) {
@@ -1692,6 +1702,7 @@ function AnalysisPageInner() {
     setCustomerName('')
     setError(null)
     setDetectedFormat('')
+    setIsMobileFueling(false)
     setMissingFields([])
     setGeocodingInProgress(false)
     setGeocodingProgress(null)
@@ -2121,7 +2132,7 @@ function AnalysisPageInner() {
                   {activeTab === 'map' && featureFlags.mapView && (
                     <div className="space-y-6">
                       {summary.proximityBreakdown && !geocodingInProgress ? (
-                        <ProximityPanel prox={summary.proximityBreakdown} totalGallons={summary.totalGallons} />
+                        <ProximityPanel prox={summary.proximityBreakdown} totalGallons={summary.totalGallons} isMobileFueling={isMobileFueling} />
                       ) : geocodingInProgress ? (
                         <div className="rounded-xl bg-accent-muted border border-accent/20 px-4 py-3 text-sm text-accent flex items-center gap-2">
                           <span className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin shrink-0" />
