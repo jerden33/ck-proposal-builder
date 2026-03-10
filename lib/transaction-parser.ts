@@ -49,6 +49,7 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'trans datetime', 'transaction datetime',
     'trans date', 'date', 'transaction date', 'posting date', 'post date',
     'tran date', 'service date', 'fill date', 'invoice date', 'sale date',
+    'transactionposdate', 'pos date', 'transdate',
   ],
   // Separate time column — used as fallback when the date column has no time
   time: [
@@ -58,12 +59,12 @@ const FIELD_ALIASES: Record<string, string[]> = {
   city: [
     'station city', 'city', 'site city', 'location city', 'trans city',
     'merchant city', 'fuel city', 'fueling city', 'store city',
-    'truck stop city',
+    'truck stop city', 'locationcity', 'transcity', 'sitecity',
   ],
   state: [
     'station state', 'state', 'site state', 'location state',
     'merchant state', 'fuel state', 'fueling state', 'st', 'store state',
-    'prov', 'province',
+    'prov', 'province', 'locationstate', 'transstate',
     // WEX variants — "Merchant State / Province" normalizes to "merchant state province"
     'merchant state province', 'merchant state  province',
     'trans state', 'transaction state', 'service state', 'fill state',
@@ -92,6 +93,7 @@ const FIELD_ALIASES: Record<string, string[]> = {
   fuelType: [
     'epa fuel type purchased', 'epa fuel type', 'fuel type', 'product type',
     'fuel category', 'fuel class', 'energy type',
+    'product code',  // e.g. "Diesel" / "Reefer" — spaced header variant
   ],
   stationName: [
     'station name', 'site name', 'location name', 'merchant name',
@@ -149,7 +151,7 @@ const FIELD_ALIASES: Record<string, string[]> = {
   productName: [
     'product name', 'product', 'item', 'fuel grade', 'grade',
     'fuel product', 'product description', 'product desc',
-    'fuel',
+    'fuel', 'productdescription', 'productcode',
   ],
 }
 
