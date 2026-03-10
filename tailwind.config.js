@@ -8,11 +8,18 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // Studio palette — white-label ready
+        'accent':      '#0EA5E9',   // sky-500  — primary interactive
+        'accent-dark': '#0284C7',   // sky-600  — hover / pressed
+        'accent-muted':'#E0F2FE',   // sky-100  — soft tint backgrounds
+        'off-black':   '#101820',   // dark navy — headings, card headers
+        'off-white':   '#FAFAFA',   // near-white — page background
+        'border':      '#E4E4E7',   // zinc-200 — default borders
+        'muted':       '#71717A',   // zinc-500 — secondary text
+        // Keep for backwards-compat and CK-specific data highlights
         'brand-orange': '#ED8B00',
-        'dark-orange': '#D64303',
-        'off-black': '#101820',
-        'off-white': '#F7F5F2',
-        'ck-grey': '#D0D0CE',
+        'dark-orange':  '#D64303',
+        'ck-grey':      '#D0D0CE',
       },
       fontFamily: {
         sans: ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
