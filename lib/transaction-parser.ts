@@ -332,7 +332,7 @@ export function parseFleetCSV(content: string): ParseResult {
   let headerIdx = 0
   while (headerIdx < rawLines.length && !rawLines[headerIdx].trim()) headerIdx++
   if (headerIdx >= rawLines.length) {
-    return { transactions, errors: ['File is empty'], detectedFormat: 'Unknown', missingRequiredFields: REQUIRED_FIELDS, foundFields: [], hasDriverData: false }
+    return { transactions, errors: ['File is empty'], detectedFormat: 'Unknown', missingRequiredFields: REQUIRED_FIELDS, foundFields: [], hasDriverData: false, isMobileFueling: false }
   }
 
   const headers = parseCSVLine(rawLines[headerIdx])
