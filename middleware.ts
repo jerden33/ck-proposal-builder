@@ -43,8 +43,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // If user is logged in and trying to access login page
-  if (user && pathname === '/login') {
+  // If user is logged in and trying to access login page or root (proposal builder)
+  if (user && (pathname === '/login' || pathname === '/')) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)

@@ -2,19 +2,16 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getUserProfile, getUserProposals, archiveProposal, duplicateProposal, deleteProposal, getUserAnalyses, deleteAnalysis, updateAnalysisAccountName } from '@/lib/supabase/queries'
-import type { UserProfile, ProposalRecord, AnalysisRecord } from '@/lib/types'
-import { Plus, Search, FileText, Eye, Copy, Archive, Calendar, ExternalLink, Trash2, User, BarChart2, Pencil, Check, X, Truck } from 'lucide-react'
+import { getUserProfile, getUserAnalyses, deleteAnalysis, updateAnalysisAccountName } from '@/lib/supabase/queries'
+import type { UserProfile, AnalysisRecord } from '@/lib/types'
+import { Plus, BarChart2, Calendar, ExternalLink, Trash2, User, Pencil, Check, X, Truck, Zap } from 'lucide-react'
 import { Navbar } from '@/components/Navbar'
 
 export default function DashboardPage() {
   const router = useRouter()
   const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [proposals, setProposals] = useState<ProposalRecord[]>([])
   const [analyses, setAnalyses] = useState<AnalysisRecord[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'shared' | 'archived'>('all')
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
 
@@ -24,50 +21,13 @@ export default function DashboardPage() {
 
   const loadData = async () => {
     setLoading(true)
-    const [userProfile, userProposals, userAnalyses] = await Promise.all([
+    const [userProfile, userAnalyses] = await Promise.all([
       getUserProfile(),
-      getUserProposals(),
       getUserAnalyses(),
     ])
     setProfile(userProfile)
-    setProposals(userProposals)
     setAnalyses(userAnalyses)
     setLoading(false)
-  }
-
-  const handleArchive = async (id: string) => {
-    if (confirm('Are you sure you want to archive this proposal?')) {
-      const success = await archiveProposal(id)
-      if (success) {
-        await loadData()
-      }
-    }
-  }
-
-  const handleDuplicate = async (id: string) => {
-    const result = await duplicateProposal(id)
-    if (result) {
-      await loadData()
-      router.push(`/?edit=${result.id}`)
-    }
-  }
-
-  const handleDelete = async (id: string, customerName: string) => {
-    // Only admins and super admins can delete
-    if (!profile?.is_admin && !profile?.is_super_admin) {
-      alert('Only administrators can permanently delete proposals.')
-      return
-    }
-
-    const confirmMessage = `⚠️ WARNING: This will PERMANENTLY DELETE this proposal!\n\nCustomer: ${customerName}\n\nThis action CANNOT be undone. Are you absolutely sure?`
-    if (confirm(confirmMessage)) {
-      const success = await deleteProposal(id)
-      if (success) {
-        await loadData()
-      } else {
-        alert('Failed to delete proposal. Please check console for errors.')
-      }
-    }
   }
 
   const handleDeleteAnalysis = async (id: string, name: string) => {
@@ -90,18 +50,12 @@ export default function DashboardPage() {
     setRenamingId(null)
   }
 
-  const filteredProposals = proposals.filter(p => {
-    const matchesSearch = p.customer_name.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesStatus = statusFilter === 'all' || p.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-off-white to-white">
+      <div className="min-h-screen flex items-center justify-center bg-off-white">
         <div className="text-center">
-          <div className="loading-spinner w-16 h-16 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading dashboard...</p>
+          <div className="w-10 h-10 border-2 border-zinc-200 border-t-accent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-sm text-zinc-500">Loading…</p>
         </div>
       </div>
     )
@@ -111,232 +65,85 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-off-white">
       <Navbar />
 
-      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Actions Bar */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+
+        {/* Page header */}
+        <div className="flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-3xl font-bold text-off-black mb-2">My Proposals</h2>
-            <p className="text-gray-600">
-              {filteredProposals.length} {filteredProposals.length === 1 ? 'proposal' : 'proposals'}
+            <h1 className="text-2xl font-bold text-zinc-900">My Analyses</h1>
+            <p className="text-sm text-zinc-400 mt-0.5">
+              {analyses.length} {analyses.length === 1 ? 'analysis' : 'analyses'} saved
             </p>
           </div>
-
-          <button
-            onClick={() => router.push('/')}
-            className="btn-primary flex items-center justify-center gap-2 text-base"
-          >
-            <Plus size={20} />
-            New Proposal
-          </button>
-        </div>
-
-        {/* Search and Filter */}
-        <div className="card mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="relative">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by customer name..."
-                className="input-field pl-10"
-              />
-            </div>
-
-            <div>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-                className="input-field"
-              >
-                <option value="all">All Proposals</option>
-                <option value="draft">Drafts</option>
-                <option value="shared">Shared</option>
-                <option value="archived">Archived</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Proposals Grid */}
-        {filteredProposals.length === 0 ? (
-          <div className="card text-center py-16">
-            <FileText size={64} className="mx-auto text-gray-300 mb-4" />
-            <h3 className="text-xl font-bold text-gray-700 mb-2">No proposals found</h3>
-            <p className="text-gray-600 mb-6">
-              {searchQuery || statusFilter !== 'all'
-                ? 'Try adjusting your search or filters'
-                : 'Get started by creating your first proposal'}
-            </p>
-            {!searchQuery && statusFilter === 'all' && (
-              <button
-                onClick={() => router.push('/')}
-                className="btn-primary inline-flex items-center gap-2"
-              >
-                <Plus size={20} />
-                Create First Proposal
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProposals.map((proposal) => (
-              <div
-                key={proposal.id}
-                className="card-interactive p-6 group"
-              >
-                {/* Status Badge */}
-                <div className="flex items-center justify-between mb-4">
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      proposal.status === 'shared'
-                        ? 'bg-green-100 text-green-800'
-                        : proposal.status === 'archived'
-                        ? 'bg-gray-100 text-gray-800'
-                        : 'bg-blue-100 text-blue-800'
-                    }`}
-                  >
-                    {proposal.status.charAt(0).toUpperCase() + proposal.status.slice(1)}
-                  </span>
-
-                  <div className="flex items-center gap-1 text-xs text-gray-500">
-                    <Eye size={14} />
-                    {proposal.view_count}
-                  </div>
-                </div>
-
-                {/* Customer Name */}
-                <h3 className="text-xl font-bold text-off-black mb-2 line-clamp-2">
-                  {proposal.customer_name}
-                </h3>
-
-                {/* Show proposal owner for super admins only */}
-                {profile?.is_super_admin && proposal.profiles && (
-                  <div className="flex items-center gap-1 text-xs text-gray-500 mb-3 bg-gray-50 px-2 py-1 rounded">
-                    <User size={12} />
-                    <span className="font-medium">Created by:</span>
-                    <span>{proposal.profiles.full_name || proposal.profiles.email}</span>
-                  </div>
-                )}
-
-                {/* Dates */}
-                <div className="space-y-1 mb-6">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Calendar size={14} />
-                    Created {new Date(proposal.created_at).toLocaleDateString()}
-                  </div>
-                  {proposal.last_viewed_at && (
-                    <div className="text-xs text-gray-500">
-                      Last viewed {new Date(proposal.last_viewed_at).toLocaleDateString()}
-                    </div>
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => window.open(`/proposal?id=${proposal.id}`, '_blank')}
-                    className="btn-secondary text-sm flex items-center justify-center gap-2"
-                  >
-                    <ExternalLink size={14} />
-                    View
-                  </button>
-
-                  <button
-                    onClick={() => handleDuplicate(proposal.id)}
-                    className="btn-secondary text-sm flex items-center justify-center gap-2"
-                  >
-                    <Copy size={14} />
-                    Duplicate
-                  </button>
-                </div>
-
-                {proposal.status !== 'archived' && (
-                  <button
-                    onClick={() => handleArchive(proposal.id)}
-                    className="w-full mt-2 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Archive size={14} />
-                    Archive
-                  </button>
-                )}
-
-                {(profile?.is_admin || profile?.is_super_admin) && (
-                  <button
-                    onClick={() => handleDelete(proposal.id, proposal.customer_name)}
-                    className="w-full mt-2 py-2 text-sm text-red-600 hover:text-white hover:bg-red-600 rounded-lg transition-colors flex items-center justify-center gap-2 border border-red-200"
-                  >
-                    <Trash2 size={14} />
-                    Delete Permanently
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-        {/* ── Saved Analyses ──────────────────────────────────────────── */}
-        <div className="mt-12">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-off-black flex items-center gap-2">
-                <BarChart2 size={22} />
-                Saved Analyses
-              </h2>
-              <p className="text-gray-600 text-sm mt-1">
-                {analyses.length} {analyses.length === 1 ? 'analysis' : 'analyses'}
-              </p>
-            </div>
+          <div className="flex items-center gap-2">
             <button
               onClick={() => router.push('/analysis')}
-              className="btn-secondary flex items-center gap-2 text-sm"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-zinc-200 text-sm font-medium text-zinc-700 hover:border-zinc-300 hover:text-zinc-900 transition-colors shadow-sm"
             >
-              <Plus size={16} />
-              New Analysis
+              <BarChart2 size={15} />
+              Fleet Analysis
+            </button>
+            <button
+              onClick={() => router.push('/otr')}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-zinc-200 text-sm font-medium text-zinc-700 hover:border-zinc-300 hover:text-zinc-900 transition-colors shadow-sm"
+            >
+              <Truck size={15} />
+              OTR Corridor
             </button>
           </div>
+        </div>
 
-          {analyses.length === 0 ? (
-            <div className="card text-center py-12">
-              <BarChart2 size={48} className="mx-auto text-gray-300 mb-3" />
-              <h3 className="text-lg font-bold text-gray-700 mb-1">No saved analyses yet</h3>
-              <p className="text-gray-500 text-sm mb-5">
-                Upload a fleet transaction report in the Analysis tool and click Save to store it here.
-              </p>
+        {/* Analyses */}
+        {analyses.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm text-center py-20">
+            <div className="w-12 h-12 rounded-xl bg-zinc-100 flex items-center justify-center mx-auto mb-4">
+              <Zap size={20} className="text-zinc-400" />
+            </div>
+            <h3 className="text-base font-semibold text-zinc-700 mb-1">No analyses yet</h3>
+            <p className="text-sm text-zinc-400 mb-6 max-w-xs mx-auto">
+              Upload a fleet transaction file in the Analysis or OTR tool, then click Save.
+            </p>
+            <div className="flex items-center justify-center gap-3">
               <button
                 onClick={() => router.push('/analysis')}
-                className="btn-primary inline-flex items-center gap-2"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90 transition-colors"
               >
-                <BarChart2 size={16} />
-                Open Analysis Tool
+                <BarChart2 size={15} />
+                Fleet Analysis
+              </button>
+              <button
+                onClick={() => router.push('/otr')}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-zinc-200 text-sm font-medium text-zinc-700 hover:border-zinc-300 transition-colors"
+              >
+                <Truck size={15} />
+                OTR Corridor
               </button>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {analyses.map(a => {
-                const isOTR = a.data?.analysisType === 'otr'
-                return (
-                <div key={a.id} className="card-interactive p-6 group">
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {analyses.map(a => {
+              const isOTR = a.data?.analysisType === 'otr'
+              return (
+                <div key={a.id} className="bg-white rounded-xl border border-zinc-200 shadow-sm p-5 group hover:border-zinc-300 hover:shadow-md transition-all">
+
+                  {/* Header row */}
                   <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      {isOTR ? (
-                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 flex items-center gap-1.5">
-                          <Truck size={11} />
-                          OTR Corridor
-                        </span>
-                      ) : (
-                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
-                          {a.detected_format || 'Fleet Analysis'}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <Calendar size={13} />
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                      isOTR
+                        ? 'bg-zinc-100 text-zinc-600'
+                        : 'bg-zinc-100 text-zinc-600'
+                    }`}>
+                      {isOTR ? <Truck size={11} /> : <BarChart2 size={11} />}
+                      {isOTR ? 'OTR Corridor' : (a.detected_format || 'Fleet Analysis')}
+                    </span>
+                    <div className="flex items-center gap-1 text-xs text-zinc-400">
+                      <Calendar size={12} />
                       {new Date(a.created_at).toLocaleDateString()}
                     </div>
                   </div>
 
+                  {/* Account name (editable) */}
                   {renamingId === a.id ? (
                     <div className="flex items-center gap-1 mb-1">
                       <input
@@ -348,85 +155,87 @@ export default function DashboardPage() {
                           if (e.key === 'Escape') setRenamingId(null)
                         }}
                         onBlur={() => commitRename(a.id)}
-                        className="flex-1 text-lg font-bold text-off-black border-b-2 border-brand-orange bg-transparent outline-none min-w-0"
+                        className="flex-1 text-base font-semibold text-zinc-900 border-b-2 border-accent bg-transparent outline-none min-w-0"
                       />
-                      <button onMouseDown={() => commitRename(a.id)} className="text-green-600 hover:text-green-700 shrink-0"><Check size={16} /></button>
-                      <button onMouseDown={() => setRenamingId(null)} className="text-gray-400 hover:text-gray-600 shrink-0"><X size={16} /></button>
+                      <button onMouseDown={() => commitRename(a.id)} className="text-green-600 hover:text-green-700 shrink-0"><Check size={15} /></button>
+                      <button onMouseDown={() => setRenamingId(null)} className="text-zinc-400 hover:text-zinc-600 shrink-0"><X size={15} /></button>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1.5 mb-1 group/name">
-                      <h3 className="text-lg font-bold text-off-black line-clamp-1 min-w-0">{a.account_name}</h3>
+                      <h3 className="text-base font-semibold text-zinc-900 line-clamp-1 min-w-0">{a.account_name}</h3>
                       <button
                         onClick={() => startRename(a)}
-                        className="text-gray-300 hover:text-gray-500 opacity-0 group-hover/name:opacity-100 transition-opacity shrink-0"
+                        className="text-zinc-300 hover:text-zinc-500 opacity-0 group-hover/name:opacity-100 transition-opacity shrink-0"
                         title="Rename"
                       >
-                        <Pencil size={13} />
+                        <Pencil size={12} />
                       </button>
                     </div>
                   )}
+
                   {profile?.is_super_admin && a.profiles && (
-                    <div className="flex items-center gap-1 text-xs text-gray-500 mb-2 bg-gray-50 px-2 py-1 rounded">
-                      <User size={12} />
-                      <span className="font-medium">Created by:</span>
+                    <div className="flex items-center gap-1 text-xs text-zinc-400 mb-2">
+                      <User size={11} />
                       <span>{a.profiles.full_name || a.profiles.email}</span>
                     </div>
                   )}
-                  <p className="text-xs text-gray-400 mb-3 truncate">{a.file_name}</p>
-
-                  <div className="grid grid-cols-3 gap-2 mb-4 text-center">
-                    <div className="bg-gray-50 rounded-lg px-2 py-2">
-                      <p className="text-xs text-gray-500">Trans.</p>
-                      <p className="font-bold text-off-black text-sm">{a.total_transactions.toLocaleString()}</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg px-2 py-2">
-                      <p className="text-xs text-gray-500">Gallons</p>
-                      <p className="font-bold text-off-black text-sm">
-                        {a.total_gallons >= 1000
-                          ? `${(a.total_gallons / 1000).toFixed(1)}k`
-                          : a.total_gallons.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      </p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg px-2 py-2">
-                      <p className="text-xs text-gray-500">Spend</p>
-                      <p className="font-bold text-off-black text-sm">
-                        {a.total_spend >= 1000000
-                          ? `$${(a.total_spend / 1000000).toFixed(1)}M`
-                          : a.total_spend >= 1000
-                          ? `$${(a.total_spend / 1000).toFixed(0)}k`
-                          : `$${a.total_spend.toFixed(0)}`}
-                      </p>
-                    </div>
-                  </div>
 
                   {(a.date_range_start || a.date_range_end) && (
-                    <p className="text-xs text-gray-400 mb-4">
+                    <p className="text-xs text-zinc-400 mb-3">
                       {a.date_range_start}
                       {a.date_range_end && a.date_range_end !== a.date_range_start ? ` – ${a.date_range_end}` : ''}
                     </p>
                   )}
 
+                  {/* Mini stats */}
+                  <div className="rounded-lg border border-zinc-100 overflow-hidden bg-zinc-50 mb-4">
+                    <div className="grid grid-cols-3 divide-x divide-zinc-100">
+                      <div className="px-3 py-2 text-center">
+                        <p className="text-xs text-zinc-400 mb-0.5">Trans.</p>
+                        <p className="text-sm font-bold text-zinc-800">{a.total_transactions.toLocaleString()}</p>
+                      </div>
+                      <div className="px-3 py-2 text-center">
+                        <p className="text-xs text-zinc-400 mb-0.5">Gallons</p>
+                        <p className="text-sm font-bold text-zinc-800">
+                          {a.total_gallons >= 1000
+                            ? `${(a.total_gallons / 1000).toFixed(1)}k`
+                            : a.total_gallons.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </p>
+                      </div>
+                      <div className="px-3 py-2 text-center">
+                        <p className="text-xs text-zinc-400 mb-0.5">Spend</p>
+                        <p className="text-sm font-bold text-zinc-800">
+                          {a.total_spend >= 1000000
+                            ? `$${(a.total_spend / 1000000).toFixed(1)}M`
+                            : a.total_spend >= 1000
+                            ? `$${(a.total_spend / 1000).toFixed(0)}k`
+                            : `$${a.total_spend.toFixed(0)}`}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
                   <div className="flex gap-2">
                     <button
                       onClick={() => router.push(isOTR ? `/otr?load=${a.id}` : `/analysis?load=${a.id}`)}
-                      className="flex-1 btn-secondary text-sm flex items-center justify-center gap-2"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-800 transition-colors"
                     >
                       <ExternalLink size={13} />
                       Open
                     </button>
                     <button
                       onClick={() => handleDeleteAnalysis(a.id, a.account_name)}
-                      className="px-3 py-2 text-sm text-red-500 hover:text-white hover:bg-red-500 rounded-lg border border-red-200 transition-colors"
+                      className="px-3 py-2 text-sm text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg border border-zinc-200 transition-colors"
                     >
                       <Trash2 size={13} />
                     </button>
                   </div>
                 </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )
