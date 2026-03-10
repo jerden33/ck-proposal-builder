@@ -2,9 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
-import { Mail, Lock, AlertCircle } from 'lucide-react'
+import { Mail, Lock, AlertCircle, Zap } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -41,47 +40,38 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-off-white via-white to-gray-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
+    <div className="min-h-screen bg-zinc-50 flex items-center justify-center px-4">
+      <div className="w-full max-w-sm">
+
+        {/* Product mark */}
         <div className="text-center mb-8">
-          <div className="inline-block bg-white rounded-2xl px-6 py-4 shadow-lg border border-gray-100 mb-4">
-            <Image
-              src="/circle-k-pro-logo.png"
-              alt="Circle K Pro"
-              width={160}
-              height={48}
-              className="w-40 h-auto"
-              priority
-            />
+          <div className="inline-flex items-center justify-center w-11 h-11 bg-accent rounded-xl mb-4">
+            <Zap size={20} className="text-white" strokeWidth={2.5} />
           </div>
-          <h1 className="text-3xl font-bold text-off-black mb-2">Proposal Builder</h1>
-          <p className="text-gray-600">Sign in to your account</p>
+          <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">Fleet Insights</h1>
+          <p className="text-sm text-zinc-500 mt-1">Sign in to your account</p>
         </div>
 
         {/* Login Card */}
-        <div className="card">
-          <form onSubmit={handleLogin} className="space-y-5">
+        <div className="bg-white rounded-2xl border border-zinc-200 p-6" style={{boxShadow:'0 1px 3px rgba(0,0,0,0.04),0 4px 8px rgba(0,0,0,0.03)'}}>
+          <form onSubmit={handleLogin} className="space-y-4">
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-                <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-red-800 mb-1">Sign in failed</p>
-                  <p className="text-sm text-red-700">{error}</p>
-                </div>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2.5">
+                <AlertCircle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-700">{error}</p>
               </div>
             )}
 
             <div>
               <label className="input-label">Email</label>
               <div className="relative">
-                <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="john.smith@company.com"
-                  className="input-field pl-10"
+                  placeholder="you@company.com"
+                  className="input-field pl-9"
                   required
                   autoComplete="email"
                 />
@@ -91,13 +81,13 @@ export default function LoginPage() {
             <div>
               <label className="input-label">Password</label>
               <div className="relative">
-                <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="input-field pl-10"
+                  className="input-field pl-9"
                   required
                   autoComplete="current-password"
                 />
@@ -107,11 +97,11 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full flex items-center justify-center gap-2 text-base py-3"
+              className="btn-primary w-full flex items-center justify-center gap-2 py-2.5 mt-1"
             >
               {loading ? (
                 <>
-                  <div className="loading-spinner w-5 h-5 border-2"></div>
+                  <div className="loading-spinner w-4 h-4 border-2"></div>
                   Signing in...
                 </>
               ) : (
@@ -120,19 +110,14 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* No Signup Message */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <p className="text-sm text-gray-600 text-center">
-              Don't have access?{' '}
-              <span className="font-semibold text-dark-orange">Contact your administrator</span>
+          <div className="mt-5 pt-5 border-t border-zinc-100">
+            <p className="text-xs text-zinc-400 text-center">
+              Need access?{' '}
+              <span className="font-medium text-zinc-600">Contact your administrator</span>
             </p>
           </div>
         </div>
 
-        {/* Footer */}
-        <p className="text-center text-sm text-gray-500 mt-8">
-          © {new Date().getFullYear()} Circle K Pro. All rights reserved.
-        </p>
       </div>
     </div>
   )

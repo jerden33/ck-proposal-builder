@@ -5,8 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getUserProfile } from '@/lib/supabase/queries'
 import type { UserProfile } from '@/lib/types'
-import { BarChart2, Truck, LayoutDashboard, Settings, LogOut } from 'lucide-react'
-import Image from 'next/image'
+import { BarChart2, Truck, LayoutDashboard, Settings, LogOut, Zap } from 'lucide-react'
 
 const NAV_LINKS = [
   { label: 'Analysis',  href: '/analysis',   icon: BarChart2 },
@@ -41,23 +40,18 @@ export function Navbar() {
   return (
     <nav className="bg-white border-b border-zinc-200">
       <div className="max-w-7xl mx-auto px-6">
-        <div className="flex items-center justify-between h-[60px]">
+        <div className="flex items-center justify-between h-14">
 
           {/* Brand */}
           <button
             onClick={() => router.push('/dashboard')}
-            className="flex items-center gap-3 group"
+            className="flex items-center gap-2 group"
           >
-            <Image
-              src="/circle-k-pro-logo.png"
-              alt="Circle K Pro"
-              width={120}
-              height={36}
-              className="h-8 w-auto"
-            />
-            <div className="h-5 w-px bg-zinc-200" />
-            <span className="text-sm font-semibold text-zinc-600 group-hover:text-zinc-900 transition-colors">
-              Proposal Builder
+            <div className="w-7 h-7 bg-accent rounded-lg flex items-center justify-center shrink-0">
+              <Zap size={14} className="text-white" strokeWidth={2.5} />
+            </div>
+            <span className="font-semibold text-zinc-800 text-sm tracking-tight group-hover:text-zinc-900 transition-colors">
+              Fleet Insights
             </span>
           </button>
 
@@ -71,8 +65,8 @@ export function Navbar() {
                   onClick={() => router.push(href)}
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors
                     ${active
-                      ? 'bg-accent/10 text-accent'
-                      : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'
+                      ? 'bg-zinc-100 text-zinc-900'
+                      : 'text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50'
                     }`}
                 >
                   <Icon size={14} strokeWidth={2} />
@@ -86,8 +80,8 @@ export function Navbar() {
                 onClick={() => router.push('/admin')}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors
                   ${pathname?.startsWith('/admin')
-                    ? 'bg-accent/10 text-accent'
-                    : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'
+                    ? 'bg-zinc-100 text-zinc-900'
+                    : 'text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50'
                   }`}
               >
                 <Settings size={14} strokeWidth={2} />
@@ -97,9 +91,9 @@ export function Navbar() {
           </div>
 
           {/* User */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <div className="text-right">
-              <p className="text-sm font-semibold text-zinc-800 leading-tight">
+              <p className="text-sm font-medium text-zinc-700 leading-tight">
                 {profile.full_name || profile.email}
               </p>
               <p className="text-xs text-zinc-400 leading-tight">{roleLabel}</p>
@@ -107,7 +101,7 @@ export function Navbar() {
             <button
               onClick={handleLogout}
               title="Log out"
-              className="text-zinc-400 hover:text-zinc-700 p-1.5 rounded-lg hover:bg-zinc-100 transition-colors"
+              className="text-zinc-400 hover:text-zinc-600 p-1.5 rounded-lg hover:bg-zinc-100 transition-colors"
             >
               <LogOut size={15} strokeWidth={2} />
             </button>
