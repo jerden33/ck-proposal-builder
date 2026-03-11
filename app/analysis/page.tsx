@@ -49,7 +49,6 @@ import {
   type FraudFlag,
 } from '@/lib/transaction-analysis'
 import { geocodeLocations, geocodeAddresses, geoKey, addrGeoKey } from '@/lib/geocoding'
-import { runOTRAnalysis } from '@/lib/otr-analysis'
 import type { CKStorePin } from '@/components/FuelingMap'
 
 // Dynamically import the map (Mapbox can't SSR)
@@ -84,8 +83,6 @@ type FeatureKey =
   | 'timeOfDay'
   | 'fraudFlags'
   | 'skipGeocoding'  // processing option — skips API calls, disables map/proximity
-  | 'truckMode'     // processing option — scopes opportunity to truck-accessible CK sites
-  | 'otrAnalysis'   // corridor-based OTR opportunity breakdown (requires geocoding)
 
 type FeatureFlags = Record<FeatureKey, boolean>
 
@@ -102,15 +99,12 @@ const DEFAULT_FEATURES: FeatureFlags = {
   timeOfDay: true,
   fraudFlags: false,
   skipGeocoding: false,
-  truckMode: false,
-  otrAnalysis: false,
 }
 
 interface FeatureDef {
   key: FeatureKey
   label: string
   desc: string
-  badge?: string
 }
 
 // Display modules shown in both the upload selector and results toggle bar
@@ -121,12 +115,11 @@ const FEATURE_DEFS: FeatureDef[] = [
   { key: 'vehicles',            label: 'Vehicle Breakdown',      desc: 'Per-unit stats (needs Unit # column)' },
   { key: 'mapView',             label: 'Map View',               desc: 'Interactive fueling location map' },
   { key: 'fuelTypeSplit',       label: 'Fuel Type Split',        desc: 'Diesel vs. unleaded breakdown' },
-  { key: 'savingsCalc',         label: 'Savings Calculator',     desc: 'Estimated $ opportunity with a CK rebate', badge: 'New' },
-  { key: 'annualized',          label: 'Annualized View',        desc: 'Monthly & yearly projections from data window', badge: 'New' },
-  { key: 'behavioralInsights',  label: 'Behavioral Insights',    desc: 'Vehicle segments, top opportunity units & fill frequency', badge: 'New' },
-  { key: 'timeOfDay',           label: 'Time Patterns',          desc: 'Hourly & day-of-week fueling (needs timestamp data)', badge: 'New' },
-  { key: 'fraudFlags',          label: 'Fraud Flags',            desc: 'High-gallon fills, multi-fill days, PPG outliers & state hops', badge: 'New' },
-  { key: 'otrAnalysis',         label: 'OTR Corridor Analysis',  desc: 'Highway-corridor opportunity breakdown for Over-The-Road fleets (requires geocoding)', badge: 'OTR' },
+  { key: 'savingsCalc',         label: 'Savings Calculator',     desc: 'Estimated $ opportunity with a CK rebate' },
+  { key: 'annualized',          label: 'Annualized View',        desc: 'Monthly & yearly projections from data window' },
+  { key: 'behavioralInsights',  label: 'Behavioral Insights',    desc: 'Vehicle segments, top opportunity units & fill frequency' },
+  { key: 'timeOfDay',           label: 'Time Patterns',          desc: 'Hourly & day-of-week fueling (needs timestamp data)' },
+  { key: 'fraudFlags',          label: 'Fraud Flags',            desc: 'High-gallon fills, multi-fill days, PPG outliers & state hops' },
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -629,16 +622,9 @@ function FeatureSelector({
                 className="accent-[#0EA5E9] w-4 h-4 mt-0.5 shrink-0"
               />
               <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-medium text-off-black group-hover:text-zinc-700 transition-colors">
-                    {def.label}
-                  </span>
-                  {def.badge && (
-                    <span className="text-xs bg-green-100 text-green-700 rounded px-1.5 py-0.5 font-semibold leading-none">
-                      {def.badge}
-                    </span>
-                  )}
-                </div>
+                <span className="text-sm font-medium text-off-black group-hover:text-zinc-700 transition-colors">
+                  {def.label}
+                </span>
                 <p className="text-xs text-gray-400 leading-tight mt-0.5">{def.desc}</p>
               </div>
             </label>
@@ -666,23 +652,6 @@ function FeatureSelector({
             <p className="text-xs text-gray-400 leading-tight mt-0.5">
               Faster load, no Mapbox API calls. Disables map pins and proximity analysis.
               Best for quick reviews — re-upload to enable full analysis.
-            </p>
-          </div>
-        </label>
-        <label className="flex items-start gap-2.5 cursor-pointer group">
-          <input
-            type="checkbox"
-            checked={flags.truckMode}
-            onChange={e => onChange('truckMode', e.target.checked)}
-            className="accent-[#0EA5E9] w-4 h-4 mt-0.5 shrink-0"
-          />
-          <div>
-            <span className="text-sm font-medium text-off-black group-hover:text-zinc-700 transition-colors">
-              OTR / Truck Mode
-            </span>
-            <p className="text-xs text-gray-400 leading-tight mt-0.5">
-              Scopes the opportunity calculation to truck-accessible CK locations only (451 sites with truck lanes).
-              Fueling stats are unchanged — only the capturable opportunity reflects truck-viable sites. Re-upload to apply.
             </p>
           </div>
         </label>
@@ -757,16 +726,9 @@ function FeatureToggleBar({
                 className="accent-[#0EA5E9] w-4 h-4 mt-0.5 shrink-0"
               />
               <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-medium text-off-black group-hover:text-zinc-700 transition-colors">
-                    {def.label}
-                  </span>
-                  {def.badge && (
-                    <span className="text-xs bg-green-100 text-green-700 rounded px-1.5 py-0.5 font-semibold leading-none">
-                      {def.badge}
-                    </span>
-                  )}
-                </div>
+                <span className="text-sm font-medium text-off-black group-hover:text-zinc-700 transition-colors">
+                  {def.label}
+                </span>
                 <p className="text-xs text-gray-400 leading-tight mt-0.5">{def.desc}</p>
               </div>
             </label>
@@ -1475,7 +1437,7 @@ function AnalysisPageInner() {
     if (!summary) return
     setSaving(true)
     setSaveError(null)
-    const result = await createAnalysis(customerName, fileName, { ...summary, rebateRate, truckMode: featureFlags.truckMode } as unknown as Record<string, unknown>)
+    const result = await createAnalysis(customerName, fileName, { ...summary, rebateRate } as unknown as Record<string, unknown>)
     if (result) {
       setSavedAnalysisId(result.id)
       // Update browser URL so a refresh keeps it linked, without full navigation
@@ -1544,14 +1506,6 @@ function AnalysisPageInner() {
         .filter(s => s.coordinates?.lat && s.coordinates?.lng)
         .map(s => ({ lat: s.coordinates.lat, lng: s.coordinates.lng, name: s.name, city: s.city, state: s.state, truckAccessible: s.truckAccessible }))
 
-      const truckRecords = storeRecords.filter(s => s.truckAccessible)
-      const ckTruckZipSet = buildCKZipSet(truckRecords)
-      const ckTruckStoreCoords: CKStoreCoord[] = truckRecords
-        .filter(s => s.coordinates?.lat && s.coordinates?.lng)
-        .map(s => ({ lat: s.coordinates.lat, lng: s.coordinates.lng, name: s.name, city: s.city, state: s.state, truckAccessible: true }))
-      const activeZipSet = featureFlagsRef.current.truckMode ? ckTruckZipSet : ckZipSet
-      const activeStoreCoords = featureFlagsRef.current.truckMode ? ckTruckStoreCoords : ckStoreCoords
-
       const pins: CKStorePin[] = storeRecords
         .filter(s => s.coordinates?.lat && s.coordinates?.lng)
         .map(s => ({
@@ -1565,33 +1519,28 @@ function AnalysisPageInner() {
         }))
       setCKStorePins(pins)
 
-      // 4. Initial analysis (ZIP-based, immediate)
+      // 4. Initial analysis (ZIP-based)
       setLoadingStep('Running analysis…')
-      const result = analyzeTransactions(transactions, activeZipSet, { detectedFormat: fmt })
-      setSummary(result)
+      const result = analyzeTransactions(transactions, ckZipSet, { detectedFormat: fmt })
       setRestoredFromCache(false)
 
-      // Capture current flags at the time of upload for cache
-      setFeatureFlags(prev => {
-        try {
-          localStorage.setItem('ck-analysis-v1', JSON.stringify({
-            summary: result,
-            fileName: file.name,
-            customerName,
-            detectedFormat: fmt,
-            missingFields: missingRequiredFields,
-            featureFlags: prev,
-          }))
-        } catch { /* storage full — ignore */ }
-        return prev
-      })
+      // 5. Skip geocoding — show results immediately
+      if (featureFlagsRef.current.skipGeocoding) {
+        setSummary(result)
+        setFeatureFlags(prev => {
+          try {
+            localStorage.setItem('ck-analysis-v1', JSON.stringify({
+              summary: result, fileName: file.name, customerName,
+              detectedFormat: fmt, missingFields: missingRequiredFields, featureFlags: prev,
+            }))
+          } catch { /* storage full */ }
+          return prev
+        })
+        setLoading(false)
+        return
+      }
 
-      setLoading(false)
-
-      // 5. Skip geocoding if user opted into quick analysis
-      if (featureFlagsRef.current.skipGeocoding) return
-
-      // 6. Background geocoding → re-run analysis with proximity data
+      // 6. Geocoding — keep loading screen showing until complete
       const uniqueLocations = Array.from(
         new Set(transactions.map(t => geoKey(t.stationCity, t.stationState)))
       )
@@ -1615,11 +1564,16 @@ function AnalysisPageInner() {
         return { address, city, state }
       })
 
-      if (uniqueLocations.length === 0 || !process.env.NEXT_PUBLIC_MAPBOX_TOKEN) return
+      if (uniqueLocations.length === 0 || !process.env.NEXT_PUBLIC_MAPBOX_TOKEN) {
+        // No geocoding possible — show results
+        setSummary(result)
+        setLoading(false)
+        return
+      }
 
-
-      const totalGeoItems = uniqueLocations.length + uniqueAddresses.length
+      setLoading(false)
       setGeocodingInProgress(true)
+      const totalGeoItems = uniqueLocations.length + uniqueAddresses.length
       setGeocodingProgress({ done: 0, total: totalGeoItems })
       let geoDone = 0
 
@@ -1646,31 +1600,22 @@ function AnalysisPageInner() {
         }
       }
 
-      const enrichedResult = analyzeTransactions(transactions, activeZipSet, {
+      const enrichedResult = analyzeTransactions(transactions, ckZipSet, {
         detectedFormat: fmt,
         geocodedCoords,
         geocodedAddresses: geocodedAddrs,
-        ckStores: activeStoreCoords,
+        ckStores: ckStoreCoords,
       })
-
-      // Run OTR corridor analysis if the feature flag is on and we have map points
-      if (featureFlagsRef.current.otrAnalysis && enrichedResult.mapPoints.length > 0) {
-        enrichedResult.otrAnalysis = runOTRAnalysis(enrichedResult.mapPoints, ckStorePins)
-      }
 
       setSummary(enrichedResult)
 
       setFeatureFlags(prev => {
         try {
           localStorage.setItem('ck-analysis-v1', JSON.stringify({
-            summary: enrichedResult,
-            fileName: file.name,
-            customerName,
-            detectedFormat: fmt,
-            missingFields: missingRequiredFields,
-            featureFlags: prev,
+            summary: enrichedResult, fileName: file.name, customerName,
+            detectedFormat: fmt, missingFields: missingRequiredFields, featureFlags: prev,
           }))
-        } catch { /* storage full — ignore */ }
+        } catch { /* storage full */ }
         return prev
       })
 
@@ -1722,6 +1667,46 @@ function AnalysisPageInner() {
   // Months spanned by data (used by Savings Calc and Annualized panels)
   const monthSpan = summary ? computeMonthSpan(summary.dateRange) : 1
 
+  // ── Full-page loading screen (parsing or geocoding) ──────────────────────────
+  if (loading || geocodingInProgress) {
+    const isGeocoding = geocodingInProgress
+    const pct = geocodingProgress
+      ? Math.round((geocodingProgress.done / geocodingProgress.total) * 100)
+      : 0
+
+    return (
+      <div className="min-h-screen bg-off-white">
+        <Navbar />
+        <div className="max-w-md mx-auto px-6 py-24 text-center">
+          <div className="w-14 h-14 rounded-full bg-zinc-100 flex items-center justify-center mx-auto mb-6">
+            <BarChart2 size={24} className="text-zinc-500 animate-pulse" />
+          </div>
+          <h2 className="text-xl font-bold text-off-black mb-2">
+            {isGeocoding ? 'Geocoding locations…' : loadingStep || 'Processing…'}
+          </h2>
+          {isGeocoding && geocodingProgress ? (
+            <>
+              <p className="text-sm text-gray-500 mb-5">
+                Locating {geocodingProgress.total.toLocaleString()} unique fueling points on the map
+              </p>
+              <div className="bg-zinc-200 rounded-full h-1.5 w-full mb-2">
+                <div
+                  className="bg-accent h-1.5 rounded-full transition-all duration-300"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <p className="text-xs text-gray-400">
+                {geocodingProgress.done.toLocaleString()} / {geocodingProgress.total.toLocaleString()} ({pct}%)
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-gray-500">Reading and analyzing your fleet data…</p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-off-white">
       <Navbar />
@@ -1766,19 +1751,10 @@ function AnalysisPageInner() {
               }`}
             >
               <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls,.txt" onChange={handleFileChange} className="hidden" />
-              {loading ? (
-                <div>
-                  <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                  <p className="text-gray-600 font-medium">{loadingStep}</p>
-                </div>
-              ) : (
-                <>
-                  <Upload size={40} className="mx-auto text-gray-400 mb-4" />
-                  <p className="font-semibold text-off-black mb-1">Drop your fleet transaction file here</p>
-                  <p className="text-sm text-gray-500">WEX, Fuelman, Fleetcor, Comdata, or any fleet card export</p>
-                  <p className="text-xs text-gray-400 mt-3">Click to browse · .xlsx, .xls, .csv, .txt supported</p>
-                </>
-              )}
+              <Upload size={40} className="mx-auto text-gray-400 mb-4" />
+              <p className="font-semibold text-off-black mb-1">Drop your fleet transaction file here</p>
+              <p className="text-sm text-gray-500">WEX, Fuelman, Fleetcor, Comdata, or any fleet card export</p>
+              <p className="text-xs text-gray-400 mt-3">Click to browse · .xlsx, .xls, .csv, .txt supported</p>
             </div>
 
             {error && (
@@ -1844,11 +1820,6 @@ function AnalysisPageInner() {
                   {featureFlags.skipGeocoding && (
                     <span className="text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 rounded px-2 py-0.5 flex items-center gap-1">
                       <Zap size={11} />Quick mode — no geocoding
-                    </span>
-                  )}
-                  {featureFlags.truckMode && (
-                    <span className="text-xs bg-amber-100 text-amber-800 border border-amber-200 rounded px-2 py-0.5 flex items-center gap-1">
-                      🚛 OTR / Truck Mode
                     </span>
                   )}
                   {geocodingInProgress && geocodingProgress && (
@@ -1932,7 +1903,7 @@ function AnalysisPageInner() {
             )}
 
             {/* CK Opportunity Panel */}
-            <OpportunityPanel analysis={summary.ckCaptureAnalysis} totalGallons={summary.totalGallons} truckMode={featureFlags.truckMode} />
+            <OpportunityPanel analysis={summary.ckCaptureAnalysis} totalGallons={summary.totalGallons} />
 
             {/* Savings Calculator (if enabled) */}
             {featureFlags.savingsCalc && (
@@ -1945,11 +1916,11 @@ function AnalysisPageInner() {
               />
             )}
 
-            {/* OTR Corridor Analysis */}
-            {featureFlags.otrAnalysis && summary.otrAnalysis && (
+            {/* OTR Corridor Analysis — removed from this page */}
+            {false && summary.otrAnalysis && (
               <OTRAnalysisPanel otr={summary.otrAnalysis} months={monthSpan} />
             )}
-            {featureFlags.otrAnalysis && !summary.otrAnalysis && (
+            {false && !summary.otrAnalysis && (
               <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 text-center text-sm text-gray-500">
                 <Truck size={28} className="mx-auto text-gray-300 mb-3" />
                 OTR Corridor Analysis requires geocoding to complete.
@@ -2149,7 +2120,6 @@ function AnalysisPageInner() {
                         ckStores={ckStorePins}
                         height={560}
                         geocodingInProgress={geocodingInProgress}
-                        truckMode={featureFlags.truckMode}
                       />
                     </div>
                   )}
