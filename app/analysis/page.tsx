@@ -1913,20 +1913,6 @@ function AnalysisPageInner() {
               />
             )}
 
-            {/* OTR Corridor Analysis — removed from this page */}
-            {false && summary.otrAnalysis && (
-              <OTRAnalysisPanel otr={summary.otrAnalysis} months={monthSpan} />
-            )}
-            {false && !summary.otrAnalysis && (
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 text-center text-sm text-gray-500">
-                <Truck size={28} className="mx-auto text-gray-300 mb-3" />
-                OTR Corridor Analysis requires geocoding to complete.
-                {featureFlags.skipGeocoding
-                  ? ' Disable "Quick Mode" and re-upload the file.'
-                  : ' Geocoding is in progress — the corridor breakdown will appear when it finishes.'}
-              </div>
-            )}
-
             {/* Tabbed detail sections — only shown if at least one tab is visible */}
             {visibleTabs.length > 0 && (
               <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
