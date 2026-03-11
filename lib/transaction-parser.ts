@@ -130,15 +130,15 @@ const FIELD_ALIASES: Record<string, string[]> = {
   driverName: [
     'driver name', 'driver full name', 'cardholder name', 'cardholder',
     'employee name', 'employee', 'operator name', 'operator',
-    'authorized name', 'driver authorized name', 'account name',
+    'authorized name', 'driver authorized name',
   ],
   // Split first/last — combined in parser when no full-name column exists
   driverFirstName: [
-    'driver first name', 'first name', 'cardholder first name',
+    'driver first name', 'driver first', 'first name', 'cardholder first name',
     'employee first name', 'driver fname', 'first',
   ],
   driverLastName: [
-    'driver last name', 'last name', 'cardholder last name',
+    'driver last name', 'driver last', 'last name', 'cardholder last name',
     'employee last name', 'driver lname', 'last',
   ],
   amount: [
