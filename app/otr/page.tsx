@@ -720,13 +720,6 @@ function OTRPageInner() {
                 </div>
               </div>
               <div className="p-6">
-                <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5 flex items-start gap-3">
-                  <Zap size={14} className="text-amber-600 shrink-0 mt-0.5" />
-                  <p className="text-sm text-amber-800 leading-snug">
-                    These gallons don&apos;t require a new location — the CK is already there.
-                    Pricing alignment, loyalty enrollment, or driver awareness campaigns are the fastest path to capture.
-                  </p>
-                </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
