@@ -83,12 +83,16 @@ const FIELD_ALIASES: Record<string, string[]> = {
     // Product-typed gallons columns (e.g. "#2 Diesel Gallons" → "2 diesel gallons" after normalizeKey)
     '2 diesel gallons', 'diesel gallons', 'gasoline gallons', 'gas gallons',
     'unleaded gallons', 'def gallons',
+    // Comdata — "Number of Tractor Gallons"
+    'number of tractor gallons', 'tractor gallons',
   ],
   // Price-per-unit/gallon — used to derive total amount when no amount column exists
   ppu: [
     'ppu', 'ppu/amount', 'price per unit', 'price per gallon',
     'unit price', 'unit cost', 'ppg', 'ppu/gal', 'cost per gallon', 'price/gal',
     'cost/gal', 'retail price',
+    // Comdata — "Tractor Fuel Price Per Gallon"
+    'tractor fuel price per gallon',
   ],
   fuelType: [
     'epa fuel type purchased', 'epa fuel type', 'fuel type', 'product type',
@@ -147,6 +151,8 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'invoice amount', 'billed amount', 'dollars',
     // WEX column names
     'net cost', 'total fuel cost', 'gross amount', 'gross cost',
+    // Comdata — "Total Amount Due" / "Cost of Tractor Fuel"
+    'total amount due', 'cost of tractor fuel',
   ],
   productName: [
     'product name', 'product', 'item', 'fuel grade', 'grade',
