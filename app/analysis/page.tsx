@@ -706,9 +706,6 @@ function FeatureToggleBar({
               }`}
             >
               {def.label}
-              {def.badge && !flags[def.key] && (
-                <span className="ml-1 text-zinc-400 font-medium">· {def.badge}</span>
-              )}
             </button>
           ))}
         </div>
