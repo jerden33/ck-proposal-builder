@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getUserProfile, getUserAnalyses, deleteAnalysis, updateAnalysisAccountName } from '@/lib/supabase/queries'
 import type { UserProfile, AnalysisRecord } from '@/lib/types'
-import { Plus, BarChart2, Calendar, ExternalLink, Trash2, User, Pencil, Check, X, Truck, Zap } from 'lucide-react'
+import { BarChart2, Calendar, ExternalLink, Trash2, User, Pencil, Check, X, Truck, FolderOpen } from 'lucide-react'
 import { Navbar } from '@/components/Navbar'
 
 export default function DashboardPage() {
@@ -14,6 +14,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   useEffect(() => {
     loadData()
@@ -30,10 +31,12 @@ export default function DashboardPage() {
     setLoading(false)
   }
 
-  const handleDeleteAnalysis = async (id: string, name: string) => {
-    if (!confirm(`Delete analysis for "${name}"? This cannot be undone.`)) return
+  const handleDeleteAnalysis = async (id: string) => {
     const success = await deleteAnalysis(id)
-    if (success) await loadData()
+    if (success) {
+      setAnalyses(prev => prev.filter(a => a.id !== id))
+    }
+    setConfirmDeleteId(null)
   }
 
   const startRename = (a: AnalysisRecord) => {
@@ -68,9 +71,9 @@ export default function DashboardPage() {
       <div className="max-w-7xl mx-auto px-6 py-8">
 
         {/* Page header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-8 fade-in">
           <div>
-            <h1 className="text-2xl font-bold text-zinc-900">My Analyses</h1>
+            <h1 className="text-2xl font-bold text-zinc-900">Fleet Analyses</h1>
             <p className="text-sm text-zinc-400 mt-0.5">
               {analyses.length} {analyses.length === 1 ? 'analysis' : 'analyses'} saved
             </p>
@@ -85,7 +88,7 @@ export default function DashboardPage() {
             </button>
             <button
               onClick={() => router.push('/otr')}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-zinc-200 text-sm font-medium text-zinc-700 hover:border-zinc-300 hover:text-zinc-900 transition-colors shadow-sm"
+              className="btn-primary flex items-center gap-2 text-sm py-2"
             >
               <Truck size={15} />
               OTR Corridor
@@ -95,9 +98,9 @@ export default function DashboardPage() {
 
         {/* Analyses */}
         {analyses.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm text-center py-20">
+          <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm text-center py-20 fade-in">
             <div className="w-12 h-12 rounded-xl bg-zinc-100 flex items-center justify-center mx-auto mb-4">
-              <Zap size={20} className="text-zinc-400" />
+              <FolderOpen size={20} className="text-zinc-400" />
             </div>
             <h3 className="text-base font-semibold text-zinc-700 mb-1">No analyses yet</h3>
             <p className="text-sm text-zinc-400 mb-6 max-w-xs mx-auto">
@@ -121,18 +124,19 @@ export default function DashboardPage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 stagger-cards">
             {analyses.map(a => {
               const isOTR = a.data?.analysisType === 'otr'
+              const isConfirmingDelete = confirmDeleteId === a.id
               return (
-                <div key={a.id} className="bg-white rounded-xl border border-zinc-200 shadow-sm p-5 group hover:border-zinc-300 hover:shadow-md transition-all">
+                <div key={a.id} className="bg-white rounded-xl border border-zinc-200 shadow-sm p-5 group hover:border-zinc-300 hover:shadow-md transition-all duration-200">
 
                   {/* Header row */}
                   <div className="flex items-start justify-between mb-3">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
                       isOTR
-                        ? 'bg-zinc-100 text-zinc-600'
-                        : 'bg-zinc-100 text-zinc-600'
+                        ? 'bg-sky-100 text-sky-700'
+                        : 'bg-violet-100 text-violet-700'
                     }`}>
                       {isOTR ? <Truck size={11} /> : <BarChart2 size={11} />}
                       {isOTR ? 'OTR Corridor' : (a.detected_format || 'Fleet Analysis')}
@@ -216,21 +220,39 @@ export default function DashboardPage() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => router.push(isOTR ? `/otr?load=${a.id}` : `/analysis?load=${a.id}`)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-800 transition-colors"
-                    >
-                      <ExternalLink size={13} />
-                      Open
-                    </button>
-                    <button
-                      onClick={() => handleDeleteAnalysis(a.id, a.account_name)}
-                      className="px-3 py-2 text-sm text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg border border-zinc-200 transition-colors"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
+                  {isConfirmingDelete ? (
+                    <div className="flex gap-2 items-center fade-in">
+                      <p className="flex-1 text-xs text-red-600 font-medium">Delete this analysis?</p>
+                      <button
+                        onClick={() => handleDeleteAnalysis(a.id)}
+                        className="px-3 py-1.5 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+                      >
+                        Delete
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="px-3 py-1.5 text-xs font-semibold text-zinc-600 bg-zinc-100 hover:bg-zinc-200 rounded-lg transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => router.push(isOTR ? `/otr?load=${a.id}` : `/analysis?load=${a.id}`)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-800 transition-colors"
+                      >
+                        <ExternalLink size={13} />
+                        Open
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(a.id)}
+                        className="px-3 py-2 text-sm text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg border border-zinc-200 transition-colors"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               )
             })}

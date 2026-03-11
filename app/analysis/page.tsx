@@ -186,7 +186,7 @@ function OpportunityPanel({ analysis, totalGallons, truckMode = false }: { analy
           <h2 className="text-zinc-900 font-bold text-lg">Circle K Fueling Opportunity</h2>
           {truckMode && (
             <span className="text-xs font-semibold bg-zinc-200 text-zinc-600 rounded px-2 py-0.5 flex items-center gap-1">
-              🚛 OTR / Truck Mode
+              <Truck size={11} /> OTR / Truck Mode
             </span>
           )}
         </div>
@@ -297,7 +297,7 @@ function ProximityPanel({ prox, totalGallons, isMobileFueling }: { prox: NonNull
     <div className="space-y-3">
       {isMobileFueling && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
-          <span className="mt-0.5 shrink-0">⚠️</span>
+          <AlertCircle size={13} className="mt-0.5 shrink-0 text-amber-600" />
           <span>
             <strong>Mobile fueling detected.</strong> This report contains fuel deliveries (e.g. Diesel Direct) made directly to the customer's location — not purchases at a fixed pump. Proximity-to-CK figures are based on the delivery city only and are not meaningful for conversion analysis.
           </span>

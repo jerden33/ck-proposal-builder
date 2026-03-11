@@ -29,7 +29,21 @@ export function Navbar() {
     router.refresh()
   }
 
-  if (!profile) return null
+  if (!profile) return (
+    <nav className="bg-white border-b border-zinc-200">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="flex items-center justify-between h-14">
+          <div className="w-28 h-5 bg-zinc-100 rounded-md animate-pulse" />
+          <div className="flex items-center gap-1">
+            <div className="w-20 h-8 bg-zinc-100 rounded-lg animate-pulse" />
+            <div className="w-14 h-8 bg-zinc-100 rounded-lg animate-pulse" />
+            <div className="w-24 h-8 bg-zinc-100 rounded-lg animate-pulse" />
+          </div>
+          <div className="w-24 h-8 bg-zinc-100 rounded-lg animate-pulse" />
+        </div>
+      </div>
+    </nav>
+  )
 
   const roleLabel = profile.is_super_admin
     ? 'Super Administrator'

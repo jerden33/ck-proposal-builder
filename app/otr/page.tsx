@@ -447,7 +447,7 @@ function OTRPageInner() {
       <div className="max-w-7xl mx-auto px-6 py-6">
 
         {/* Page header */}
-        <div className="flex items-start justify-between mb-6">
+        <div className="flex items-start justify-between mb-6 fade-in">
           <div>
             <div className="flex items-center gap-2.5 mb-1.5">
               <span className="inline-flex items-center gap-1.5 bg-zinc-100 text-zinc-600 text-xs font-semibold px-2.5 py-1 rounded-full">
@@ -455,7 +455,7 @@ function OTRPageInner() {
                 OTR Analysis
               </span>
               {summary.dateRange.start && (
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-zinc-400">
                   {summary.dateRange.start} – {summary.dateRange.end}
                   {months !== 12 && ` (${months.toFixed(1)} mo)`}
                 </span>
@@ -464,7 +464,7 @@ function OTRPageInner() {
             <h1 className="text-2xl font-bold text-off-black">
               {customerName || 'Fleet'} — OTR Analysis
             </h1>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <p className="text-sm text-zinc-500 mt-0.5">
               {summary.totalTransactions.toLocaleString()} transactions · {fmtGallons(summary.totalGallons)} total · {fileName}
             </p>
           </div>
@@ -481,12 +481,30 @@ function OTRPageInner() {
                 className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50"
               >
                 <Save size={15} />
-                {saving ? 'Saving…' : 'Save to Dashboard'}
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+            )}
+            {shareUrl ? (
+              <button
+                onClick={copyShareLink}
+                className="btn-secondary flex items-center gap-2 text-sm"
+              >
+                {copied ? <CheckCircle size={15} className="text-green-500" /> : <ClipboardCopy size={15} />}
+                {copied ? 'Copied!' : 'Copy Link'}
+              </button>
+            ) : (
+              <button
+                onClick={handleShare}
+                disabled={sharing}
+                className="btn-primary flex items-center gap-2 text-sm disabled:opacity-50"
+              >
+                <Share2 size={15} />
+                {sharing ? 'Creating…' : 'Share Report'}
               </button>
             )}
             <button onClick={reset} className="btn-secondary flex items-center gap-2 text-sm">
               <RefreshCw size={15} />
-              New Analysis
+              New
             </button>
           </div>
         </div>
@@ -500,7 +518,7 @@ function OTRPageInner() {
 
         {/* Summary stats */}
         <div className="rounded-xl border border-zinc-200 overflow-hidden bg-zinc-100 shadow-sm mb-6">
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-px">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-px stagger-stats">
             {[
               {
                 label: 'Active Corridors',
@@ -528,7 +546,7 @@ function OTRPageInner() {
                 value: fmtGallons(totalNearMiss),
                 sub: 'drove past a CK · highest priority',
                 accent: false,
-                warn: totalNearMiss > 0,
+                warn: totalNearMiss > 1000,
               },
               {
                 label: 'Annual Opportunity',
@@ -555,7 +573,7 @@ function OTRPageInner() {
         </div>
 
         {/* Map */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-6">
+        <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden mb-6 fade-in">
           <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
             <div>
               <h2 className="text-zinc-900 font-bold text-lg">Highway Corridor Map</h2>
@@ -576,7 +594,7 @@ function OTRPageInner() {
         </div>
 
         {/* Corridor table */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-6">
+        <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm mb-6 fade-in">
           <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
             <div>
               <h2 className="text-zinc-900 font-bold text-lg">Corridor Breakdown</h2>
@@ -657,10 +675,10 @@ function OTRPageInner() {
             {otrResult.corridorResults.length > 12 && (
               <button
                 onClick={() => setExpandedTable(v => !v)}
-                className="mt-3 flex items-center gap-1 text-sm text-accent hover:underline"
+                className="mt-4 flex items-center gap-1.5 text-sm font-medium text-zinc-600 hover:text-zinc-900 px-3 py-1.5 rounded-lg border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 transition-colors"
               >
                 {expandedTable
-                  ? <><ChevronUp size={14} />Show fewer</>
+                  ? <><ChevronUp size={14} />Show fewer corridors</>
                   : <><ChevronDown size={14} />Show all {otrResult.corridorResults.length} corridors</>}
               </button>
             )}
@@ -683,7 +701,7 @@ function OTRPageInner() {
             .sort((a, b) => b.nearMissGallons - a.nearMissGallons)
             .slice(0, 8)
           return (
-            <div className="bg-white rounded-2xl border border-amber-200 shadow-sm mb-6">
+            <div className="bg-white rounded-2xl border border-amber-200 shadow-sm mb-6 fade-in">
               <div className="bg-amber-50 border-b border-amber-200 px-6 py-4 flex items-center justify-between">
                 <div>
                   <h2 className="text-zinc-900 font-bold text-lg flex items-center gap-2">
@@ -762,7 +780,7 @@ function OTRPageInner() {
             }
           }
           return (
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-6">
+            <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm mb-6 fade-in">
               <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
                 <div>
                   <h2 className="text-zinc-900 font-bold text-lg">Geographic Breakdown</h2>
@@ -796,8 +814,8 @@ function OTRPageInner() {
                           <tr key={s.state} className="hover:bg-gray-50">
                             <td className="py-2.5 pr-4 font-bold text-off-black">{s.state}</td>
                             <td className="py-2.5 px-3">
-                              <div className="h-3 bg-gray-100 rounded-full overflow-hidden w-full min-w-[80px]">
-                                <div className="h-3 rounded-full overflow-hidden bg-gray-300" style={{ width: `${barPct}%` }}>
+                              <div className="h-3 bg-zinc-100 rounded-full overflow-hidden w-full min-w-[80px]">
+                                <div className="h-3 rounded-full overflow-hidden bg-zinc-300 bar-grow" style={{ width: `${barPct}%` }}>
                                   <div className="h-full bg-brand-orange" style={{ width: `${s.gallons > 0 ? (ckBarPct / barPct) * 100 : 0}%` }} />
                                 </div>
                               </div>
@@ -862,7 +880,7 @@ function OTRPageInner() {
           const top = compRanked[0]
           const topPct = compTotal > 0 ? (top[1] / compTotal) * 100 : 0
           return (
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-6">
+            <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm mb-6 fade-in">
               <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
                 <div>
                   <h2 className="text-zinc-900 font-bold text-lg">Competitor Concentration</h2>
@@ -895,9 +913,9 @@ function OTRPageInner() {
                             <span className="text-gray-400 font-normal text-xs">({fmtPct(pct)})</span>
                           </span>
                         </div>
-                        <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-2.5 bg-zinc-100 rounded-full overflow-hidden">
                           <div
-                            className="h-2.5 bg-zinc-600 rounded-full"
+                            className="h-2.5 bg-zinc-600 rounded-full bar-grow"
                             style={{ width: `${(gallons / compMax) * 100}%` }}
                           />
                         </div>
@@ -928,7 +946,7 @@ function OTRPageInner() {
           const compGallons = compVehicles.reduce((s, v) => s + v.gallons, 0)
           if (totalVehicles === 0) return null
           return (
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-6">
+            <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm mb-6 fade-in">
               <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
                 <div>
                   <h2 className="text-zinc-900 font-bold text-lg">Fleet Behavior</h2>
