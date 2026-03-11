@@ -36,7 +36,7 @@ import {
   fmtDollars,
   type TransactionSummary,
 } from '@/lib/transaction-analysis'
-import { geocodeLocations, geoKey } from '@/lib/geocoding'
+import { geocodeLocations, geocodeAddresses, geoKey, addrGeoKey } from '@/lib/geocoding'
 import { runOTRAnalysis, type OTRAnalysis } from '@/lib/otr-analysis'
 import { createAnalysis, createAnalysisShare, getAnalysis } from '@/lib/supabase/queries'
 import type { OTRMapStore } from '@/components/OTRMap'
@@ -194,18 +194,46 @@ function OTRPageInner() {
           return { city, state }
         })
 
+      const uniqueAddresses = Array.from(
+        new Set(
+          transactions
+            .filter(t => t.stationAddress && t.stationCity && t.stationState)
+            .map(t => addrGeoKey(t.stationAddress, t.stationCity, t.stationState))
+        )
+      ).map(k => {
+        const parts = k.split('|')
+        const state = parts[parts.length - 1]
+        const city  = parts[parts.length - 2]
+        const address = parts.slice(0, parts.length - 2).join('|')
+        return { address, city, state }
+      })
+
       const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
       if (!token) throw new Error('Mapbox token not configured.')
 
-      setGeocodingProgress({ done: 0, total: uniqueLocations.length })
-      const geocodedCoords = await geocodeLocations(uniqueLocations, token, (done, total) => {
-        setGeocodingProgress({ done, total })
+      const totalGeoItems = uniqueLocations.length + uniqueAddresses.length
+      setGeocodingProgress({ done: 0, total: totalGeoItems })
+      let geoDone = 0
+
+      const geocodedCoords = await geocodeLocations(uniqueLocations, token, (done) => {
+        geoDone = done
+        setGeocodingProgress({ done: geoDone, total: totalGeoItems })
       })
+
+      let geocodedAddrs = new Map<string, { lat: number; lng: number }>()
+      if (uniqueAddresses.length > 0) {
+        geocodedAddrs = await geocodeAddresses(
+          uniqueAddresses,
+          token,
+          (done) => setGeocodingProgress({ done: geoDone + done, total: totalGeoItems })
+        )
+      }
 
       // 5. Re-analyze with geocoding
       const enriched = analyzeTransactions(transactions, truckZipSet, {
         detectedFormat,
         geocodedCoords,
+        geocodedAddresses: geocodedAddrs,
         ckStores: truckStoreCoords,
         ckStoresAll: allStoreCoords,
       })
