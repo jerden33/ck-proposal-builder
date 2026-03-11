@@ -331,6 +331,72 @@ function ProximityPanel({ prox, totalGallons, isMobileFueling }: { prox: NonNull
   )
 }
 
+// ─── Detailed Proximity Panel (OTR-style 5-band breakdown) ───────────────────
+
+function DetailedProximityPanel({
+  prox,
+  title,
+  subtitle,
+  monthSpan,
+}: {
+  prox: NonNullable<TransactionSummary['proximityBreakdown']>
+  title: string
+  subtitle: string
+  monthSpan: number
+}) {
+  const ck  = prox.ckGallons
+  const w2  = prox.within1mi.gallons + prox.within2mi.gallons
+  const w5  = prox.within5mi.gallons
+  const w10 = prox.within10mi.gallons
+  const b10 = prox.beyond10mi.gallons
+  const tot = ck + w2 + w5 + w10 + b10
+  const mx  = Math.max(ck, w2, w5, w10, b10, 1)
+
+  const rows = [
+    { label: 'At Circle K',  gallons: ck,  color: 'bg-green-500',   text: 'text-green-700',   note: 'Already at CK' },
+    { label: 'Within 2 mi',  gallons: w2,  color: 'bg-emerald-400', text: 'text-emerald-700', note: 'Drove right past' },
+    { label: '2–5 mi',       gallons: w5,  color: 'bg-amber-400',   text: 'text-amber-700',   note: 'Strong opportunity' },
+    { label: '5–10 mi',      gallons: w10, color: 'bg-orange-400',  text: 'text-orange-700',  note: 'Moderate detour' },
+    { label: '10+ mi',       gallons: b10, color: 'bg-red-400',     text: 'text-red-700',     note: 'No nearby CK' },
+  ]
+
+  return (
+    <div>
+      <h3 className="font-bold text-off-black text-sm uppercase tracking-wide mb-0.5">{title}</h3>
+      <p className="text-xs text-gray-400 mb-3">{subtitle}</p>
+      {w2 > 0 && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-3 flex items-start gap-2">
+          <CheckCircle size={12} className="text-emerald-600 shrink-0 mt-0.5" />
+          <p className="text-xs text-emerald-800 leading-snug">
+            <strong>{fmtGallons(w2)}</strong> gal within 2 mi
+            {monthSpan > 0 ? ` · ${fmtGallons((w2 / monthSpan) * 12)} / yr` : ''}
+            {' '}— drove right past.
+          </p>
+        </div>
+      )}
+      <div className="space-y-2">
+        {rows.map(({ label, gallons, color, text, note }) => {
+          const pct = tot > 0 ? (gallons / tot) * 100 : 0
+          return (
+            <div key={label}>
+              <div className="flex items-center justify-between mb-0.5">
+                <span className="text-xs text-gray-700">{label}</span>
+                <span className={`text-xs font-semibold ${text}`}>
+                  {fmtGallons(gallons)} <span className="text-gray-400 font-normal">({fmtPct(pct)})</span>
+                </span>
+              </div>
+              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div className={`h-1.5 ${color} rounded-full`} style={{ width: `${(gallons / mx) * 100}%` }} />
+              </div>
+              <p className="text-xs text-gray-400 mt-0.5 leading-none">{note}</p>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ─── Savings Calculator ────────────────────────────────────────────────────────
 
 function SavingsCalculatorPanel({
@@ -2090,7 +2156,38 @@ function AnalysisPageInner() {
                   {activeTab === 'map' && featureFlags.mapView && (
                     <div className="space-y-6">
                       {summary.proximityBreakdown && !geocodingInProgress ? (
-                        <ProximityPanel prox={summary.proximityBreakdown} totalGallons={summary.totalGallons} isMobileFueling={isMobileFueling} />
+                        <>
+                          <ProximityPanel prox={summary.proximityBreakdown} totalGallons={summary.totalGallons} isMobileFueling={isMobileFueling} />
+                          {(summary.proximityBreakdown || summary.proximityBreakdownAll) && (
+                            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                              <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
+                                <div>
+                                  <h2 className="text-zinc-900 font-bold text-lg">Proximity Breakdown</h2>
+                                  <p className="text-zinc-500 text-sm mt-0.5">Distance bands to nearest Circle K</p>
+                                </div>
+                                <MapPin className="text-zinc-400 shrink-0" size={22} />
+                              </div>
+                              <div className={`p-6 grid gap-6 ${summary.proximityBreakdown && summary.proximityBreakdownAll ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
+                                {summary.proximityBreakdown && (
+                                  <DetailedProximityPanel
+                                    prox={summary.proximityBreakdown}
+                                    title="Truck-Accessible Circle K"
+                                    subtitle="Diesel & DEF · truck stop CK locations"
+                                    monthSpan={monthSpan}
+                                  />
+                                )}
+                                {summary.proximityBreakdownAll && (
+                                  <DetailedProximityPanel
+                                    prox={summary.proximityBreakdownAll}
+                                    title="Any Circle K (incl. c-stores)"
+                                    subtitle="All fuel types · full CK network"
+                                    monthSpan={monthSpan}
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </>
                       ) : geocodingInProgress ? (
                         <div className="rounded-xl bg-accent-muted border border-accent/20 px-4 py-3 text-sm text-accent flex items-center gap-2">
                           <span className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin shrink-0" />
