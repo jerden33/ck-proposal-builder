@@ -40,11 +40,16 @@ import { geocodeLocations, geoKey } from '@/lib/geocoding'
 import { runOTRAnalysis, type OTRAnalysis } from '@/lib/otr-analysis'
 import { createAnalysis, createAnalysisShare, getAnalysis } from '@/lib/supabase/queries'
 import type { OTRMapStore } from '@/components/OTRMap'
+import type { CKStorePin } from '@/components/FuelingMap'
 
-// Dynamically import the map (Mapbox can't SSR)
+// Dynamically import the maps (Mapbox can't SSR)
 const OTRMap = dynamic(() => import('@/components/OTRMap').then(m => m.OTRMap), {
   ssr: false,
   loading: () => <div className="bg-gray-100 animate-pulse" style={{ height: 580 }} />,
+})
+const FuelingMap = dynamic(() => import('@/components/FuelingMap').then(m => m.FuelingMap), {
+  ssr: false,
+  loading: () => <div className="bg-gray-100 animate-pulse" style={{ height: 560 }} />,
 })
 
 // ─── Store record shape from stores-data.json ─────────────────────────────────
@@ -593,6 +598,29 @@ function OTRPageInner() {
             />
           </Suspense>
         </div>
+
+        {/* Fueling Locations Map */}
+        {summary.mapPoints.length > 0 && (
+          <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden mb-6 fade-in">
+            <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-zinc-900 font-bold text-lg">All Fueling Locations</h2>
+                <p className="text-zinc-500 text-sm mt-0.5">
+                  Customer fueling stops · truck-accessible Circle K sites · color = proximity
+                </p>
+              </div>
+              <MapPin className="text-zinc-400 shrink-0" size={22} />
+            </div>
+            <Suspense fallback={<div className="bg-gray-100 animate-pulse" style={{ height: 560 }} />}>
+              <FuelingMap
+                transactionPoints={summary.mapPoints}
+                ckStores={ckStores.map((s): CKStorePin => ({ ...s, zip: '', truckAccessible: true }))}
+                height={560}
+                truckMode={true}
+              />
+            </Suspense>
+          </div>
+        )}
 
         {/* Corridor table */}
         <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm mb-6 fade-in">
