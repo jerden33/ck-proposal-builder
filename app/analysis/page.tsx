@@ -66,6 +66,7 @@ interface StoreRecord {
   city: string
   state: string
   truckAccessible: boolean
+  siteNumber?: string
 }
 
 // ─── Feature flags ─────────────────────────────────────────────────────────────
@@ -1501,7 +1502,7 @@ function AnalysisPageInner() {
       const ckZipSet = buildCKZipSet(storeRecords)
       const ckStoreCoords: CKStoreCoord[] = storeRecords
         .filter(s => s.coordinates?.lat && s.coordinates?.lng)
-        .map(s => ({ lat: s.coordinates.lat, lng: s.coordinates.lng, name: s.name, city: s.city, state: s.state, truckAccessible: s.truckAccessible }))
+        .map(s => ({ lat: s.coordinates.lat, lng: s.coordinates.lng, name: s.name, city: s.city, state: s.state, truckAccessible: s.truckAccessible, siteNumber: s.siteNumber }))
 
       const pins: CKStorePin[] = storeRecords
         .filter(s => s.coordinates?.lat && s.coordinates?.lng)
@@ -2057,7 +2058,10 @@ function AnalysisPageInner() {
                               <tbody className="divide-y divide-gray-100">
                                 {summary.topCKOpportunityLocations.map((loc, i) => (
                                   <tr key={i} className="hover:bg-gray-50">
-                                    <td className="py-2.5 pr-4 font-medium text-off-black max-w-[200px] truncate">{loc.ckName}</td>
+                                    <td className="py-2.5 pr-4 font-medium text-off-black max-w-[200px] truncate">
+                                      {loc.ckName}
+                                      {loc.siteNumber && <span className="ml-1.5 text-xs text-gray-400 font-normal">#{loc.siteNumber}</span>}
+                                    </td>
                                     <td className="py-2.5 px-4 text-gray-500 text-xs whitespace-nowrap">{loc.city}, {loc.state}</td>
                                     <td className="py-2.5 px-4">
                                       {loc.truckAccessible

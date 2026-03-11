@@ -117,7 +117,10 @@ export function CoverageStep({ addresses, addAddress, removeAddress, updateAddre
                                     <span className="text-white text-xs font-bold">{idx + 1}</span>
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="font-semibold">{store.name}</p>
+                                    <p className="font-semibold">
+                                      {store.name}
+                                      {store.siteNumber && <span className="ml-1.5 text-xs text-gray-400 font-normal">#{store.siteNumber}</span>}
+                                    </p>
                                     <p className="text-gray-600 text-xs">{store.address}, {store.city}, {store.state}</p>
                                     {store.truckAccessible && (
                                       <span className="inline-block mt-1 text-xs text-brand-orange font-medium">✓ Truck Accessible</span>

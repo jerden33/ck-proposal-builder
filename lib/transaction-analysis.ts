@@ -230,6 +230,7 @@ export interface CKStoreCoord {
   city?: string
   state?: string
   truckAccessible?: boolean
+  siteNumber?: string
 }
 
 export interface CKOpportunityLocation {
@@ -239,6 +240,7 @@ export interface CKOpportunityLocation {
   lat: number
   lng: number
   truckAccessible: boolean
+  siteNumber?: string
   competitorGallons: number
   competitorTransactions: number
   competitorSpend: number
@@ -846,6 +848,7 @@ function buildMapData(
           lat: ckNearest.store.lat,
           lng: ckNearest.store.lng,
           truckAccessible: ckNearest.store.truckAccessible ?? false,
+          siteNumber: ckNearest.store.siteNumber,
           competitorGallons: 0, competitorTransactions: 0, competitorSpend: 0, nearbyStationCount: 0,
         }
         entry.competitorGallons += nonCKGallons

@@ -56,6 +56,7 @@ interface StoreRecord {
   city: string
   state: string
   truckAccessible: boolean
+  siteNumber?: string
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -164,10 +165,10 @@ function OTRPageInner() {
       )
 
       const truckZipSet = buildCKZipSet(truckRecords)
-      const truckStoreCoords = truckRecords.map(s => ({ lat: s.coordinates.lat, lng: s.coordinates.lng, name: s.name, city: s.city, state: s.state, truckAccessible: true as const }))
+      const truckStoreCoords = truckRecords.map(s => ({ lat: s.coordinates.lat, lng: s.coordinates.lng, name: s.name, city: s.city, state: s.state, truckAccessible: true as const, siteNumber: s.siteNumber }))
       const allStoreCoords = storeRecords
         .filter(s => s.coordinates?.lat && s.coordinates?.lng)
-        .map(s => ({ lat: s.coordinates.lat, lng: s.coordinates.lng, name: s.name, city: s.city, state: s.state, truckAccessible: s.truckAccessible }))
+        .map(s => ({ lat: s.coordinates.lat, lng: s.coordinates.lng, name: s.name, city: s.city, state: s.state, truckAccessible: s.truckAccessible, siteNumber: s.siteNumber }))
       const mapStores: OTRMapStore[] = truckRecords.map(s => ({
         lat: s.coordinates.lat,
         lng: s.coordinates.lng,
@@ -1249,7 +1250,10 @@ function OTRPageInner() {
                       const annualized = months > 0 ? (loc.competitorGallons / months) * 12 : 0
                       return (
                         <tr key={i} className="hover:bg-gray-50">
-                          <td className="py-3 pr-4 font-medium text-off-black max-w-[200px] truncate">{loc.ckName}</td>
+                          <td className="py-3 pr-4 font-medium text-off-black max-w-[200px] truncate">
+                            {loc.ckName}
+                            {loc.siteNumber && <span className="ml-1.5 text-xs text-gray-400 font-normal">#{loc.siteNumber}</span>}
+                          </td>
                           <td className="py-3 px-4 text-gray-500 text-xs whitespace-nowrap">{loc.city}, {loc.state}</td>
                           <td className="py-3 px-4">
                             {loc.truckAccessible
