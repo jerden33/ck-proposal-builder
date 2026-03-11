@@ -21,6 +21,10 @@ import {
   Fuel,
   Navigation,
   Save,
+  Target,
+  Globe,
+  Users,
+  Zap,
 } from 'lucide-react'
 import { Navbar } from '@/components/Navbar'
 import { parseFleetCSV } from '@/lib/transaction-parser'
@@ -429,7 +433,9 @@ function OTRPageInner() {
   const months = computeMonthSpan(summary.dateRange)
   const totalOpp = otrResult.corridorResults.reduce((s, r) => s + r.captureGallons, 0)
   const totalCK = otrResult.corridorResults.reduce((s, r) => s + r.ckGallons, 0)
+  const totalNearMiss = otrResult.corridorResults.reduce((s, r) => s + r.nearMissGallons, 0)
   const annualOpp = months > 0 ? (totalOpp / months) * 12 : totalOpp
+  const annualNearMiss = months > 0 ? (totalNearMiss / months) * 12 : totalNearMiss
   const shownCorridors = expandedTable
     ? otrResult.corridorResults
     : otrResult.corridorResults.slice(0, 12)
@@ -446,7 +452,7 @@ function OTRPageInner() {
             <div className="flex items-center gap-2.5 mb-1.5">
               <span className="inline-flex items-center gap-1.5 bg-zinc-100 text-zinc-600 text-xs font-semibold px-2.5 py-1 rounded-full">
                 <Truck size={11} />
-                OTR Corridor Analysis
+                OTR Analysis
               </span>
               {summary.dateRange.start && (
                 <span className="text-xs text-gray-400">
@@ -456,7 +462,7 @@ function OTRPageInner() {
               )}
             </div>
             <h1 className="text-2xl font-bold text-off-black">
-              {customerName || 'Fleet'} — Corridor Opportunity Report
+              {customerName || 'Fleet'} — OTR Analysis
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">
               {summary.totalTransactions.toLocaleString()} transactions · {fmtGallons(summary.totalGallons)} total · {fileName}
@@ -494,44 +500,55 @@ function OTRPageInner() {
 
         {/* Summary stats */}
         <div className="rounded-xl border border-zinc-200 overflow-hidden bg-zinc-100 shadow-sm mb-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-px">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-px">
             {[
               {
                 label: 'Active Corridors',
                 value: otrResult.corridorResults.length.toString(),
                 sub: `of 39 interstates`,
                 accent: false,
+                warn: false,
               },
               {
                 label: 'On-Corridor Gallons',
                 value: fmtGallons(otrResult.totalCorridorGallons),
                 sub: fmtPct(otrResult.totalCorridorGallons / (summary.totalGallons || 1) * 100) + ' of total',
                 accent: false,
+                warn: false,
               },
               {
                 label: 'CK Captured',
                 value: fmtGallons(totalCK),
                 sub: fmtPct(totalCK / (otrResult.totalCorridorGallons || 1) * 100) + ' capture rate',
                 accent: false,
+                warn: false,
+              },
+              {
+                label: 'Near-Miss Gallons',
+                value: fmtGallons(totalNearMiss),
+                sub: 'drove past a CK · highest priority',
+                accent: false,
+                warn: totalNearMiss > 0,
               },
               {
                 label: 'Annual Opportunity',
                 value: fmtGallons(annualOpp),
                 sub: months !== 12 ? `annualized from ${months.toFixed(1)} mo` : 'capturable gallons',
                 accent: true,
+                warn: false,
               },
-            ].map(({ label, value, sub, accent }) => (
+            ].map(({ label, value, sub, accent, warn }) => (
               <div
                 key={label}
-                className={`px-5 py-4 ${accent ? 'bg-accent' : 'bg-white'}`}
+                className={`px-5 py-4 ${accent ? 'bg-accent' : warn ? 'bg-amber-50' : 'bg-white'}`}
               >
-                <p className={`text-xs font-medium uppercase tracking-wider mb-1.5 ${accent ? 'text-white/70' : 'text-zinc-400'}`}>
+                <p className={`text-xs font-medium uppercase tracking-wider mb-1.5 ${accent ? 'text-white/70' : warn ? 'text-amber-600' : 'text-zinc-400'}`}>
                   {label}
                 </p>
-                <p className={`text-2xl font-bold leading-none ${accent ? 'text-white' : 'text-zinc-900'}`}>
+                <p className={`text-2xl font-bold leading-none ${accent ? 'text-white' : warn ? 'text-amber-700' : 'text-zinc-900'}`}>
                   {value}
                 </p>
-                <p className={`text-xs mt-1.5 ${accent ? 'text-white/60' : 'text-zinc-400'}`}>{sub}</p>
+                <p className={`text-xs mt-1.5 ${accent ? 'text-white/60' : warn ? 'text-amber-500' : 'text-zinc-400'}`}>{sub}</p>
               </div>
             ))}
           </div>
@@ -658,6 +675,322 @@ function OTRPageInner() {
             )}
           </div>
         </div>
+
+        {/* Near-Miss Spotlight */}
+        {totalNearMiss > 0 && (() => {
+          const nearMissCorridors = otrResult.corridorResults
+            .filter(r => r.nearMissGallons > 0)
+            .sort((a, b) => b.nearMissGallons - a.nearMissGallons)
+            .slice(0, 8)
+          return (
+            <div className="bg-white rounded-2xl border border-amber-200 shadow-sm mb-6">
+              <div className="bg-amber-50 border-b border-amber-200 px-6 py-4 flex items-center justify-between">
+                <div>
+                  <h2 className="text-zinc-900 font-bold text-lg flex items-center gap-2">
+                    <Target size={18} className="text-amber-500" />
+                    Near-Miss Opportunities
+                  </h2>
+                  <p className="text-zinc-500 text-sm mt-0.5">
+                    Competitor fills within 5 mi of a truck-accessible CK — drivers who passed one and didn't stop
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-2xl font-bold text-amber-700">{fmtGallons(totalNearMiss)}</p>
+                  <p className="text-xs text-amber-500 mt-0.5">
+                    {months !== 12 ? `${fmtGallons(annualNearMiss)} / yr` : 'gallons'}
+                  </p>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5 flex items-start gap-3">
+                  <Zap size={14} className="text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-sm text-amber-800 leading-snug">
+                    These gallons don&apos;t require a new location — the CK is already there.
+                    Pricing alignment, loyalty enrollment, or driver awareness campaigns are the fastest path to capture.
+                  </p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500">
+                        <th className="text-left pb-3 pr-4">Corridor</th>
+                        <th className="text-right pb-3 px-3">Near-Miss Gal</th>
+                        <th className="text-right pb-3 px-3">% of Corridor</th>
+                        <th className="text-right pb-3">Annualized</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {nearMissCorridors.map(r => {
+                        const pct = r.totalGallons > 0 ? (r.nearMissGallons / r.totalGallons) * 100 : 0
+                        const ann = months > 0 ? (r.nearMissGallons / months) * 12 : r.nearMissGallons
+                        return (
+                          <tr key={r.corridorId} className="hover:bg-gray-50">
+                            <td className="py-2.5 pr-4 font-bold text-off-black">{r.corridorName}</td>
+                            <td className="text-right px-3 tabular-nums font-semibold text-amber-700">
+                              {fmtGallons(r.nearMissGallons)}
+                            </td>
+                            <td className="text-right px-3 tabular-nums text-gray-500">
+                              {fmtPct(pct)}
+                            </td>
+                            <td className="text-right tabular-nums text-gray-400">
+                              {months !== 12 ? fmtGallons(ann) : '—'}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Geographic State Breakdown */}
+        {summary.stateBreakdown.length > 0 && (() => {
+          const states = summary.stateBreakdown
+            .filter(s => s.gallons > 0)
+            .sort((a, b) => b.gallons - a.gallons)
+          const shown = states.slice(0, 15)
+          const maxGal = Math.max(...shown.map(s => s.gallons), 1)
+          const totalGal = states.reduce((sum, s) => sum + s.gallons, 0)
+          // Roll up on-corridor gallons per state from corridor stateBreakdowns
+          const onCorridorByState = new Map<string, number>()
+          for (const r of otrResult.corridorResults) {
+            for (const [st, gal] of Object.entries(r.stateBreakdown)) {
+              onCorridorByState.set(st, (onCorridorByState.get(st) ?? 0) + gal)
+            }
+          }
+          return (
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-6">
+              <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
+                <div>
+                  <h2 className="text-zinc-900 font-bold text-lg">Geographic Breakdown</h2>
+                  <p className="text-zinc-500 text-sm mt-0.5">
+                    Gallons by state · {summary.uniqueStates.length} states · CK share and on-corridor volume
+                  </p>
+                </div>
+                <Globe className="text-zinc-400 shrink-0" size={22} />
+              </div>
+              <div className="p-6">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500">
+                        <th className="text-left pb-3 pr-4 w-12">State</th>
+                        <th className="text-left pb-3 px-3 w-full">Volume</th>
+                        <th className="text-right pb-3 px-3">Total Gal</th>
+                        <th className="text-right pb-3 px-3">Share</th>
+                        <th className="text-right pb-3 px-3">CK %</th>
+                        <th className="text-right pb-3">On-Corridor</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {shown.map(s => {
+                        const barPct = (s.gallons / maxGal) * 100
+                        const ckBarPct = s.gallons > 0 ? (s.ckGallons / maxGal) * 100 : 0
+                        const sharePct = totalGal > 0 ? (s.gallons / totalGal) * 100 : 0
+                        const onCorridor = onCorridorByState.get(s.state) ?? 0
+                        const onCorridorPct = s.gallons > 0 ? (onCorridor / s.gallons) * 100 : 0
+                        return (
+                          <tr key={s.state} className="hover:bg-gray-50">
+                            <td className="py-2.5 pr-4 font-bold text-off-black">{s.state}</td>
+                            <td className="py-2.5 px-3">
+                              <div className="h-3 bg-gray-100 rounded-full overflow-hidden w-full min-w-[80px]">
+                                <div className="h-3 rounded-full overflow-hidden bg-gray-300" style={{ width: `${barPct}%` }}>
+                                  <div className="h-full bg-brand-orange" style={{ width: `${s.gallons > 0 ? (ckBarPct / barPct) * 100 : 0}%` }} />
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-3 text-right tabular-nums font-medium text-gray-700">
+                              {fmtGallons(s.gallons)}
+                            </td>
+                            <td className="py-2.5 px-3 text-right tabular-nums text-gray-500">
+                              {fmtPct(sharePct)}
+                            </td>
+                            <td className="py-2.5 px-3 text-right">
+                              <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${
+                                s.ckSharePct >= 20 ? 'bg-green-100 text-green-700'
+                                : s.ckSharePct > 0 ? 'bg-orange-100 text-orange-700'
+                                : 'bg-gray-100 text-gray-500'
+                              }`}>
+                                {fmtPct(s.ckSharePct)}
+                              </span>
+                            </td>
+                            <td className="py-2.5 pl-3 text-right tabular-nums text-gray-400">
+                              {onCorridor > 0 ? `${fmtGallons(onCorridor)} (${fmtPct(onCorridorPct)})` : '—'}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {states.length > 15 && (
+                  <p className="mt-2 text-xs text-gray-400">+ {states.length - 15} more states</p>
+                )}
+                <div className="mt-4 flex items-center gap-4 text-xs text-gray-500">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-sm bg-brand-orange inline-block" />CK gallons
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-sm bg-gray-300 inline-block" />Competitor gallons
+                  </span>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Competitor Concentration */}
+        {(() => {
+          // Roll up competitor gallons across all corridors
+          const compMap = new Map<string, number>()
+          for (const r of otrResult.corridorResults) {
+            for (const { brand, gallons } of r.competitorBreakdown) {
+              if (brand && brand !== '—') {
+                compMap.set(brand, (compMap.get(brand) ?? 0) + gallons)
+              }
+            }
+          }
+          const compRanked = Array.from(compMap.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 8)
+          if (compRanked.length === 0) return null
+          const compTotal = compRanked.reduce((s, [, g]) => s + g, 0)
+          const compMax = Math.max(...compRanked.map(([, g]) => g), 1)
+          const top = compRanked[0]
+          const topPct = compTotal > 0 ? (top[1] / compTotal) * 100 : 0
+          return (
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-6">
+              <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
+                <div>
+                  <h2 className="text-zinc-900 font-bold text-lg">Competitor Concentration</h2>
+                  <p className="text-zinc-500 text-sm mt-0.5">
+                    Where non-CK corridor gallons are going · rolled up across all active corridors
+                  </p>
+                </div>
+                <BarChart2 className="text-zinc-400 shrink-0" size={22} />
+              </div>
+              <div className="p-6">
+                {topPct >= 40 && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-5 flex items-start gap-3">
+                    <AlertCircle size={14} className="text-red-500 shrink-0 mt-0.5" />
+                    <p className="text-sm text-red-800 leading-snug">
+                      <strong>{fmtPct(topPct)}</strong> of non-CK corridor fills are at{' '}
+                      <strong>{top[0]}</strong> — a concentrated loyalty relationship.
+                      Displacement strategy should prioritize this brand.
+                    </p>
+                  </div>
+                )}
+                <div className="space-y-3">
+                  {compRanked.map(([brand, gallons]) => {
+                    const pct = compTotal > 0 ? (gallons / compTotal) * 100 : 0
+                    return (
+                      <div key={brand}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-medium text-gray-700">{brand}</span>
+                          <span className="text-sm font-semibold text-gray-800 tabular-nums">
+                            {fmtGallons(gallons)}{' '}
+                            <span className="text-gray-400 font-normal text-xs">({fmtPct(pct)})</span>
+                          </span>
+                        </div>
+                        <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-2.5 bg-zinc-600 rounded-full"
+                            style={{ width: `${(gallons / compMax) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                <p className="mt-4 text-xs text-gray-400 flex items-start gap-1.5">
+                  <Info size={12} className="shrink-0 mt-0.5" />
+                  Gallons represent on-corridor competitor fills only. Brands are sourced from station name data in the fleet report.
+                </p>
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Fleet Loyalty Segments */}
+        {summary.vehicleSegments.length > 0 && (() => {
+          const SEGMENT_ORDER = ['ck-loyal', 'mixed', 'mostly-competitor', 'never-ck'] as const
+          const segments = SEGMENT_ORDER
+            .map(s => summary.vehicleSegments.find(seg => seg.segment === s))
+            .filter(Boolean) as typeof summary.vehicleSegments
+          const totalVehicles = summary.vehicleBreakdown.length
+          const avgFillSize = summary.totalTransactions > 0
+            ? summary.totalGallons / summary.totalTransactions
+            : 0
+          const compVehicles = summary.vehicleBreakdown.filter(v => v.ckSharePct === 0)
+          const compGallons = compVehicles.reduce((s, v) => s + v.gallons, 0)
+          if (totalVehicles === 0) return null
+          return (
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-6">
+              <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
+                <div>
+                  <h2 className="text-zinc-900 font-bold text-lg">Fleet Behavior</h2>
+                  <p className="text-zinc-500 text-sm mt-0.5">
+                    CK loyalty segmentation · fill patterns across {totalVehicles} vehicles
+                  </p>
+                </div>
+                <Users className="text-zinc-400 shrink-0" size={22} />
+              </div>
+              <div className="p-6 space-y-6">
+                {/* Segment cards */}
+                <div>
+                  <h3 className="font-bold text-off-black text-sm uppercase tracking-wide mb-3">CK Loyalty Segments</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {segments.map(seg => {
+                      const pct = totalVehicles > 0 ? (seg.count / totalVehicles) * 100 : 0
+                      return (
+                        <div key={seg.segment} className="bg-gray-50 rounded-xl border border-gray-100 p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
+                            <span className="font-bold text-off-black text-sm">{seg.label}</span>
+                          </div>
+                          <p className="text-2xl font-bold text-off-black">{seg.count}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">vehicles ({fmtPct(pct)})</p>
+                          <p className="text-xs text-gray-500 mt-2">{fmtGallons(seg.gallons)} gal</p>
+                          <p className="text-xs text-gray-400 mt-0.5 leading-tight">{seg.description}</p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Fill size + cadence stats */}
+                <div className="border-t border-gray-100 pt-4">
+                  <h3 className="font-bold text-off-black text-sm uppercase tracking-wide mb-3">Fill Patterns</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <p className="text-xs text-gray-500 mb-1">Avg Fill Size</p>
+                      <p className="text-xl font-bold text-off-black">{avgFillSize.toFixed(0)} gal</p>
+                      <p className="text-xs text-gray-400 mt-0.5">per transaction</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <p className="text-xs text-gray-500 mb-1">Total Vehicles</p>
+                      <p className="text-xl font-bold text-off-black">{totalVehicles.toLocaleString()}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">in data window</p>
+                    </div>
+                    <div className="bg-orange-50 rounded-xl p-4">
+                      <p className="text-xs text-gray-500 mb-1">Never-CK Vehicles</p>
+                      <p className="text-xl font-bold text-amber-700">{compVehicles.length.toLocaleString()}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{fmtGallons(compGallons)} gal</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <p className="text-xs text-gray-500 mb-1">States Covered</p>
+                      <p className="text-xl font-bold text-off-black">{summary.uniqueStates.length}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{summary.uniqueStates.slice(0, 4).join(', ')}{summary.uniqueStates.length > 4 ? ` +${summary.uniqueStates.length - 4}` : ''}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Fleet Fuel Profile */}
         {(summary.proximityBreakdown || summary.fuelTypeBreakdown.length > 0) && (() => {
