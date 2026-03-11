@@ -337,8 +337,8 @@ function buildDayOfWeekBreakdown(transactions: FuelingTransaction[]): DayOfWeekB
 function buildVehicleSegments(vehicleBreakdown: VehicleSummary[]): VehicleSegment[] {
   const defs: { segment: VehicleSegment['segment']; label: string; description: string; color: string; test: (v: VehicleSummary) => boolean }[] = [
     { segment: 'ck-loyal',          label: 'CK Loyal',         description: '≥ 70% of gallons at Circle K',       color: '#16a34a', test: v => v.ckSharePct >= 70 },
-    { segment: 'mixed',             label: 'Mixed',             description: '20–69% at Circle K',                 color: '#3b82f6', test: v => v.ckSharePct >= 20 },
-    { segment: 'mostly-competitor', label: 'Mostly Competitor', description: '1–19% at Circle K',                  color: '#f59e0b', test: v => v.ckSharePct > 0 },
+    { segment: 'mixed',             label: 'Mixed',             description: '20–69% at Circle K',                 color: '#3b82f6', test: v => v.ckSharePct >= 20 && v.ckSharePct < 70 },
+    { segment: 'mostly-competitor', label: 'Mostly Competitor', description: '1–19% at Circle K',                  color: '#f59e0b', test: v => v.ckSharePct > 0  && v.ckSharePct < 20 },
     { segment: 'never-ck',          label: 'Never CK',          description: '0% at Circle K',                     color: '#dc2626', test: v => v.ckSharePct === 0 },
   ]
   return defs.map(def => {
