@@ -1772,12 +1772,12 @@ function AnalysisPageInner() {
   }
 
   return (
-    <div className="min-h-screen bg-off-white">
+    <div className="min-h-screen bg-off-white" style={{ backgroundImage: 'radial-gradient(circle, #d1d5db 1px, transparent 1px)', backgroundSize: '28px 28px', backgroundAttachment: 'fixed' }}>
       <Navbar />
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Page Header */}
-        <div className="mb-8">
+        <div className="mb-8 fade-in">
           <h1 className="text-3xl font-bold text-off-black">Transaction Analysis</h1>
           <p className="text-gray-500 mt-1">
             Upload a fleet fueling transaction report to compare against the Circle K store footprint.
@@ -1786,7 +1786,7 @@ function AnalysisPageInner() {
 
         {/* ── Upload State ──────────────────────────────────────────────────── */}
         {!summary && (
-          <div className="max-w-2xl mx-auto">
+          <div className="max-w-2xl mx-auto slide-up-card">
             {/* Customer Name */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Customer / Account Name</label>
@@ -1855,7 +1855,7 @@ function AnalysisPageInner() {
         {summary && (
           <div className="space-y-6">
             {/* Results header */}
-            <div className="flex items-start justify-between flex-wrap gap-4">
+            <div className="flex items-start justify-between flex-wrap gap-4 fade-in">
               <div>
                 <p className="text-sm text-gray-500 mb-0.5">Analysis for</p>
                 <input
@@ -1947,7 +1947,7 @@ function AnalysisPageInner() {
 
             {/* Summary stats */}
             <div className="rounded-xl border border-zinc-200 overflow-hidden bg-zinc-100 shadow-sm">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-px">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-px stagger-stats">
                 <StatCard label="Transactions" value={summary.totalTransactions.toLocaleString()} />
                 <StatCard label="Total Gallons" value={fmtGallons(summary.totalGallons)} />
                 <StatCard label="Total Spend" value={fmtDollars(summary.totalSpend)} />
@@ -1963,26 +1963,26 @@ function AnalysisPageInner() {
 
             {/* Annualized Projections (if enabled) */}
             {featureFlags.annualized && (
-              <AnnualizedPanel summary={summary} months={monthSpan} />
+              <div className="fade-in"><AnnualizedPanel summary={summary} months={monthSpan} /></div>
             )}
 
             {/* CK Opportunity Panel */}
-            <OpportunityPanel analysis={summary.ckCaptureAnalysis} totalGallons={summary.totalGallons} />
+            <div className="fade-in"><OpportunityPanel analysis={summary.ckCaptureAnalysis} totalGallons={summary.totalGallons} /></div>
 
             {/* Savings Calculator (if enabled) */}
             {featureFlags.savingsCalc && (
-              <SavingsCalculatorPanel
+              <div className="fade-in"><SavingsCalculatorPanel
                 captured={summary.ckCaptureAnalysis.captured}
                 capturable={summary.ckCaptureAnalysis.capturable}
                 months={monthSpan}
                 rebateRate={rebateRate}
                 onRebateChange={setRebateRate}
-              />
+              /></div>
             )}
 
             {/* Tabbed detail sections — only shown if at least one tab is visible */}
             {visibleTabs.length > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden fade-in">
                 <div className="flex border-b border-gray-200 overflow-x-auto">
                   {visibleTabs.map(tab => (
                     <button
