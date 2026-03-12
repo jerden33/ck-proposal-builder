@@ -333,13 +333,13 @@ function OTRPageInner() {
 
   if (phase === 'upload') {
     return (
-      <div className="min-h-screen bg-off-white">
+      <div className="min-h-screen bg-off-white" style={{ backgroundImage: 'radial-gradient(circle, #d1d5db 1px, transparent 1px)', backgroundSize: '28px 28px', backgroundAttachment: 'fixed' }}>
         <Navbar />
         <div className="max-w-2xl mx-auto px-6 py-16">
           {/* Hero */}
-          <div className="text-center mb-10">
-            <div className="inline-flex items-center gap-2 bg-zinc-100 text-zinc-700 text-xs font-bold px-3 py-1.5 rounded-full mb-4">
-              <Truck size={13} />
+          <div className="text-center mb-10 fade-in">
+            <div className="inline-flex items-center gap-2 bg-white text-zinc-700 text-xs font-bold px-3 py-1.5 rounded-full mb-5 shadow-sm border border-zinc-200">
+              <Truck size={13} className="float" />
               OTR Fleet Analysis
             </div>
             <h1 className="text-3xl font-bold text-off-black mb-3">
@@ -358,7 +358,7 @@ function OTRPageInner() {
             </div>
           )}
 
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 slide-up-card">
             {/* Customer name */}
             <div className="mb-5">
               <label className="text-sm font-semibold text-gray-700 mb-1.5 block">
@@ -400,16 +400,16 @@ function OTRPageInner() {
             </div>
 
             {/* Feature callouts */}
-            <div className="mt-5 grid grid-cols-3 gap-3 text-center text-xs text-gray-500">
-              <div className="flex flex-col items-center gap-1.5 p-3 bg-gray-50 rounded-lg">
+            <div className="mt-5 grid grid-cols-3 gap-3 text-center text-xs text-gray-500 stagger-children">
+              <div className="flex flex-col items-center gap-1.5 p-3 bg-white rounded-lg border border-zinc-100 shadow-sm">
                 <Navigation size={15} className="text-brand-orange" />
                 <span>39 Interstate Corridors</span>
               </div>
-              <div className="flex flex-col items-center gap-1.5 p-3 bg-gray-50 rounded-lg">
+              <div className="flex flex-col items-center gap-1.5 p-3 bg-white rounded-lg border border-zinc-100 shadow-sm">
                 <Truck size={15} className="text-brand-orange" />
                 <span>Truck-Accessible CK Only</span>
               </div>
-              <div className="flex flex-col items-center gap-1.5 p-3 bg-gray-50 rounded-lg">
+              <div className="flex flex-col items-center gap-1.5 p-3 bg-white rounded-lg border border-zinc-100 shadow-sm">
                 <Share2 size={15} className="text-brand-orange" />
                 <span>Shareable Customer Report</span>
               </div>

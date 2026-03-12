@@ -278,18 +278,18 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(14px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slideUpCard {
-  from { opacity: 0; transform: translateY(16px) scale(0.99); }
+  from { opacity: 0; transform: translateY(22px) scale(0.975); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes statPop {
-  0%   { opacity: 0; transform: translateY(6px) scale(0.96); }
-  60%  { transform: translateY(-2px) scale(1.01); }
+  0%   { opacity: 0; transform: translateY(10px) scale(0.94); }
+  65%  { transform: translateY(-3px) scale(1.015); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
@@ -297,67 +297,78 @@ h1, h2, h3, h4, h5, h6 {
   from { width: 0 !important; }
 }
 
+/* Subtle continuous float for hero icons / decorative elements */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-6px); }
+}
+
 .fade-in {
-  animation: fadeIn 0.4s ease-out;
+  animation: fadeIn 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .slide-up-card {
-  animation: slideUpCard 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: slideUpCard 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .stat-pop {
-  animation: statPop 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: statPop 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .bar-grow {
-  animation: barGrow 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: barGrow 1.0s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+.float {
+  animation: float 3.5s ease-in-out infinite;
+}
+
+/* backwards fill-mode ensures items are invisible during their stagger delay */
 .stagger-children > * {
-  animation: fadeIn 0.4s ease-out both;
+  animation: fadeIn 0.65s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
-.stagger-children > *:nth-child(1)  { animation-delay: 0.04s; }
-.stagger-children > *:nth-child(2)  { animation-delay: 0.08s; }
-.stagger-children > *:nth-child(3)  { animation-delay: 0.12s; }
-.stagger-children > *:nth-child(4)  { animation-delay: 0.16s; }
-.stagger-children > *:nth-child(5)  { animation-delay: 0.20s; }
-.stagger-children > *:nth-child(6)  { animation-delay: 0.24s; }
-.stagger-children > *:nth-child(7)  { animation-delay: 0.28s; }
-.stagger-children > *:nth-child(8)  { animation-delay: 0.32s; }
-.stagger-children > *:nth-child(9)  { animation-delay: 0.36s; }
-.stagger-children > *:nth-child(10) { animation-delay: 0.40s; }
-.stagger-children > *:nth-child(11) { animation-delay: 0.44s; }
-.stagger-children > *:nth-child(12) { animation-delay: 0.48s; }
+.stagger-children > *:nth-child(1)  { animation-delay: 0.06s; }
+.stagger-children > *:nth-child(2)  { animation-delay: 0.12s; }
+.stagger-children > *:nth-child(3)  { animation-delay: 0.18s; }
+.stagger-children > *:nth-child(4)  { animation-delay: 0.24s; }
+.stagger-children > *:nth-child(5)  { animation-delay: 0.30s; }
+.stagger-children > *:nth-child(6)  { animation-delay: 0.36s; }
+.stagger-children > *:nth-child(7)  { animation-delay: 0.42s; }
+.stagger-children > *:nth-child(8)  { animation-delay: 0.48s; }
+.stagger-children > *:nth-child(9)  { animation-delay: 0.54s; }
+.stagger-children > *:nth-child(10) { animation-delay: 0.60s; }
+.stagger-children > *:nth-child(11) { animation-delay: 0.66s; }
+.stagger-children > *:nth-child(12) { animation-delay: 0.72s; }
 
-/* Card grid stagger — faster cadence for denser grids */
+/* Card grid stagger — slightly faster cadence for denser grids */
 .stagger-cards > * {
-  animation: slideUpCard 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: slideUpCard 0.55s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
-.stagger-cards > *:nth-child(1)  { animation-delay: 0.05s; }
-.stagger-cards > *:nth-child(2)  { animation-delay: 0.10s; }
-.stagger-cards > *:nth-child(3)  { animation-delay: 0.15s; }
-.stagger-cards > *:nth-child(4)  { animation-delay: 0.20s; }
-.stagger-cards > *:nth-child(5)  { animation-delay: 0.25s; }
-.stagger-cards > *:nth-child(6)  { animation-delay: 0.30s; }
-.stagger-cards > *:nth-child(7)  { animation-delay: 0.35s; }
-.stagger-cards > *:nth-child(8)  { animation-delay: 0.40s; }
-.stagger-cards > *:nth-child(9)  { animation-delay: 0.45s; }
-.stagger-cards > *:nth-child(10) { animation-delay: 0.50s; }
-.stagger-cards > *:nth-child(11) { animation-delay: 0.55s; }
-.stagger-cards > *:nth-child(12) { animation-delay: 0.60s; }
+.stagger-cards > *:nth-child(1)  { animation-delay: 0.07s; }
+.stagger-cards > *:nth-child(2)  { animation-delay: 0.14s; }
+.stagger-cards > *:nth-child(3)  { animation-delay: 0.21s; }
+.stagger-cards > *:nth-child(4)  { animation-delay: 0.28s; }
+.stagger-cards > *:nth-child(5)  { animation-delay: 0.35s; }
+.stagger-cards > *:nth-child(6)  { animation-delay: 0.42s; }
+.stagger-cards > *:nth-child(7)  { animation-delay: 0.49s; }
+.stagger-cards > *:nth-child(8)  { animation-delay: 0.56s; }
+.stagger-cards > *:nth-child(9)  { animation-delay: 0.63s; }
+.stagger-cards > *:nth-child(10) { animation-delay: 0.70s; }
+.stagger-cards > *:nth-child(11) { animation-delay: 0.77s; }
+.stagger-cards > *:nth-child(12) { animation-delay: 0.84s; }
 
 /* Stat cards stagger */
 .stagger-stats > * {
-  animation: statPop 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: statPop 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
-.stagger-stats > *:nth-child(1) { animation-delay: 0.05s; }
-.stagger-stats > *:nth-child(2) { animation-delay: 0.12s; }
-.stagger-stats > *:nth-child(3) { animation-delay: 0.19s; }
-.stagger-stats > *:nth-child(4) { animation-delay: 0.26s; }
-.stagger-stats > *:nth-child(5) { animation-delay: 0.33s; }
+.stagger-stats > *:nth-child(1) { animation-delay: 0.07s; }
+.stagger-stats > *:nth-child(2) { animation-delay: 0.16s; }
+.stagger-stats > *:nth-child(3) { animation-delay: 0.25s; }
+.stagger-stats > *:nth-child(4) { animation-delay: 0.34s; }
+.stagger-stats > *:nth-child(5) { animation-delay: 0.43s; }
 
 /* ── Mapbox ──────────────────────────────────────────────────────────── */
 

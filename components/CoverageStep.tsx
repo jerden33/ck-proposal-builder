@@ -27,7 +27,7 @@ export function CoverageStep({ addresses, addAddress, removeAddress, updateAddre
       <div className="card">
         <div className="flex justify-between items-start mb-6">
           <div>
-            <h2 className="text-2xl font-bold mb-2">Coverage analysis</h2>
+            <h2 className="text-2xl font-bold mb-2">Coverage Analysis</h2>
             <p className="text-gray-600">Add service addresses to analyze Circle K coverage</p>
           </div>
           <button onClick={addAddress} className="btn-primary flex items-center gap-2">

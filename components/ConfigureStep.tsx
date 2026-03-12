@@ -35,7 +35,7 @@ export function ConfigureStep({ sections, toggleSection, opportunityData }: Conf
       <div className="card">
         <div className="flex justify-between items-start mb-6">
           <div>
-            <h2 className="text-2xl font-bold mb-2">Configure proposal</h2>
+            <h2 className="text-2xl font-bold mb-2">Configure Proposal</h2>
             <p className="text-gray-600">Select which sections to include in your proposal</p>
           </div>
           <div className="text-right">

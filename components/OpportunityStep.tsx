@@ -36,7 +36,7 @@ export function OpportunityStep({
     <div className="space-y-6 stagger-children">
       {/* Customer Information */}
       <div className="card">
-        <h2 className="text-2xl font-bold mb-6">Customer information</h2>
+        <h2 className="text-2xl font-bold mb-6">Customer Information</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
@@ -100,7 +100,7 @@ export function OpportunityStep({
 
       {/* Product Selection */}
       <div className="card">
-        <h2 className="text-2xl font-bold mb-3">Product selection</h2>
+        <h2 className="text-2xl font-bold mb-3">Product Selection</h2>
         <p className="text-gray-600 mb-6">Select one or more products for this opportunity</p>
 
         <div className="space-y-6">

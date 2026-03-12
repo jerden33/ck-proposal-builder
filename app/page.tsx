@@ -395,7 +395,7 @@ export default function Home() {
             </button>
           ) : (
             <div className="text-sm text-gray-500">
-              Ready to generate
+              Ready to Generate
             </div>
           )}
         </div>
