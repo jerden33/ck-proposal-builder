@@ -2169,8 +2169,8 @@ function AnalysisPageInner() {
                             <div className="p-6 grid grid-cols-1">
                               <DetailedProximityPanel
                                 prox={summary.proximityBreakdownAll}
-                                title="Any Circle K (incl. c-stores)"
-                                subtitle="All fuel types · full CK network"
+                                title="Circle K"
+                                subtitle="Full CK network"
                                 monthSpan={monthSpan}
                               />
                             </div>
