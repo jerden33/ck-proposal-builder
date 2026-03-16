@@ -1669,6 +1669,7 @@ function AnalysisPageInner() {
         geocodedCoords,
         geocodedAddresses: geocodedAddrs,
         ckStores: ckStoreCoords,
+        ckStoresAll: ckStoreCoords,
       })
 
       setSummary(enrichedResult)
