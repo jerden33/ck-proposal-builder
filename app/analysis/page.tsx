@@ -2155,38 +2155,26 @@ function AnalysisPageInner() {
                   {/* ── Map Tab ──────────────────────────────────────────── */}
                   {activeTab === 'map' && featureFlags.mapView && (
                     <div className="space-y-6">
-                      {summary.proximityBreakdown && !geocodingInProgress ? (
+                      {summary.proximityBreakdownAll && !geocodingInProgress ? (
                         <>
-                          <ProximityPanel prox={summary.proximityBreakdown} totalGallons={summary.totalGallons} isMobileFueling={isMobileFueling} />
-                          {(summary.proximityBreakdown || summary.proximityBreakdownAll) && (
-                            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                              <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
-                                <div>
-                                  <h2 className="text-zinc-900 font-bold text-lg">Proximity Breakdown</h2>
-                                  <p className="text-zinc-500 text-sm mt-0.5">Distance bands to nearest Circle K</p>
-                                </div>
-                                <MapPin className="text-zinc-400 shrink-0" size={22} />
+                          <ProximityPanel prox={summary.proximityBreakdownAll} totalGallons={summary.totalGallons} isMobileFueling={isMobileFueling} />
+                          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                            <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
+                              <div>
+                                <h2 className="text-zinc-900 font-bold text-lg">Proximity Breakdown</h2>
+                                <p className="text-zinc-500 text-sm mt-0.5">Distance bands to nearest Circle K</p>
                               </div>
-                              <div className={`p-6 grid gap-6 ${summary.proximityBreakdown && summary.proximityBreakdownAll ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
-                                {summary.proximityBreakdown && (
-                                  <DetailedProximityPanel
-                                    prox={summary.proximityBreakdown}
-                                    title="Truck-Accessible Circle K"
-                                    subtitle="Diesel & DEF · truck stop CK locations"
-                                    monthSpan={monthSpan}
-                                  />
-                                )}
-                                {summary.proximityBreakdownAll && (
-                                  <DetailedProximityPanel
-                                    prox={summary.proximityBreakdownAll}
-                                    title="Any Circle K (incl. c-stores)"
-                                    subtitle="All fuel types · full CK network"
-                                    monthSpan={monthSpan}
-                                  />
-                                )}
-                              </div>
+                              <MapPin className="text-zinc-400 shrink-0" size={22} />
                             </div>
-                          )}
+                            <div className="p-6 grid grid-cols-1">
+                              <DetailedProximityPanel
+                                prox={summary.proximityBreakdownAll}
+                                title="Any Circle K (incl. c-stores)"
+                                subtitle="All fuel types · full CK network"
+                                monthSpan={monthSpan}
+                              />
+                            </div>
+                          </div>
                         </>
                       ) : geocodingInProgress ? (
                         <div className="rounded-xl bg-accent-muted border border-accent/20 px-4 py-3 text-sm text-accent flex items-center gap-2">
