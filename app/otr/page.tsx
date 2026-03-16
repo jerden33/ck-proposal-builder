@@ -1061,7 +1061,7 @@ function OTRPageInner() {
         })()}
 
         {/* Fleet Fuel Profile */}
-        {(summary.proximityBreakdownAll || summary.fuelTypeBreakdown.length > 0) && (() => {
+        {(summary.proximityBreakdown || summary.fuelTypeBreakdown.length > 0) && (() => {
           // ── Fuel type helpers ──────────────────────────────────────────────────
           const normalizeFuelLabel = (raw: string) => {
             const r = raw.toUpperCase().trim()
@@ -1119,6 +1119,7 @@ function OTRPageInner() {
             }
           }
 
+          const truckProx = summary.proximityBreakdown  ? proxRows(summary.proximityBreakdown,  'At CK (truck stop)') : null
           const allProx   = summary.proximityBreakdownAll ? proxRows(summary.proximityBreakdownAll, 'At Circle K') : null
 
           // ── Brands ────────────────────────────────────────────────────────────
@@ -1199,16 +1200,25 @@ function OTRPageInner() {
                   </div>
                 )}
 
-                {allProx && <div className="border-t border-gray-100" />}
+                {(truckProx || allProx) && <div className="border-t border-gray-100" />}
 
-                {/* ── Proximity ── */}
-                {allProx && (
-                  <div className="grid grid-cols-1">
-                    <ProxPanel
-                      data={allProx}
-                      title="Circle K Proximity"
-                      subtitle="All CK locations · full network"
-                    />
+                {/* ── Dual proximity ── */}
+                {(truckProx || allProx) && (
+                  <div className={`grid gap-6 ${truckProx && allProx ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
+                    {truckProx && (
+                      <ProxPanel
+                        data={truckProx}
+                        title="Truck-Accessible Circle K"
+                        subtitle={`Diesel & DEF · ${ckStores.length} truck stop CK locations`}
+                      />
+                    )}
+                    {allProx && (
+                      <ProxPanel
+                        data={allProx}
+                        title="Any Circle K (incl. c-stores)"
+                        subtitle="All fuel types · full CK network"
+                      />
+                    )}
                   </div>
                 )}
 
@@ -1255,10 +1265,10 @@ function OTRPageInner() {
                         <p className="font-bold text-off-black text-sm">{summary.fuelTypeBreakdown.length}</p>
                       </div>
                     </div>
-                    {summary.proximityBreakdownAll && summary.proximityBreakdownAll.geocodedPct < 90 && (
+                    {summary.proximityBreakdown && summary.proximityBreakdown.geocodedPct < 90 && (
                       <p className="mt-3 text-xs text-gray-400 flex items-start gap-1.5">
                         <Info size={12} className="shrink-0 mt-0.5" />
-                        {fmtPct(summary.proximityBreakdownAll.geocodedPct)} of gallons geocoded — proximity covers geocoded transactions only.
+                        {fmtPct(summary.proximityBreakdown.geocodedPct)} of gallons geocoded — proximity covers geocoded transactions only.
                       </p>
                     )}
                   </div>
