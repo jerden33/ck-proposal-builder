@@ -70,6 +70,8 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'trans state', 'transaction state', 'service state', 'fill state',
     'loc state', 'mcht state', 'merch state',
     'truck stop state',
+    // CamelCase variants (no space) from some export formats
+    'sitestate', 'stationstate',
   ],
   gallons: [
     'gallons', 'quantity', 'gal', 'volume', 'fuel quantity', 'qty',
@@ -85,6 +87,8 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'unleaded gallons', 'def gallons',
     // Comdata — "Number of Tractor Gallons"
     'number of tractor gallons', 'tractor gallons',
+    // Generic quantity-purchased column (e.g. WEX site-level export)
+    'qty purchased', 'qtypurchased', 'quantity purchased', 'quantitypurchased',
   ],
   // Price-per-unit/gallon — used to derive total amount when no amount column exists
   ppu: [
@@ -98,21 +102,32 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'epa fuel type purchased', 'epa fuel type', 'fuel type', 'product type',
     'fuel category', 'fuel class', 'energy type',
     'product code',  // e.g. "Diesel" / "Reefer" — spaced header variant
+    // CamelCase / compact column names with descriptive fuel names (preferred over NACS codes)
+    'productdesc', 'product desc', 'productdescription', 'product description',
+    // NACS product category code column (e.g. 001 = Unleaded, 019 = Diesel, 020 = Premium Diesel)
+    // Listed last — use only when no descriptive column is available
+    'nacs',
   ],
   stationName: [
     'station name', 'site name', 'location name', 'merchant name',
     'store name', 'location description',
     'truck stop name', 'service center',
+    // CamelCase variants
+    'stationname', 'sitename',
   ],
   stationBrand: [
     'station brand name', 'brand', 'network', 'station brand',
     'merchant brand', 'fuel brand', 'chain', 'oil company', 'brand name',
+    // CamelCase variants
+    'stationbrand', 'stationbrandname',
   ],
   stationAddress: [
     'station address', 'address', 'street', 'street address',
     'site address', 'location address', 'addr', 'address 1',
     'merchant address', 'merchant street',
     'service center address',
+    // CamelCase variants
+    'siteaddress', 'stationaddress',
   ],
   zipCode: [
     'zipcode', 'zip', 'zip code', 'postal code', 'zip_code',
@@ -158,6 +173,8 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'product name', 'product', 'item', 'fuel grade', 'grade',
     'fuel product', 'product description', 'product desc',
     'fuel', 'productdescription', 'productcode',
+    // CamelCase variants
+    'productname', 'productdesc',
   ],
 }
 
@@ -356,6 +373,7 @@ export function parseFleetCSV(content: string): ParseResult {
   else if (headerJoined.includes('invoice date')) detectedFormat = 'Fuelman / Fleetcor'
   else if (headerJoined.includes('unitgallons') || headerJoined.includes('unit/gallons')) detectedFormat = 'RCPA'
   else if (headerJoined.includes('truck stop name') || headerJoined.includes('truck stop city')) detectedFormat = 'OTR Fuel Card'
+  else if (headerJoined.includes('qtypurchased') || (headerJoined.includes('nacs') && headerJoined.includes('sitecity'))) detectedFormat = 'WEX Site-Level'
 
   for (let i = headerIdx + 1; i < rawLines.length; i++) {
     const line = rawLines[i].trim()
