@@ -1769,6 +1769,14 @@ function AnalysisPageInner() {
   const otrOppAt5mi  = mo((proxTruck?.within1mi.gallons ?? 0) + (proxTruck?.within2mi.gallons ?? 0) + (proxTruck?.within5mi.gallons ?? 0) + (proxAll?.within1mi.gallons ?? 0) + (proxAll?.within2mi.gallons ?? 0) + (proxAll?.within5mi.gallons ?? 0))
   const otrOppAt10mi = mo((proxTruck?.within1mi.gallons ?? 0) + (proxTruck?.within2mi.gallons ?? 0) + (proxTruck?.within5mi.gallons ?? 0) + (proxTruck?.within10mi.gallons ?? 0) + (proxAll?.within1mi.gallons ?? 0) + (proxAll?.within2mi.gallons ?? 0) + (proxAll?.within5mi.gallons ?? 0) + (proxAll?.within10mi.gallons ?? 0))
   const hasProxTiers = proxTruck !== null || proxAll !== null
+  const proxTruckOpp = proxTruck
+    ? proxTruck.within1mi.gallons + proxTruck.within2mi.gallons + proxTruck.within5mi.gallons + proxTruck.within10mi.gallons
+    : null
+  const proxAllOpp = proxAll
+    ? proxAll.within1mi.gallons + proxAll.within2mi.gallons + proxAll.within5mi.gallons + proxAll.within10mi.gallons
+    : null
+  const proxCKTotal   = (proxTruck?.ckGallons ?? 0) + (proxAll?.ckGallons ?? 0)
+  const useProxHeader = proxTruckOpp !== null || proxAllOpp !== null
 
   // ── Full-page loading screen (parsing or geocoding) ──────────────────────────
   if (loading || geocodingInProgress) {
@@ -1986,17 +1994,90 @@ function AnalysisPageInner() {
 
             {/* Summary stats */}
             <div className="rounded-xl border border-zinc-200 overflow-hidden bg-zinc-100 shadow-sm">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-px stagger-stats">
-                <StatCard label="Transactions" value={summary.totalTransactions.toLocaleString()} />
-                <StatCard label="Total Gallons" value={fmtGallons(summary.totalGallons)} />
-                <StatCard label="Total Spend" value={fmtDollars(summary.totalSpend)} />
-                <StatCard label="Vehicles" value={summary.uniqueVehicles.toLocaleString()} />
-                <StatCard label="Unique Stations" value={summary.uniqueStations.toLocaleString()} />
-                <StatCard
-                  label="States"
-                  value={summary.uniqueStates.length.toString()}
-                  sub={summary.uniqueStates.slice(0, 6).join(', ') + (summary.uniqueStates.length > 6 ? '…' : '')}
-                />
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-px stagger-stats">
+                {(useProxHeader ? [
+                  {
+                    label: 'Total Gallons',
+                    value: fmtGallons(summary.totalGallons),
+                    sub: `${summary.totalTransactions.toLocaleString()} transactions`,
+                    accent: false,
+                    warn: false,
+                  },
+                  {
+                    label: 'Currently at CK',
+                    value: fmtGallons(proxCKTotal),
+                    sub: fmtPct(proxCKTotal / (summary.totalGallons || 1) * 100) + ' of total',
+                    accent: false,
+                    warn: false,
+                  },
+                  ...(proxTruckOpp !== null ? [{
+                    label: 'Diesel Opportunity',
+                    value: fmtGallons(proxTruckOpp),
+                    sub: '≤10mi of truck CK',
+                    accent: false,
+                    warn: false,
+                  }] : []),
+                  ...(proxAllOpp !== null ? [{
+                    label: 'Gas Opportunity',
+                    value: fmtGallons(proxAllOpp),
+                    sub: '≤10mi of any CK',
+                    accent: false,
+                    warn: false,
+                  }] : []),
+                  {
+                    label: 'Monthly Opportunity',
+                    value: '',
+                    sub: monthSpan !== 12 ? `from ${monthSpan.toFixed(1)} mo` : 'proximity-based',
+                    accent: true,
+                    warn: false,
+                    tiers: [
+                      { dist: '≤1mi',  gal: otrOppAt1mi  },
+                      { dist: '≤2mi',  gal: otrOppAt2mi  },
+                      { dist: '≤5mi',  gal: otrOppAt5mi  },
+                      { dist: '≤10mi', gal: otrOppAt10mi },
+                    ],
+                  },
+                ] : [
+                  { label: 'Transactions',    value: summary.totalTransactions.toLocaleString(), sub: undefined, accent: false, warn: false },
+                  { label: 'Total Gallons',   value: fmtGallons(summary.totalGallons),           sub: undefined, accent: false, warn: false },
+                  { label: 'Total Spend',     value: fmtDollars(summary.totalSpend),             sub: undefined, accent: false, warn: false },
+                  { label: 'Vehicles',        value: summary.uniqueVehicles.toLocaleString(),    sub: undefined, accent: false, warn: false },
+                  { label: 'Unique Stations', value: summary.uniqueStations.toLocaleString(),    sub: undefined, accent: false, warn: false },
+                  {
+                    label: 'States',
+                    value: summary.uniqueStates.length.toString(),
+                    sub: summary.uniqueStates.slice(0, 6).join(', ') + (summary.uniqueStates.length > 6 ? '…' : ''),
+                    accent: false,
+                    warn: false,
+                  },
+                ]).map(({ label, value, sub, accent, warn, ...rest }) => {
+                  const tiers = (rest as { tiers?: { dist: string; gal: number }[] }).tiers
+                  return (
+                    <div
+                      key={label}
+                      className={`px-5 py-4 ${accent ? 'bg-accent' : warn ? 'bg-amber-50' : 'bg-white'}`}
+                    >
+                      <p className={`text-xs font-medium uppercase tracking-wider mb-1.5 ${accent ? 'text-white/70' : warn ? 'text-amber-600' : 'text-zinc-400'}`}>
+                        {label}
+                      </p>
+                      {tiers ? (
+                        <div className="space-y-1.5 mt-1">
+                          {tiers.map(({ dist, gal }) => (
+                            <div key={dist} className="flex items-baseline justify-between gap-2">
+                              <span className="text-xs text-white/60 w-10 shrink-0">{dist}</span>
+                              <span className="text-sm font-bold text-white tabular-nums">{fmtGallons(gal)}<span className="text-xs font-normal text-white/50 ml-1">gal/mo</span></span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className={`text-2xl font-bold leading-none ${accent ? 'text-white' : warn ? 'text-amber-700' : 'text-zinc-900'}`}>
+                          {value}
+                        </p>
+                      )}
+                      {sub && <p className={`text-xs mt-1.5 ${accent ? 'text-white/60' : warn ? 'text-amber-500' : 'text-zinc-400'}`}>{sub}</p>}
+                    </div>
+                  )
+                })}
               </div>
             </div>
 
