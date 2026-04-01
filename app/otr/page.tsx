@@ -25,6 +25,8 @@ import {
   Globe,
   Users,
   Zap,
+  Clock,
+  ShieldAlert,
 } from 'lucide-react'
 import { Navbar } from '@/components/Navbar'
 import { parseFleetCSV } from '@/lib/transaction-parser'
@@ -35,6 +37,9 @@ import {
   fmtPct,
   fmtDollars,
   type TransactionSummary,
+  type DriverSummary,
+  type VehicleSegment,
+  type FraudFlag,
 } from '@/lib/transaction-analysis'
 import { geocodeLocations, geocodeAddresses, geoKey, addrGeoKey } from '@/lib/geocoding'
 import { runOTRAnalysis, type OTRAnalysis } from '@/lib/otr-analysis'
