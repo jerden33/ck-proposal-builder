@@ -934,21 +934,6 @@ function OTRPageInner() {
           </div>
         )}
 
-        {/* Diesel fleet hint */}
-        {summary.fuelTypeBreakdown.length > 0 && (
-          <div className={`mb-4 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium w-fit ${
-            isDieselFleet
-              ? 'bg-blue-50 text-blue-700 border border-blue-200'
-              : 'bg-zinc-50 text-zinc-500 border border-zinc-200'
-          }`}>
-            <Truck size={13} />
-            {isDieselFleet
-              ? `${fmtPct(dieselPct * 100)} diesel fleet — OTR truck corridor analysis enabled`
-              : `${fmtPct(dieselPct * 100)} diesel — below ${fmtPct(DIESEL_FLEET_THRESHOLD * 100)} threshold, corridor analysis hidden`
-            }
-          </div>
-        )}
-
         {/* Summary stats */}
         <div className="rounded-xl border border-zinc-200 overflow-hidden bg-zinc-100 shadow-sm mb-6">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-px stagger-stats">
@@ -970,7 +955,7 @@ function OTRPageInner() {
               ...(proxTruckOpp !== null ? [{
                 label: 'Diesel Opportunity',
                 value: fmtGallons(proxTruckOpp),
-                sub: '≤10mi of truck CK',
+                sub: `≤10mi of truck CK · ${fmtPct(dieselPct * 100)} diesel fleet`,
                 accent: false,
                 warn: false,
               }] : []),

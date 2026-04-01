@@ -245,6 +245,8 @@ export interface CKOpportunityLocation {
   competitorTransactions: number
   competitorSpend: number
   nearbyStationCount: number   // distinct competitor stations within radius
+  dieselGallons: number        // non-CK diesel gallons attributed to this CK
+  gasGallons: number           // non-CK gas gallons attributed to this CK
 }
 
 /** Find the nearest CK store distance in miles for a given coordinate */
@@ -889,10 +891,13 @@ function buildMapData(
           truckAccessible: ckNearest.store.truckAccessible ?? false,
           siteNumber: ckNearest.store.siteNumber,
           competitorGallons: 0, competitorTransactions: 0, competitorSpend: 0, nearbyStationCount: 0,
+          dieselGallons: 0, gasGallons: 0,
         }
         entry.competitorGallons += nonCKGallons
         entry.competitorTransactions += nonCKTrans
         entry.competitorSpend += nonCKSpend
+        entry.dieselGallons += agg.nonCKDieselGallons
+        entry.gasGallons += agg.nonCKGasGallons
         entry.nearbyStationCount++
         ckOppMap.set(k, entry)
       }

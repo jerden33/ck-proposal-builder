@@ -51,11 +51,16 @@ import {
 import { geocodeLocations, geocodeAddresses, geoKey, addrGeoKey } from '@/lib/geocoding'
 import { runOTRAnalysis } from '@/lib/otr-analysis'
 import type { CKStorePin } from '@/components/FuelingMap'
+import type { OTRMapStore } from '@/components/OTRMap'
 
-// Dynamically import the map (Mapbox can't SSR)
+// Dynamically import the maps (Mapbox can't SSR)
 const FuelingMap = dynamic(() => import('@/components/FuelingMap').then(m => m.FuelingMap), {
   ssr: false,
   loading: () => <div className="bg-gray-100 rounded-xl animate-pulse" style={{ height: 520 }} />,
+})
+const OTRMap = dynamic(() => import('@/components/OTRMap').then(m => m.OTRMap), {
+  ssr: false,
+  loading: () => <div className="bg-gray-100 rounded-xl animate-pulse" style={{ height: 580 }} />,
 })
 
 // ─── CK store shape from stores-data.json ─────────────────────────────────────
@@ -490,47 +495,94 @@ function SavingsCalculatorPanel({
 
 // ─── OTR Corridor Analysis Panel ─────────────────────────────────────────────
 
-function OTRAnalysisPanel({ otr, months }: {
+function OTRAnalysisPanel({ otr, months, mapPoints, ckStorePins, isDieselFleet }: {
   otr: NonNullable<TransactionSummary['otrAnalysis']>
   months: number
+  mapPoints: import('@/lib/transaction-analysis').MapPoint[]
+  ckStorePins: CKStorePin[]
+  isDieselFleet: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
   const shown = expanded ? otr.corridorResults : otr.corridorResults.slice(0, 8)
   const totalOpp = otr.corridorResults.reduce((s, r) => s + r.captureGallons, 0)
   const annualOpp = months > 0 ? (totalOpp / months) * 12 : totalOpp
 
+  // OTRMap needs truck-accessible stores only, shaped as OTRMapStore
+  const truckStores: OTRMapStore[] = ckStorePins
+    .filter(s => s.truckAccessible)
+    .map(s => ({ lat: s.lat, lng: s.lng, name: s.name, city: s.city, state: s.state }))
+
   return (
-    <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-      <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-zinc-900 font-bold text-lg">OTR Corridor Analysis</h2>
-            <span className="bg-zinc-200 text-zinc-600 text-xs font-bold px-2 py-0.5 rounded-full">OTR</span>
-          </div>
-          <p className="text-zinc-500 text-sm mt-0.5">
-            Opportunity mapped to major interstate corridors — not aerial radius
-          </p>
+    <>
+      {/* Header row */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <h2 className="text-zinc-900 font-bold text-lg">OTR Corridor Analysis</h2>
+          <span className="bg-zinc-200 text-zinc-600 text-xs font-bold px-2 py-0.5 rounded-full">OTR</span>
         </div>
-        <Truck className="text-zinc-400 shrink-0" size={26} />
+        <Truck className="text-zinc-400 shrink-0" size={24} />
       </div>
+      <p className="text-zinc-500 text-sm mb-4">
+        Opportunity mapped to major interstate corridors — not aerial radius
+      </p>
 
       {/* Summary strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-0 border-b border-gray-200 divide-x divide-gray-200">
-        {[
-          { label: 'Active Corridors',   value: otr.corridorResults.length.toString() },
-          { label: 'On-Corridor Gallons', value: fmtGallons(otr.totalCorridorGallons) },
-          { label: 'Annual Opp. Gallons', value: fmtGallons(annualOpp), accent: true },
-          { label: 'Off-Corridor Gallons', value: fmtGallons(otr.offCorridorGallons), dim: true },
-        ].map(({ label, value, accent, dim }) => (
-          <div key={label} className="px-4 py-3 text-center">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-0.5">{label}</p>
-            <p className={`text-xl font-bold ${accent ? 'text-green-600' : dim ? 'text-gray-400' : 'text-off-black'}`}>{value}</p>
-          </div>
-        ))}
+      <div className="rounded-xl border border-zinc-200 overflow-hidden bg-zinc-100 mb-5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-px">
+          {[
+            { label: 'Active Corridors',    value: otr.corridorResults.length.toString() },
+            { label: 'On-Corridor Gallons', value: fmtGallons(otr.totalCorridorGallons) },
+            { label: 'Annual Opp. Gallons', value: fmtGallons(annualOpp), accent: true },
+            { label: 'Off-Corridor Gallons', value: fmtGallons(otr.offCorridorGallons), dim: true },
+          ].map(({ label, value, accent, dim }) => (
+            <div key={label} className={`px-4 py-3 text-center ${accent ? 'bg-accent' : 'bg-white'}`}>
+              <p className={`text-xs font-semibold uppercase tracking-wider mb-0.5 ${accent ? 'text-white/70' : 'text-gray-500'}`}>{label}</p>
+              <p className={`text-xl font-bold ${accent ? 'text-white' : dim ? 'text-gray-400' : 'text-off-black'}`}>{value}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
+      {/* Route Coverage map — only for diesel fleets */}
+      {isDieselFleet && truckStores.length > 0 && mapPoints.length > 0 && (
+        <div className="rounded-2xl border border-zinc-200 overflow-hidden mb-5">
+          <div className="bg-zinc-50 border-b border-zinc-200 px-5 py-3 flex items-center justify-between">
+            <div>
+              <p className="font-semibold text-zinc-800 text-sm">Route Coverage &amp; Gaps</p>
+              <p className="text-xs text-zinc-500 mt-0.5">Orange = corridor activity · gap = no truck CK within 30mi</p>
+            </div>
+            <MapPin className="text-zinc-400 shrink-0" size={18} />
+          </div>
+          <OTRMap
+            transactionPoints={mapPoints}
+            ckStores={truckStores}
+            corridorResults={otr.corridorResults}
+            height={520}
+          />
+        </div>
+      )}
+
+      {/* Fueling locations map */}
+      {mapPoints.length > 0 && (
+        <div className="rounded-2xl border border-zinc-200 overflow-hidden mb-5">
+          <div className="bg-zinc-50 border-b border-zinc-200 px-5 py-3 flex items-center justify-between">
+            <div>
+              <p className="font-semibold text-zinc-800 text-sm">All Fueling Locations</p>
+              <p className="text-xs text-zinc-500 mt-0.5">Customer stops · truck-accessible CK sites · color = proximity</p>
+            </div>
+            <MapPin className="text-zinc-400 shrink-0" size={18} />
+          </div>
+          <FuelingMap
+            transactionPoints={mapPoints}
+            ckStores={ckStorePins.filter(s => s.truckAccessible)}
+            height={480}
+            truckMode={true}
+          />
+        </div>
+      )}
+
       {/* Corridor table */}
-      <div className="p-5">
+      <div>
         <p className="text-xs text-gray-400 mb-3">
           A fueling event is <span className="font-semibold text-gray-600">on-corridor</span> if it occurred within 15 mi of the interstate.
           It is <span className="font-semibold text-green-700">capturable</span> if a truck-accessible CK exists on the same corridor within 30 mi.
@@ -611,7 +663,7 @@ function OTRAnalysisPanel({ otr, months }: {
           </p>
         )}
       </div>
-    </div>
+    </>
   )
 }
 
@@ -1758,16 +1810,33 @@ function AnalysisPageInner() {
         .filter(ft => { const r = ft.type.toUpperCase().trim(); return r.includes('DIESEL') || r === 'DSL' || r === 'DSEL' })
         .reduce((s, ft) => s + ft.gallons, 0)
     : 0
+  const DIESEL_FLEET_THRESHOLD = 0.10
   const dieselPct = summary && summary.totalGallons > 0 ? dieselGallons / summary.totalGallons : 0
+  const isDieselFleet = dieselPct >= DIESEL_FLEET_THRESHOLD
 
   // Tiered proximity opportunity for OTR banner
   const proxTruck = summary?.proximityBreakdown ?? null
   const proxAll   = summary?.proximityBreakdownAll ?? null
   const mo = (n: number) => monthSpan > 0 ? n / monthSpan : n
+
+  // Combined tiers (legacy — kept for fallback)
   const otrOppAt1mi  = mo((proxTruck?.within1mi.gallons ?? 0) + (proxAll?.within1mi.gallons ?? 0))
   const otrOppAt2mi  = mo((proxTruck?.within1mi.gallons ?? 0) + (proxTruck?.within2mi.gallons ?? 0) + (proxAll?.within1mi.gallons ?? 0) + (proxAll?.within2mi.gallons ?? 0))
   const otrOppAt5mi  = mo((proxTruck?.within1mi.gallons ?? 0) + (proxTruck?.within2mi.gallons ?? 0) + (proxTruck?.within5mi.gallons ?? 0) + (proxAll?.within1mi.gallons ?? 0) + (proxAll?.within2mi.gallons ?? 0) + (proxAll?.within5mi.gallons ?? 0))
   const otrOppAt10mi = mo((proxTruck?.within1mi.gallons ?? 0) + (proxTruck?.within2mi.gallons ?? 0) + (proxTruck?.within5mi.gallons ?? 0) + (proxTruck?.within10mi.gallons ?? 0) + (proxAll?.within1mi.gallons ?? 0) + (proxAll?.within2mi.gallons ?? 0) + (proxAll?.within5mi.gallons ?? 0) + (proxAll?.within10mi.gallons ?? 0))
+
+  // Diesel-only monthly tiers (from proxTruck)
+  const dieselAt1mi  = mo(proxTruck?.within1mi.gallons ?? 0)
+  const dieselAt2mi  = mo((proxTruck?.within1mi.gallons ?? 0) + (proxTruck?.within2mi.gallons ?? 0))
+  const dieselAt5mi  = mo((proxTruck?.within1mi.gallons ?? 0) + (proxTruck?.within2mi.gallons ?? 0) + (proxTruck?.within5mi.gallons ?? 0))
+  const dieselAt10mi = mo((proxTruck?.within1mi.gallons ?? 0) + (proxTruck?.within2mi.gallons ?? 0) + (proxTruck?.within5mi.gallons ?? 0) + (proxTruck?.within10mi.gallons ?? 0))
+
+  // Gas-only monthly tiers (from proxAll)
+  const gasAt1mi  = mo(proxAll?.within1mi.gallons ?? 0)
+  const gasAt2mi  = mo((proxAll?.within1mi.gallons ?? 0) + (proxAll?.within2mi.gallons ?? 0))
+  const gasAt5mi  = mo((proxAll?.within1mi.gallons ?? 0) + (proxAll?.within2mi.gallons ?? 0) + (proxAll?.within5mi.gallons ?? 0))
+  const gasAt10mi = mo((proxAll?.within1mi.gallons ?? 0) + (proxAll?.within2mi.gallons ?? 0) + (proxAll?.within5mi.gallons ?? 0) + (proxAll?.within10mi.gallons ?? 0))
+
   const hasProxTiers = proxTruck !== null || proxAll !== null
   const proxTruckOpp = proxTruck
     ? proxTruck.within1mi.gallons + proxTruck.within2mi.gallons + proxTruck.within5mi.gallons + proxTruck.within10mi.gallons
@@ -1994,91 +2063,123 @@ function AnalysisPageInner() {
 
             {/* Summary stats */}
             <div className="rounded-xl border border-zinc-200 overflow-hidden bg-zinc-100 shadow-sm">
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-px stagger-stats">
-                {(useProxHeader ? [
-                  {
-                    label: 'Total Gallons',
-                    value: fmtGallons(summary.totalGallons),
-                    sub: `${summary.totalTransactions.toLocaleString()} transactions`,
-                    accent: false,
-                    warn: false,
-                  },
-                  {
-                    label: 'Currently at CK',
-                    value: fmtGallons(proxCKTotal),
-                    sub: fmtPct(proxCKTotal / (summary.totalGallons || 1) * 100) + ' of total',
-                    accent: false,
-                    warn: false,
-                  },
-                  ...(proxTruckOpp !== null ? [{
-                    label: 'Diesel Opportunity',
-                    value: fmtGallons(proxTruckOpp),
-                    sub: '≤10mi of truck CK',
-                    accent: false,
-                    warn: false,
-                  }] : []),
-                  ...(proxAllOpp !== null ? [{
-                    label: 'Gas Opportunity',
-                    value: fmtGallons(proxAllOpp),
-                    sub: '≤10mi of any CK',
-                    accent: false,
-                    warn: false,
-                  }] : []),
-                  {
-                    label: 'Monthly Opportunity',
-                    value: '',
-                    sub: monthSpan !== 12 ? `from ${monthSpan.toFixed(1)} mo` : 'proximity-based',
-                    accent: true,
-                    warn: false,
-                    tiers: [
-                      { dist: '≤1mi',  gal: otrOppAt1mi  },
-                      { dist: '≤2mi',  gal: otrOppAt2mi  },
-                      { dist: '≤5mi',  gal: otrOppAt5mi  },
-                      { dist: '≤10mi', gal: otrOppAt10mi },
-                    ],
-                  },
-                ] : [
-                  { label: 'Transactions',    value: summary.totalTransactions.toLocaleString(), sub: undefined, accent: false, warn: false },
-                  { label: 'Total Gallons',   value: fmtGallons(summary.totalGallons),           sub: undefined, accent: false, warn: false },
-                  { label: 'Total Spend',     value: fmtDollars(summary.totalSpend),             sub: undefined, accent: false, warn: false },
-                  { label: 'Vehicles',        value: summary.uniqueVehicles.toLocaleString(),    sub: undefined, accent: false, warn: false },
-                  { label: 'Unique Stations', value: summary.uniqueStations.toLocaleString(),    sub: undefined, accent: false, warn: false },
-                  {
-                    label: 'States',
-                    value: summary.uniqueStates.length.toString(),
-                    sub: summary.uniqueStates.slice(0, 6).join(', ') + (summary.uniqueStates.length > 6 ? '…' : ''),
-                    accent: false,
-                    warn: false,
-                  },
-                ]).map(({ label, value, sub, accent, warn, ...rest }) => {
-                  const tiers = (rest as { tiers?: { dist: string; gal: number }[] }).tiers
-                  return (
-                    <div
-                      key={label}
-                      className={`px-5 py-4 ${accent ? 'bg-accent' : warn ? 'bg-amber-50' : 'bg-white'}`}
-                    >
-                      <p className={`text-xs font-medium uppercase tracking-wider mb-1.5 ${accent ? 'text-white/70' : warn ? 'text-amber-600' : 'text-zinc-400'}`}>
-                        {label}
+              {useProxHeader ? (
+                // Proximity header — diesel split or single monthly opp
+                <div className={`grid grid-cols-2 gap-px stagger-stats ${proxTruckOpp !== null ? 'sm:grid-cols-3 lg:grid-cols-6' : 'sm:grid-cols-2 lg:grid-cols-4'}`}>
+                  {/* Total Gallons */}
+                  <div className="px-5 py-4 bg-white">
+                    <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-zinc-400">Total Gallons</p>
+                    <p className="text-2xl font-bold leading-none text-zinc-900">{fmtGallons(summary.totalGallons)}</p>
+                    <p className="text-xs mt-1.5 text-zinc-400">{summary.totalTransactions.toLocaleString()} transactions</p>
+                  </div>
+                  {/* Currently at CK */}
+                  <div className="px-5 py-4 bg-white">
+                    <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-zinc-400">Currently at CK</p>
+                    <p className="text-2xl font-bold leading-none text-zinc-900">{fmtGallons(proxCKTotal)}</p>
+                    <p className="text-xs mt-1.5 text-zinc-400">{fmtPct(proxCKTotal / (summary.totalGallons || 1) * 100)} of total</p>
+                  </div>
+                  {/* Diesel Opportunity — only when diesel proximity data exists */}
+                  {proxTruckOpp !== null && (
+                    <div className="px-5 py-4 bg-white">
+                      <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-zinc-400">Diesel Opportunity</p>
+                      <p className="text-2xl font-bold leading-none text-zinc-900">{fmtGallons(proxTruckOpp)}</p>
+                      <p className="text-xs mt-1.5 text-zinc-400">
+                        ≤10mi of truck CK
+                        {isDieselFleet && <span className="ml-2 inline-flex items-center gap-1 bg-blue-50 text-blue-600 border border-blue-200 rounded px-1.5 py-0.5 text-[10px] font-semibold"><Truck size={9} />{fmtPct(dieselPct * 100)} fleet</span>}
                       </p>
-                      {tiers ? (
-                        <div className="space-y-1.5 mt-1">
-                          {tiers.map(({ dist, gal }) => (
-                            <div key={dist} className="flex items-baseline justify-between gap-2">
-                              <span className="text-xs text-white/60 w-10 shrink-0">{dist}</span>
-                              <span className="text-sm font-bold text-white tabular-nums">{fmtGallons(gal)}<span className="text-xs font-normal text-white/50 ml-1">gal/mo</span></span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className={`text-2xl font-bold leading-none ${accent ? 'text-white' : warn ? 'text-amber-700' : 'text-zinc-900'}`}>
-                          {value}
-                        </p>
-                      )}
-                      {sub && <p className={`text-xs mt-1.5 ${accent ? 'text-white/60' : warn ? 'text-amber-500' : 'text-zinc-400'}`}>{sub}</p>}
                     </div>
-                  )
-                })}
-              </div>
+                  )}
+                  {/* Gas Opportunity */}
+                  {proxAllOpp !== null && (
+                    <div className="px-5 py-4 bg-white">
+                      <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-zinc-400">Gas Opportunity</p>
+                      <p className="text-2xl font-bold leading-none text-zinc-900">{fmtGallons(proxAllOpp)}</p>
+                      <p className="text-xs mt-1.5 text-zinc-400">≤10mi of any CK</p>
+                    </div>
+                  )}
+                  {/* Monthly Diesel Opp — shown when diesel proximity data exists */}
+                  {proxTruckOpp !== null ? (
+                    <div className="px-5 py-4 bg-accent">
+                      <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-white/70">Monthly Diesel Opp.</p>
+                      <div className="space-y-1.5 mt-1">
+                        {[
+                          { dist: '≤1mi',  gal: dieselAt1mi  },
+                          { dist: '≤2mi',  gal: dieselAt2mi  },
+                          { dist: '≤5mi',  gal: dieselAt5mi  },
+                          { dist: '≤10mi', gal: dieselAt10mi },
+                        ].map(({ dist, gal }) => (
+                          <div key={dist} className="flex items-baseline justify-between gap-2">
+                            <span className="text-xs text-white/60 w-10 shrink-0">{dist}</span>
+                            <span className="text-sm font-bold text-white tabular-nums">{fmtGallons(gal)}<span className="text-xs font-normal text-white/50 ml-1">gal/mo</span></span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs mt-1.5 text-white/60">{monthSpan !== 12 ? `from ${monthSpan.toFixed(1)} mo` : 'proximity-based'}</p>
+                    </div>
+                  ) : (
+                    // Fallback single monthly opp when no diesel data
+                    <div className="px-5 py-4 bg-accent">
+                      <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-white/70">Monthly Opportunity</p>
+                      <div className="space-y-1.5 mt-1">
+                        {[
+                          { dist: '≤1mi',  gal: otrOppAt1mi  },
+                          { dist: '≤2mi',  gal: otrOppAt2mi  },
+                          { dist: '≤5mi',  gal: otrOppAt5mi  },
+                          { dist: '≤10mi', gal: otrOppAt10mi },
+                        ].map(({ dist, gal }) => (
+                          <div key={dist} className="flex items-baseline justify-between gap-2">
+                            <span className="text-xs text-white/60 w-10 shrink-0">{dist}</span>
+                            <span className="text-sm font-bold text-white tabular-nums">{fmtGallons(gal)}<span className="text-xs font-normal text-white/50 ml-1">gal/mo</span></span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs mt-1.5 text-white/60">{monthSpan !== 12 ? `from ${monthSpan.toFixed(1)} mo` : 'proximity-based'}</p>
+                    </div>
+                  )}
+                  {/* Monthly Gas Opp — only shown when diesel split is active */}
+                  {proxTruckOpp !== null && proxAllOpp !== null && (
+                    <div className="px-5 py-4 bg-accent">
+                      <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-white/70">Monthly Gas Opp.</p>
+                      <div className="space-y-1.5 mt-1">
+                        {[
+                          { dist: '≤1mi',  gal: gasAt1mi  },
+                          { dist: '≤2mi',  gal: gasAt2mi  },
+                          { dist: '≤5mi',  gal: gasAt5mi  },
+                          { dist: '≤10mi', gal: gasAt10mi },
+                        ].map(({ dist, gal }) => (
+                          <div key={dist} className="flex items-baseline justify-between gap-2">
+                            <span className="text-xs text-white/60 w-10 shrink-0">{dist}</span>
+                            <span className="text-sm font-bold text-white tabular-nums">{fmtGallons(gal)}<span className="text-xs font-normal text-white/50 ml-1">gal/mo</span></span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs mt-1.5 text-white/60">{monthSpan !== 12 ? `from ${monthSpan.toFixed(1)} mo` : 'proximity-based'}</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // No proximity data — show basic fleet stats
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-px stagger-stats">
+                  {[
+                    { label: 'Transactions',    value: summary.totalTransactions.toLocaleString(), sub: undefined },
+                    { label: 'Total Gallons',   value: fmtGallons(summary.totalGallons),           sub: undefined },
+                    { label: 'Total Spend',     value: fmtDollars(summary.totalSpend),             sub: undefined },
+                    { label: 'Vehicles',        value: summary.uniqueVehicles.toLocaleString(),    sub: undefined },
+                    { label: 'Unique Stations', value: summary.uniqueStations.toLocaleString(),    sub: undefined },
+                    {
+                      label: 'States',
+                      value: summary.uniqueStates.length.toString(),
+                      sub: summary.uniqueStates.slice(0, 6).join(', ') + (summary.uniqueStates.length > 6 ? '…' : ''),
+                    },
+                  ].map(({ label, value, sub }) => (
+                    <div key={label} className="px-5 py-4 bg-white">
+                      <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-zinc-400">{label}</p>
+                      <p className="text-2xl font-bold leading-none text-zinc-900">{value}</p>
+                      {sub && <p className="text-xs mt-1.5 text-zinc-400">{sub}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Annualized Projections (if enabled) */}
@@ -2088,6 +2189,67 @@ function AnalysisPageInner() {
 
             {/* CK Opportunity Panel */}
             <div className="fade-in"><OpportunityPanel analysis={summary.ckCaptureAnalysis} totalGallons={summary.totalGallons} /></div>
+
+            {/* Top CK Opportunity Locations — standalone card */}
+            {summary.topCKOpportunityLocations.length > 0 && (
+              <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden fade-in">
+                <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-zinc-900 font-bold text-lg">Top Circle K Opportunity Locations</h2>
+                    <p className="text-zinc-500 text-sm mt-0.5">CK stores with the most competitor gallons fueled within 5 miles — sorted by capture potential</p>
+                  </div>
+                  <MapPin className="text-zinc-400 shrink-0" size={22} />
+                </div>
+                <div className="p-5 overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        {['Circle K Location', 'City / State', 'Site Type', 'Fuel Type', 'Competitor Gallons', 'Stations', 'Comp. Spend'].map(h => (
+                          <th key={h} className={`py-2 ${['Circle K Location', 'City / State', 'Site Type', 'Fuel Type'].includes(h) ? 'text-left px-4 first:pl-0' : 'text-right px-4'} text-xs font-semibold uppercase tracking-wider text-gray-500`}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {summary.topCKOpportunityLocations.map((loc, i) => {
+                        const hasDiesel = loc.dieselGallons > 0
+                        const hasGas    = loc.gasGallons > 0
+                        const fuelLabel = hasDiesel && hasGas ? 'Both' : hasDiesel ? 'Diesel' : hasGas ? 'Gas' : null
+                        const fuelColor = hasDiesel && hasGas
+                          ? 'bg-purple-50 text-purple-700 border-purple-200'
+                          : hasDiesel
+                            ? 'bg-blue-50 text-blue-700 border-blue-200'
+                            : 'bg-green-50 text-green-700 border-green-200'
+                        return (
+                          <tr key={i} className="hover:bg-gray-50">
+                            <td className="py-2.5 pr-4 font-medium text-off-black max-w-[200px] truncate">
+                              {loc.ckName}
+                              {loc.siteNumber && <span className="ml-1.5 text-xs text-gray-400 font-normal">#{loc.siteNumber}</span>}
+                            </td>
+                            <td className="py-2.5 px-4 text-gray-500 text-xs whitespace-nowrap">{loc.city}, {loc.state}</td>
+                            <td className="py-2.5 px-4">
+                              {loc.truckAccessible
+                                ? <span className="inline-flex items-center gap-1 text-xs bg-zinc-100 text-zinc-600 rounded px-2 py-0.5 font-semibold"><Truck size={10} />Truck</span>
+                                : <span className="inline-flex items-center gap-1 text-xs bg-zinc-50 text-zinc-400 rounded px-2 py-0.5">C-Store</span>}
+                            </td>
+                            <td className="py-2.5 px-4">
+                              {fuelLabel ? (
+                                <span className={`inline-flex items-center gap-1 text-xs border rounded px-2 py-0.5 font-semibold ${fuelColor}`}>
+                                  <Fuel size={10} />
+                                  {fuelLabel}
+                                </span>
+                              ) : <span className="text-gray-300 text-xs">—</span>}
+                            </td>
+                            <td className="py-2.5 px-4 text-right font-semibold text-zinc-700">{fmtGallons(loc.competitorGallons)}</td>
+                            <td className="py-2.5 px-4 text-right text-gray-600">{loc.nearbyStationCount}</td>
+                            <td className="py-2.5 pl-4 text-right text-gray-600">{fmtDollars(loc.competitorSpend)}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* Savings Calculator (if enabled) */}
             {featureFlags.savingsCalc && (
@@ -2225,45 +2387,7 @@ function AnalysisPageInner() {
                         </table>
                       </div>
 
-                      {/* Top CK Opportunity Locations */}
-                      {summary.topCKOpportunityLocations.length > 0 && (
-                        <div className="mt-8">
-                          <div className="mb-4">
-                            <h3 className="font-bold text-off-black">Top Circle K Opportunity Locations</h3>
-                            <p className="text-xs text-gray-400 mt-0.5">Circle K stores with the most competitor gallons fueled within 5 miles — sorted by capture potential</p>
-                          </div>
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                              <thead>
-                                <tr className="border-b border-gray-200">
-                                  {['Circle K Location', 'City / State', 'Truck Stop', 'Competitor Gallons', 'Stations', 'Comp. Spend'].map(h => (
-                                    <th key={h} className={`py-2 ${['Circle K Location', 'City / State', 'Truck Stop'].includes(h) ? 'text-left px-4 first:pl-0' : 'text-right px-4'} text-xs font-semibold uppercase tracking-wider text-gray-500`}>{h}</th>
-                                  ))}
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-gray-100">
-                                {summary.topCKOpportunityLocations.map((loc, i) => (
-                                  <tr key={i} className="hover:bg-gray-50">
-                                    <td className="py-2.5 pr-4 font-medium text-off-black max-w-[200px] truncate">
-                                      {loc.ckName}
-                                      {loc.siteNumber && <span className="ml-1.5 text-xs text-gray-400 font-normal">#{loc.siteNumber}</span>}
-                                    </td>
-                                    <td className="py-2.5 px-4 text-gray-500 text-xs whitespace-nowrap">{loc.city}, {loc.state}</td>
-                                    <td className="py-2.5 px-4">
-                                      {loc.truckAccessible
-                                        ? <span className="inline-flex items-center gap-1 text-xs bg-zinc-100 text-zinc-600 rounded px-2 py-0.5 font-semibold">Truck</span>
-                                        : <span className="inline-flex items-center gap-1 text-xs bg-zinc-50 text-zinc-400 rounded px-2 py-0.5">C-Store</span>}
-                                    </td>
-                                    <td className="py-2.5 px-4 text-right font-semibold text-zinc-700">{fmtGallons(loc.competitorGallons)}</td>
-                                    <td className="py-2.5 px-4 text-right text-gray-600">{loc.nearbyStationCount}</td>
-                                    <td className="py-2.5 pl-4 text-right text-gray-600">{fmtDollars(loc.competitorSpend)}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      )}
+                      {/* Top CK Opportunity Locations — moved to standalone card below */}
                     </div>
                   )}
 
@@ -2333,7 +2457,13 @@ function AnalysisPageInner() {
 
                   {/* ── OTR Corridors Tab ────────────────────────────── */}
                   {activeTab === 'otr' && featureFlags.otrCorridors && summary.otrAnalysis && (
-                    <OTRAnalysisPanel otr={summary.otrAnalysis} months={monthSpan} />
+                    <OTRAnalysisPanel
+                      otr={summary.otrAnalysis}
+                      months={monthSpan}
+                      mapPoints={summary.mapPoints}
+                      ckStorePins={ckStorePins}
+                      isDieselFleet={isDieselFleet}
+                    />
                   )}
                 </div>
               </div>
