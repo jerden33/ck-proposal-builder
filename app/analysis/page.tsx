@@ -1752,6 +1752,24 @@ function AnalysisPageInner() {
   // Months spanned by data (used by Savings Calc and Annualized panels)
   const monthSpan = summary ? computeMonthSpan(summary.dateRange) : 1
 
+  // OTR / diesel detection — for banner and tab indicator
+  const dieselGallons = summary
+    ? summary.fuelTypeBreakdown
+        .filter(ft => { const r = ft.type.toUpperCase().trim(); return r.includes('DIESEL') || r === 'DSL' || r === 'DSEL' })
+        .reduce((s, ft) => s + ft.gallons, 0)
+    : 0
+  const dieselPct = summary && summary.totalGallons > 0 ? dieselGallons / summary.totalGallons : 0
+
+  // Tiered proximity opportunity for OTR banner
+  const proxTruck = summary?.proximityBreakdown ?? null
+  const proxAll   = summary?.proximityBreakdownAll ?? null
+  const mo = (n: number) => monthSpan > 0 ? n / monthSpan : n
+  const otrOppAt1mi  = mo((proxTruck?.within1mi.gallons ?? 0) + (proxAll?.within1mi.gallons ?? 0))
+  const otrOppAt2mi  = mo((proxTruck?.within1mi.gallons ?? 0) + (proxTruck?.within2mi.gallons ?? 0) + (proxAll?.within1mi.gallons ?? 0) + (proxAll?.within2mi.gallons ?? 0))
+  const otrOppAt5mi  = mo((proxTruck?.within1mi.gallons ?? 0) + (proxTruck?.within2mi.gallons ?? 0) + (proxTruck?.within5mi.gallons ?? 0) + (proxAll?.within1mi.gallons ?? 0) + (proxAll?.within2mi.gallons ?? 0) + (proxAll?.within5mi.gallons ?? 0))
+  const otrOppAt10mi = mo((proxTruck?.within1mi.gallons ?? 0) + (proxTruck?.within2mi.gallons ?? 0) + (proxTruck?.within5mi.gallons ?? 0) + (proxTruck?.within10mi.gallons ?? 0) + (proxAll?.within1mi.gallons ?? 0) + (proxAll?.within2mi.gallons ?? 0) + (proxAll?.within5mi.gallons ?? 0) + (proxAll?.within10mi.gallons ?? 0))
+  const hasProxTiers = proxTruck !== null || proxAll !== null
+
   // ── Full-page loading screen (parsing or geocoding) ──────────────────────────
   if (loading || geocodingInProgress) {
     const isGeocoding = geocodingInProgress
