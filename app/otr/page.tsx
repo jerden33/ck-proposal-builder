@@ -825,6 +825,28 @@ function OTRPageInner() {
   const totalNearMiss = otrResult.corridorResults.reduce((s, r) => s + r.nearMissGallons, 0) + (otrResult.offCorridorNearMissGallons ?? 0)
   const annualOpp = months > 0 ? (totalOpp / months) * 12 : totalOpp
   const annualNearMiss = months > 0 ? (totalNearMiss / months) * 12 : totalNearMiss
+
+  // ── Diesel fleet detection (Idea 3) ──────────────────────────────────────────
+  const DIESEL_FLEET_THRESHOLD = 0.10
+  const dieselGallons = summary.fuelTypeBreakdown
+    .filter(ft => { const r = ft.type.toUpperCase().trim(); return r.includes('DIESEL') || r === 'DSL' || r === 'DSEL' })
+    .reduce((s, ft) => s + ft.gallons, 0)
+  const dieselPct = summary.totalGallons > 0 ? dieselGallons / summary.totalGallons : 0
+  const isDieselFleet = dieselPct >= DIESEL_FLEET_THRESHOLD
+
+  // ── Proximity-driven opportunity stats (Ideas 1 + 4) ─────────────────────────
+  const proxTruck = summary.proximityBreakdown
+  const proxAll   = summary.proximityBreakdownAll
+  const proxTruckOpp = proxTruck
+    ? proxTruck.within1mi.gallons + proxTruck.within2mi.gallons + proxTruck.within5mi.gallons + proxTruck.within10mi.gallons
+    : null
+  const proxAllOpp = proxAll
+    ? proxAll.within1mi.gallons + proxAll.within2mi.gallons + proxAll.within5mi.gallons + proxAll.within10mi.gallons
+    : null
+  const proxCKTotal    = (proxTruck?.ckGallons ?? 0) + (proxAll?.ckGallons ?? 0)
+  const totalProxOpp   = (proxTruckOpp ?? 0) + (proxAllOpp ?? 0)
+  const monthlyProxOpp = months > 0 ? totalProxOpp / months : totalProxOpp
+  const useProxHeader  = proxTruckOpp !== null || proxAllOpp !== null
   const shownCorridors = expandedTable
     ? otrResult.corridorResults
     : otrResult.corridorResults.slice(0, 12)
@@ -905,10 +927,61 @@ function OTRPageInner() {
           </div>
         )}
 
+        {/* Diesel fleet hint */}
+        {summary.fuelTypeBreakdown.length > 0 && (
+          <div className={`mb-4 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium w-fit ${
+            isDieselFleet
+              ? 'bg-blue-50 text-blue-700 border border-blue-200'
+              : 'bg-zinc-50 text-zinc-500 border border-zinc-200'
+          }`}>
+            <Truck size={13} />
+            {isDieselFleet
+              ? `${fmtPct(dieselPct * 100)} diesel fleet — OTR truck corridor analysis enabled`
+              : `${fmtPct(dieselPct * 100)} diesel — below ${fmtPct(DIESEL_FLEET_THRESHOLD * 100)} threshold, corridor analysis hidden`
+            }
+          </div>
+        )}
+
         {/* Summary stats */}
         <div className="rounded-xl border border-zinc-200 overflow-hidden bg-zinc-100 shadow-sm mb-6">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-px stagger-stats">
-            {[
+            {(useProxHeader ? [
+              {
+                label: 'Total Gallons',
+                value: fmtGallons(summary.totalGallons),
+                sub: `${summary.totalTransactions.toLocaleString()} transactions`,
+                accent: false,
+                warn: false,
+              },
+              {
+                label: 'Currently at CK',
+                value: fmtGallons(proxCKTotal),
+                sub: fmtPct(proxCKTotal / (summary.totalGallons || 1) * 100) + ' of total',
+                accent: false,
+                warn: false,
+              },
+              ...(proxTruckOpp !== null ? [{
+                label: 'Diesel Opportunity',
+                value: fmtGallons(proxTruckOpp),
+                sub: '≤10mi of truck CK',
+                accent: false,
+                warn: false,
+              }] : []),
+              ...(proxAllOpp !== null ? [{
+                label: 'Gas Opportunity',
+                value: fmtGallons(proxAllOpp),
+                sub: '≤10mi of any CK',
+                accent: false,
+                warn: false,
+              }] : []),
+              {
+                label: 'Monthly Opportunity',
+                value: fmtGallons(monthlyProxOpp),
+                sub: `${months !== 12 ? `from ${months.toFixed(1)} mo · ` : ''}proximity-based`,
+                accent: true,
+                warn: false,
+              },
+            ] : [
               {
                 label: 'Active Corridors',
                 value: otrResult.corridorResults.length.toString(),
@@ -944,7 +1017,7 @@ function OTRPageInner() {
                 accent: true,
                 warn: false,
               },
-            ].map(({ label, value, sub, accent, warn }) => (
+            ]).map(({ label, value, sub, accent, warn }) => (
               <div
                 key={label}
                 className={`px-5 py-4 ${accent ? 'bg-accent' : warn ? 'bg-amber-50' : 'bg-white'}`}
@@ -961,26 +1034,28 @@ function OTRPageInner() {
           </div>
         </div>
 
-        {/* Map */}
-        <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden mb-6 fade-in">
-          <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-zinc-900 font-bold text-lg">Highway Corridor Map</h2>
-              <p className="text-zinc-500 text-sm mt-0.5">
-                Orange = interstate · Blue dashed = US highway · Intensity reflects opportunity gallons
-              </p>
+        {/* Route Coverage & Gaps map — only shown for diesel-heavy fleets */}
+        {isDieselFleet && (
+          <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden mb-6 fade-in">
+            <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-zinc-900 font-bold text-lg">Route Coverage &amp; Gaps</h2>
+                <p className="text-zinc-500 text-sm mt-0.5">
+                  Where on the interstate network this fleet is fueling — orange = corridor activity · gap = no truck CK within 30mi
+                </p>
+              </div>
+              <MapPin className="text-zinc-400 shrink-0" size={22} />
             </div>
-            <MapPin className="text-zinc-400 shrink-0" size={22} />
+            <Suspense fallback={<div className="bg-gray-100 animate-pulse" style={{ height: 580 }} />}>
+              <OTRMap
+                transactionPoints={summary.mapPoints}
+                ckStores={ckStores}
+                corridorResults={otrResult.corridorResults}
+                height={580}
+              />
+            </Suspense>
           </div>
-          <Suspense fallback={<div className="bg-gray-100 animate-pulse" style={{ height: 580 }} />}>
-            <OTRMap
-              transactionPoints={summary.mapPoints}
-              ckStores={ckStores}
-              corridorResults={otrResult.corridorResults}
-              height={580}
-            />
-          </Suspense>
-        </div>
+        )}
 
         {/* Fueling Locations Map */}
         {summary.mapPoints.length > 0 && (
@@ -1005,8 +1080,8 @@ function OTRPageInner() {
           </div>
         )}
 
-        {/* Corridor table */}
-        <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm mb-6 fade-in">
+        {/* Corridor table — only for diesel fleets */}
+        {isDieselFleet && <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm mb-6 fade-in">
           <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
             <div>
               <h2 className="text-zinc-900 font-bold text-lg">Corridor Breakdown</h2>
@@ -1107,10 +1182,10 @@ function OTRPageInner() {
               </p>
             )}
           </div>
-        </div>
+        </div>}
 
         {/* Near-Miss Spotlight */}
-        {totalNearMiss > 0 && (() => {
+        {isDieselFleet && totalNearMiss > 0 && (() => {
           const nearMissCorridors = otrResult.corridorResults
             .filter(r => r.nearMissGallons > 0)
             .sort((a, b) => b.nearMissGallons - a.nearMissGallons)
