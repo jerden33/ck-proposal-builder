@@ -81,17 +81,10 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.push('/analysis')}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-zinc-200 text-sm font-medium text-zinc-700 hover:border-zinc-300 hover:text-zinc-900 transition-colors shadow-sm"
-            >
-              <BarChart2 size={15} />
-              Fleet Analysis
-            </button>
-            <button
-              onClick={() => router.push('/otr')}
               className="btn-primary flex items-center gap-2 text-sm py-2"
             >
-              <Truck size={15} />
-              OTR Corridor
+              <BarChart2 size={15} />
+              New Analysis
             </button>
           </div>
         </div>
@@ -104,7 +97,7 @@ export default function DashboardPage() {
             </div>
             <h3 className="text-base font-semibold text-zinc-700 mb-1">No analyses yet</h3>
             <p className="text-sm text-zinc-400 mb-6 max-w-xs mx-auto">
-              Upload a fleet transaction file in the Analysis or OTR tool, then click Save.
+              Upload a fleet transaction file in the Analysis tool, then click Save.
             </p>
             <div className="flex items-center justify-center gap-3">
               <button
@@ -112,14 +105,7 @@ export default function DashboardPage() {
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90 transition-colors"
               >
                 <BarChart2 size={15} />
-                Fleet Analysis
-              </button>
-              <button
-                onClick={() => router.push('/otr')}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-zinc-200 text-sm font-medium text-zinc-700 hover:border-zinc-300 transition-colors"
-              >
-                <Truck size={15} />
-                OTR Corridor
+                New Analysis
               </button>
             </div>
           </div>
@@ -239,7 +225,7 @@ export default function DashboardPage() {
                   ) : (
                     <div className="flex gap-2">
                       <button
-                        onClick={() => router.push(isOTR ? `/otr?load=${a.id}` : `/analysis?load=${a.id}`)}
+                        onClick={() => router.push(`/analysis?load=${a.id}`)}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-800 transition-colors"
                       >
                         <ExternalLink size={13} />

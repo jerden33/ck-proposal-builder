@@ -49,6 +49,7 @@ import {
   type FraudFlag,
 } from '@/lib/transaction-analysis'
 import { geocodeLocations, geocodeAddresses, geoKey, addrGeoKey } from '@/lib/geocoding'
+import { runOTRAnalysis } from '@/lib/otr-analysis'
 import type { CKStorePin } from '@/components/FuelingMap'
 
 // Dynamically import the map (Mapbox can't SSR)
@@ -83,6 +84,7 @@ type FeatureKey =
   | 'behavioralInsights'
   | 'timeOfDay'
   | 'fraudFlags'
+  | 'otrCorridors'   // auto-enabled when OTR corridor data is detected
   | 'skipGeocoding'  // processing option — skips API calls, disables map/proximity
 
 type FeatureFlags = Record<FeatureKey, boolean>
@@ -99,6 +101,7 @@ const DEFAULT_FEATURES: FeatureFlags = {
   behavioralInsights: true,
   timeOfDay: true,
   fraudFlags: false,
+  otrCorridors: false,
   skipGeocoding: false,
 }
 
@@ -1335,7 +1338,7 @@ function buildAnalysisSummary(
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-type Tab = 'brands' | 'geographic' | 'locations' | 'vehicles' | 'map' | 'insights' | 'timing' | 'fraud'
+type Tab = 'brands' | 'geographic' | 'locations' | 'vehicles' | 'map' | 'insights' | 'timing' | 'fraud' | 'otr'
 
 const TAB_FEATURE_MAP: Record<Tab, FeatureKey> = {
   brands:    'brandBreakdown',
@@ -1346,6 +1349,7 @@ const TAB_FEATURE_MAP: Record<Tab, FeatureKey> = {
   insights:  'behavioralInsights',
   timing:    'timeOfDay',
   fraud:     'fraudFlags',
+  otr:       'otrCorridors',
 }
 
 const ALL_TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -1357,6 +1361,7 @@ const ALL_TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'insights',  label: 'Behavioral Insights',      icon: <Users size={16} /> },
   { id: 'timing',    label: 'Time Patterns',            icon: <Clock size={16} /> },
   { id: 'fraud',     label: 'Fraud Flags',              icon: <ShieldAlert size={16} /> },
+  { id: 'otr',       label: 'OTR Corridors',            icon: <Truck size={16} /> },
 ]
 
 function AnalysisPageInner() {
@@ -1452,6 +1457,9 @@ function AnalysisPageInner() {
       setFileName(record.file_name)
       setDetectedFormat(record.detected_format)
       setSavedAnalysisId(record.id)
+      if (loadedData.otrAnalysis?.corridorResults?.length) {
+        setFeatureFlags(prev => ({ ...prev, otrCorridors: true }))
+      }
       setLoading(false)
       // Load CK pins for map
       fetch('/stores-data.json')
@@ -1501,7 +1509,8 @@ function AnalysisPageInner() {
     if (!summary) return
     setSaving(true)
     setSaveError(null)
-    const result = await createAnalysis(customerName, fileName, { ...summary, rebateRate } as unknown as Record<string, unknown>)
+    const hasOTR = !!(summary.otrAnalysis?.corridorResults?.length)
+    const result = await createAnalysis(customerName, fileName, { ...summary, rebateRate, ...(hasOTR ? { analysisType: 'otr' } : {}) } as unknown as Record<string, unknown>)
     if (result) {
       setSavedAnalysisId(result.id)
       // Update browser URL so a refresh keeps it linked, without full navigation
@@ -1672,16 +1681,27 @@ function AnalysisPageInner() {
         ckStoresAll: ckStoreCoords,
       })
 
+      // Run OTR corridor analysis automatically if geocoded points are available
+      const truckStoreCoords = ckStoreCoords.filter(s => s.truckAccessible)
+      if (truckStoreCoords.length > 0 && enrichedResult.mapPoints.some(p => p.lat != null && p.lng != null)) {
+        const otr = runOTRAnalysis(
+          enrichedResult.mapPoints,
+          truckStoreCoords.map(s => ({ lat: s.lat, lng: s.lng, truckAccessible: true }))
+        )
+        enrichedResult.otrAnalysis = otr
+      }
+
       setSummary(enrichedResult)
 
       setFeatureFlags(prev => {
+        const hasOTR = !!(enrichedResult.otrAnalysis?.corridorResults?.length)
         try {
           localStorage.setItem('ck-analysis-v1', JSON.stringify({
             summary: enrichedResult, fileName: file.name, customerName,
-            detectedFormat: fmt, missingFields: missingRequiredFields, featureFlags: prev,
+            detectedFormat: fmt, missingFields: missingRequiredFields, featureFlags: { ...prev, otrCorridors: hasOTR },
           }))
         } catch { /* storage full */ }
-        return prev
+        return { ...prev, otrCorridors: hasOTR }
       })
 
       setGeocodingInProgress(false)
@@ -2210,6 +2230,11 @@ function AnalysisPageInner() {
                   {/* ── Fraud Flags Tab ──────────────────────────────── */}
                   {activeTab === 'fraud' && featureFlags.fraudFlags && (
                     <FraudFlagsTab flags={summary.fraudFlags} />
+                  )}
+
+                  {/* ── OTR Corridors Tab ────────────────────────────── */}
+                  {activeTab === 'otr' && featureFlags.otrCorridors && summary.otrAnalysis && (
+                    <OTRAnalysisPanel otr={summary.otrAnalysis} months={monthSpan} />
                   )}
                 </div>
               </div>
