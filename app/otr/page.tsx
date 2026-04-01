@@ -465,9 +465,9 @@ function OTRPageInner() {
   if (!summary || !otrResult) return null
 
   const months = computeMonthSpan(summary.dateRange)
-  const totalOpp = otrResult.corridorResults.reduce((s, r) => s + r.captureGallons, 0)
+  const totalOpp = otrResult.corridorResults.reduce((s, r) => s + r.captureGallons, 0) + (otrResult.offCorridorCaptureGallons ?? 0)
   const totalCK = otrResult.corridorResults.reduce((s, r) => s + r.ckGallons, 0)
-  const totalNearMiss = otrResult.corridorResults.reduce((s, r) => s + r.nearMissGallons, 0)
+  const totalNearMiss = otrResult.corridorResults.reduce((s, r) => s + r.nearMissGallons, 0) + (otrResult.offCorridorNearMissGallons ?? 0)
   const annualOpp = months > 0 ? (totalOpp / months) * 12 : totalOpp
   const annualNearMiss = months > 0 ? (totalNearMiss / months) * 12 : totalNearMiss
   const shownCorridors = expandedTable
@@ -746,6 +746,9 @@ function OTRPageInner() {
                 {fmtGallons(otrResult.offCorridorGallons)} gallons (
                 {otrResult.offCorridorTransactions.toLocaleString()} transactions) did not snap to a
                 major interstate — likely local delivery or regional routes.
+                {(otrResult.offCorridorCaptureGallons ?? 0) > 0 && (
+                  <> Of those, {fmtGallons(otrResult.offCorridorCaptureGallons)} are within {30} mi of a truck CK and included in the opportunity total.</>
+                )}
               </p>
             )}
           </div>
@@ -1216,7 +1219,7 @@ function OTRPageInner() {
                       <ProxPanel
                         data={allProx}
                         title="Any Circle K (incl. c-stores)"
-                        subtitle="All fuel types · full CK network"
+                        subtitle="UNL & Premium · full CK network"
                       />
                     )}
                   </div>

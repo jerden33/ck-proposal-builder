@@ -738,6 +738,22 @@ export function analyzeTransactions(
 
 // ─── Map data builder ─────────────────────────────────────────────────────────
 
+/**
+ * Classify a raw fuel-type string into 'diesel' (truck fuels: D2, Diesel, DEF),
+ * 'gas' (car/light-truck fuels: UNL, Premium, Midgrade), or 'other'.
+ * Used to route gallons to the correct proximity panel.
+ */
+function fuelCategory(fuelType: string | undefined): 'diesel' | 'gas' | 'other' {
+  const r = (fuelType ?? '').toUpperCase().trim()
+  if (!r || r === 'UNKNOWN') return 'other'
+  if (r.startsWith('D2') || r.includes('DIESEL') || r === 'DSL' || r === 'DSEL' ||
+      r.includes('DEF') || r.includes('EXHAUST') || r === 'UREA') return 'diesel'
+  if (r.startsWith('UNL') || r.includes('UNLEAD') || r === 'REG' || r === 'REGULAR' ||
+      r === 'GASOLINE' || r === 'GAS' || r.includes('PREMIUM') || r.includes('MIDGRADE') ||
+      r === 'PRM' || r === 'PRML' || r === 'MID') return 'gas'
+  return 'other'
+}
+
 function buildMapData(
   transactions: FuelingTransaction[],
   geocodedCoords: Map<string, GeocodedCoord> | undefined,
@@ -756,6 +772,9 @@ function buildMapData(
     gallons: number; transactions: number; spend: number
     ckGallons: number; brands: Set<string>; label: string
     city: string; state: string; stationAddress: string
+    // Fuel-type-split gallons for fuel-appropriate proximity panels
+    ckDieselGallons: number; ckGasGallons: number
+    nonCKDieselGallons: number; nonCKGasGallons: number
   }>()
 
   for (const t of transactions) {
@@ -767,11 +786,21 @@ function buildMapData(
       city: t.stationCity,
       state: t.stationState,
       stationAddress: t.stationAddress,
+      ckDieselGallons: 0, ckGasGallons: 0,
+      nonCKDieselGallons: 0, nonCKGasGallons: 0,
     }
     existing.gallons += t.gallons
     existing.transactions++
     existing.spend += t.amount
-    if (t.isCircleK) existing.ckGallons += t.gallons
+    const cat = fuelCategory(t.fuelType)
+    if (t.isCircleK) {
+      existing.ckGallons += t.gallons
+      if (cat === 'diesel') existing.ckDieselGallons += t.gallons
+      else if (cat === 'gas') existing.ckGasGallons += t.gallons
+    } else {
+      if (cat === 'diesel') existing.nonCKDieselGallons += t.gallons
+      else if (cat === 'gas') existing.nonCKGasGallons += t.gallons
+    }
     if (t.stationBrand) existing.brands.add(t.stationBrand)
     stationMap.set(key, existing)
   }
@@ -820,25 +849,35 @@ function buildMapData(
     })
 
     prox.geocodedGallons    += agg.gallons
-    prox.ckGallons          += agg.ckGallons
     proxAll.geocodedGallons += agg.gallons
-    proxAll.ckGallons       += agg.ckGallons
+    // Truck panel: diesel gallons at CK; Any-CK panel: gas gallons at CK
+    prox.ckGallons    += agg.ckDieselGallons
+    proxAll.ckGallons += agg.ckGasGallons
+
+    // Bucket non-CK diesel gallons against truck-accessible CK
+    if (agg.nonCKDieselGallons > 0 && dist >= 0) {
+      const r = agg.nonCKDieselGallons / Math.max(agg.gallons, 1)
+      const bd = dist < 1 ? prox.within1mi : dist < 2 ? prox.within2mi : dist < 5 ? prox.within5mi : dist < 10 ? prox.within10mi : prox.beyond10mi
+      bd.gallons += agg.nonCKDieselGallons
+      bd.transactions += Math.round(agg.transactions * r)
+      bd.spend += agg.spend * r
+    }
+
+    // Bucket non-CK gas gallons against full CK network (any CK incl. c-stores)
+    if (agg.nonCKGasGallons > 0 && distAll >= 0) {
+      const r = agg.nonCKGasGallons / Math.max(agg.gallons, 1)
+      const bg = distAll < 1 ? proxAll.within1mi : distAll < 2 ? proxAll.within2mi : distAll < 5 ? proxAll.within5mi : distAll < 10 ? proxAll.within10mi : proxAll.beyond10mi
+      bg.gallons += agg.nonCKGasGallons
+      bg.transactions += Math.round(agg.transactions * r)
+      bg.spend += agg.spend * r
+    }
 
     const nonCKGallons = agg.gallons - agg.ckGallons
     const nonCKTrans = Math.round(agg.transactions * (nonCKGallons / Math.max(agg.gallons, 1)))
     const nonCKSpend = agg.spend * (nonCKGallons / Math.max(agg.gallons, 1))
 
-    const bucketInto = (d: number, p: typeof prox) => {
-      const b = d < 1 ? p.within1mi : d < 2 ? p.within2mi : d < 5 ? p.within5mi : d < 10 ? p.within10mi : p.beyond10mi
-      b.gallons += nonCKGallons
-      b.transactions += nonCKTrans
-      b.spend += nonCKSpend
-    }
-
     if (!allCK) {
-      if (dist    >= 0) bucketInto(dist,    prox)
-      if (distAll >= 0) bucketInto(distAll, proxAll)
-      // Attribute competitor gallons to the nearest CK within 5 mi
+      // Attribute competitor gallons (any fuel type) to the nearest truck CK within 5 mi
       if (ckNearest && ckNearest.distanceMi <= 5) {
         const k = `${ckNearest.store.lat.toFixed(6)},${ckNearest.store.lng.toFixed(6)}`
         const entry = ckOppMap.get(k) ?? {

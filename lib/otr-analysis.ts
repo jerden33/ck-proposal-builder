@@ -68,6 +68,10 @@ export interface OTRAnalysis {
   offCorridorTransactions: number
   /** Total on-corridor gallons (for quick summary math) */
   totalCorridorGallons: number
+  /** Off-corridor non-CK gallons within NEAR_MISS_MI of a truck CK (drove right past) */
+  offCorridorNearMissGallons: number
+  /** Off-corridor non-CK gallons within OPPORTUNITY_MI of a truck CK (capturable) */
+  offCorridorCaptureGallons: number
 }
 
 // ─── Corridor Definitions ─────────────────────────────────────────────────────
@@ -1120,7 +1124,7 @@ export function runOTRAnalysis(
   ckStores: CKStorePinLite[],
 ): OTRAnalysis {
   if (mapPoints.length === 0) {
-    return { corridorResults: [], offCorridorGallons: 0, offCorridorTransactions: 0, totalCorridorGallons: 0 }
+    return { corridorResults: [], offCorridorGallons: 0, offCorridorTransactions: 0, totalCorridorGallons: 0, offCorridorNearMissGallons: 0, offCorridorCaptureGallons: 0 }
   }
 
   // 1. Map each truck-accessible CK store to every corridor it lies on
@@ -1152,6 +1156,8 @@ export function runOTRAnalysis(
 
   let offCorridorGallons = 0
   let offCorridorTransactions = 0
+  let offCorridorNearMiss = 0
+  let offCorridorCapture = 0
 
   for (const pt of mapPoints) {
     // Snap to nearest corridor within threshold
@@ -1168,6 +1174,11 @@ export function runOTRAnalysis(
     if (!bestId) {
       offCorridorGallons += pt.gallons
       offCorridorTransactions += pt.transactions
+      // Classify off-corridor opportunity using pre-computed nearest CK distance
+      if (!pt.isCircleK && pt.nearestCKDistanceMi >= 0) {
+        if (pt.nearestCKDistanceMi <= NEAR_MISS_MI) offCorridorNearMiss += pt.gallons
+        if (pt.nearestCKDistanceMi <= OPPORTUNITY_MI) offCorridorCapture += pt.gallons
+      }
       continue
     }
 
@@ -1248,5 +1259,5 @@ export function runOTRAnalysis(
 
   const totalCorridorGallons = corridorResults.reduce((s, r) => s + r.totalGallons, 0)
 
-  return { corridorResults, offCorridorGallons, offCorridorTransactions, totalCorridorGallons }
+  return { corridorResults, offCorridorGallons, offCorridorTransactions, totalCorridorGallons, offCorridorNearMissGallons: offCorridorNearMiss, offCorridorCaptureGallons: offCorridorCapture }
 }
