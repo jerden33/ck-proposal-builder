@@ -81,6 +81,356 @@ function computeMonthSpan(dateRange: { start: string; end: string }): number {
   return Math.max((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30.44), 0.5)
 }
 
+// ─── Behavioral Insights ─────────────────────────────────────────────────────
+
+const SEGMENT_ORDER: VehicleSegment['segment'][] = ['ck-loyal', 'mixed', 'mostly-competitor', 'never-ck']
+
+function ViewToggle({
+  mode, setMode, hasDriver, hasVehicle,
+}: {
+  mode: 'driver' | 'vehicle'
+  setMode: (m: 'driver' | 'vehicle') => void
+  hasDriver: boolean
+  hasVehicle: boolean
+}) {
+  if (!hasDriver || !hasVehicle) return null
+  return (
+    <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs font-semibold shrink-0">
+      <button
+        onClick={() => setMode('driver')}
+        className={`px-3 py-1.5 transition-colors ${mode === 'driver' ? 'bg-zinc-800 text-white' : 'bg-white text-zinc-600 hover:bg-zinc-50'}`}
+      >
+        By Driver
+      </button>
+      <button
+        onClick={() => setMode('vehicle')}
+        className={`px-3 py-1.5 border-l border-zinc-200 transition-colors ${mode === 'vehicle' ? 'bg-zinc-800 text-white' : 'bg-white text-zinc-600 hover:bg-zinc-50'}`}
+      >
+        By Vehicle
+      </button>
+    </div>
+  )
+}
+
+function BehavioralInsightsTab({ summary }: { summary: import('@/lib/transaction-analysis').TransactionSummary }) {
+  const [showAll, setShowAll] = useState(false)
+  const [mode, setMode] = useState<'driver' | 'vehicle'>(
+    summary.hasDriverData ? 'driver' : 'vehicle'
+  )
+
+  const byDriver = mode === 'driver' && summary.hasDriverData
+  const segments = SEGMENT_ORDER
+    .map(s => (byDriver ? summary.driverSegments : summary.vehicleSegments).find(seg => seg.segment === s))
+    .filter(Boolean) as VehicleSegment[]
+  const totalEntities = byDriver ? summary.driverBreakdown.length : summary.vehicleBreakdown.length
+  const entityLabel = byDriver ? 'drivers' : 'vehicles'
+
+  const topOpportunityVehicles = [...summary.vehicleBreakdown]
+    .filter(v => v.capturableGallons > 0)
+    .sort((a, b) => b.capturableGallons - a.capturableGallons)
+  const topOpportunityDrivers = [...summary.driverBreakdown]
+    .filter(d => d.capturableGallons > 0)
+    .sort((a, b) => b.capturableGallons - a.capturableGallons)
+  const topOpportunity = byDriver ? topOpportunityDrivers : topOpportunityVehicles
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <div>
+            <h3 className="font-bold text-off-black">Fleet CK Loyalty Segments</h3>
+            <p className="text-xs text-gray-400 mt-0.5">
+              How your fleet&apos;s {totalEntities} {entityLabel} break down by Circle K capture rate
+            </p>
+          </div>
+          <ViewToggle
+            mode={mode} setMode={setMode}
+            hasDriver={summary.hasDriverData}
+            hasVehicle={summary.vehicleBreakdown.length > 0}
+          />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {segments.map(seg => {
+            const pct = totalEntities > 0 ? (seg.count / totalEntities) * 100 : 0
+            return (
+              <div key={seg.segment} className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
+                  <span className="font-bold text-off-black text-sm">{seg.label}</span>
+                </div>
+                <p className="text-2xl font-bold text-off-black">{seg.count}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{entityLabel} ({fmtPct(pct)})</p>
+                <p className="text-xs text-gray-500 mt-2">{fmtGallons(seg.gallons)} gal</p>
+                <p className="text-xs text-gray-400 mt-0.5">{seg.description}</p>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {topOpportunity.length > 0 ? (
+        <div>
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <div>
+              <h3 className="font-bold text-off-black">
+                Top Opportunity {byDriver ? 'Drivers' : 'Vehicles'}
+              </h3>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {byDriver ? 'Drivers' : 'Units'} with the most capturable gallons — currently fueling at competitors where a CK exists in the same area
+              </p>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  {(byDriver
+                    ? ['Driver', 'Home City', 'Vehicles Used', 'Capturable Gal', 'Top Competitor', 'Total Gal', 'CK Share', 'Avg Days / Fill']
+                    : ['Unit #', 'Driver City', 'Capturable Gal', 'Top Competitor', 'Total Gal', 'CK Share', 'Avg Days / Fill']
+                  ).map(h => (
+                    <th
+                      key={h}
+                      className={`py-2 text-xs font-semibold uppercase tracking-wider text-gray-500 ${
+                        ['Driver', 'Unit #', 'Home City', 'Driver City', 'Top Competitor', 'Vehicles Used'].includes(h)
+                          ? 'text-left pr-4' : 'text-right px-4'
+                      }`}
+                    >{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {(showAll ? topOpportunity : topOpportunity.slice(0, 15)).map(item => {
+                  const isDriver = 'driverName' in item
+                  const d = item as DriverSummary
+                  const v = item as (typeof topOpportunityVehicles)[0]
+                  return (
+                    <tr key={isDriver ? d.driverName : v.unitNumber} className="hover:bg-gray-50">
+                      {isDriver ? (
+                        <>
+                          <td className="py-2.5 pr-4 font-semibold text-off-black text-sm">{d.driverName}</td>
+                          <td className="py-2.5 pr-4 text-gray-600 text-xs">{d.driverCity || '—'}</td>
+                          <td className="py-2.5 pr-4 text-gray-500 text-xs">{d.unitNumbers.length > 0 ? d.unitNumbers.slice(0, 3).join(', ') + (d.unitNumbers.length > 3 ? ` +${d.unitNumbers.length - 3}` : '') : '—'}</td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="py-2.5 pr-4 font-mono font-semibold text-off-black text-xs">{v.unitNumber}</td>
+                          <td className="py-2.5 pr-4 text-gray-600 text-xs">{v.driverCity || '—'}</td>
+                        </>
+                      )}
+                      <td className="py-2.5 px-4 text-right">
+                        <span className="font-bold text-green-600">{fmtGallons(item.capturableGallons)}</span>
+                      </td>
+                      <td className="py-2.5 px-4 text-gray-600 text-xs">{item.topCompetitorBrand}</td>
+                      <td className="py-2.5 px-4 text-right font-medium">{fmtGallons(item.gallons)}</td>
+                      <td className="py-2.5 px-4 text-right">
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${item.ckSharePct >= 20 ? 'bg-green-100 text-green-700' : item.ckSharePct > 0 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {fmtPct(item.ckSharePct)}
+                        </span>
+                      </td>
+                      <td className="py-2.5 pl-4 text-right text-gray-500 text-xs">
+                        {item.avgDaysBetweenFills > 0 ? `${item.avgDaysBetweenFills}d` : '—'}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          {topOpportunity.length > 15 && (
+            <button onClick={() => setShowAll(v => !v)} className="mt-3 flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800 transition-colors">
+              {showAll ? <><ChevronUp size={16} />Show fewer</> : <><ChevronDown size={16} />Show all {topOpportunity.length} {entityLabel}</>}
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-xl bg-gray-50 border border-gray-200 p-6 text-center text-sm text-gray-500">
+          No capturable {entityLabel} found — either all fueling is already at Circle K or {byDriver ? 'Driver Name' : 'Unit #'} data is not present in this file.
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Time Patterns ────────────────────────────────────────────────────────────
+
+function TimePatternsTab({ summary }: { summary: import('@/lib/transaction-analysis').TransactionSummary }) {
+  if (!summary.hasTimeData) {
+    return (
+      <div className="rounded-xl bg-gray-50 border border-gray-200 p-8 text-center">
+        <Clock size={32} className="mx-auto text-gray-300 mb-3" />
+        <p className="font-semibold text-gray-600 mb-1">No timestamp data found</p>
+        <p className="text-sm text-gray-400">
+          Time pattern analysis requires a transaction export that includes a time alongside the date
+          (e.g. <span className="font-mono bg-gray-100 px-1 rounded">01/15/2024 14:32:00</span>).
+          WEX and most Fuelman exports include this — check your export settings.
+        </p>
+      </div>
+    )
+  }
+
+  const maxHourlyGal = Math.max(...summary.hourlyBreakdown.map(h => h.gallons), 1)
+  const maxDOWGal    = Math.max(...summary.dayOfWeekBreakdown.map(d => d.gallons), 1)
+
+  const hourLabel = (h: number) => {
+    if (h === 0) return '12a'
+    if (h < 12) return `${h}a`
+    if (h === 12) return '12p'
+    return `${h - 12}p`
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h3 className="font-bold text-off-black mb-1">Fueling by Hour of Day</h3>
+        <p className="text-xs text-gray-400 mb-4">
+          Total gallons per hour &nbsp;·&nbsp;
+          <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-green-600 inline-block" /> Circle K</span>
+          &nbsp;
+          <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-zinc-400 inline-block" /> Competitor</span>
+        </p>
+        <div className="flex items-end gap-px" style={{ height: 120 }}>
+          {summary.hourlyBreakdown.map(h => {
+            const totalH = (h.gallons / maxHourlyGal) * 100
+            const ckH    = h.gallons > 0 ? (h.ckGallons / h.gallons) * totalH : 0
+            const compH  = totalH - ckH
+            return (
+              <div key={h.hour} className="flex-1 flex flex-col justify-end group relative" style={{ height: '100%' }}>
+                <div className="w-full flex flex-col justify-end" style={{ height: `${totalH}%` }}>
+                  <div className="w-full bg-zinc-400 rounded-t-sm" style={{ height: `${compH > 0 ? (compH / totalH) * 100 : 0}%` }} />
+                  <div className="w-full bg-green-600" style={{ height: `${ckH > 0 ? (ckH / totalH) * 100 : 0}%` }} />
+                </div>
+                {h.gallons > 0 && (
+                  <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs rounded px-1.5 py-1 whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-10">
+                    {hourLabel(h.hour)}: {fmtGallons(h.gallons)} gal
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+        <div className="flex mt-1" style={{ gap: 0 }}>
+          {summary.hourlyBreakdown.map(h => (
+            <div key={h.hour} className="flex-1 text-center" style={{ fontSize: 9, color: '#9ca3af' }}>
+              {h.hour % 3 === 0 ? hourLabel(h.hour) : ''}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="font-bold text-off-black mb-1">Fueling by Day of Week</h3>
+        <p className="text-xs text-gray-400 mb-4">Total gallons per day</p>
+        <div className="space-y-2">
+          {summary.dayOfWeekBreakdown.map(d => {
+            const pct     = (d.gallons / maxDOWGal) * 100
+            const ckPct   = d.gallons > 0 ? (d.ckGallons / maxDOWGal) * 100 : 0
+            const compPct = pct - ckPct
+            return (
+              <div key={d.day} className="flex items-center gap-3">
+                <span className="w-8 text-xs font-medium text-gray-600 shrink-0">{d.dayName.slice(0, 3)}</span>
+                <div className="flex-1 h-6 bg-gray-100 rounded-full overflow-hidden flex">
+                  <div className="h-full bg-green-600 rounded-l-full" style={{ width: `${ckPct}%` }} />
+                  <div className="h-full bg-zinc-400" style={{ width: `${compPct}%` }} />
+                </div>
+                <span className="w-24 text-right text-xs font-semibold text-off-black shrink-0">{fmtGallons(d.gallons)} gal</span>
+                <span className="w-16 text-right text-xs text-gray-400 shrink-0">{d.transactions.toLocaleString()} trans</span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Fraud Flags ──────────────────────────────────────────────────────────────
+
+const FRAUD_TYPE_LABELS: Record<FraudFlag['type'], string> = {
+  'high-gallons': 'High Gallons',
+  'multi-fill':   'Multi-Fill Day',
+  'ppg-outlier':  'PPG Outlier',
+  'state-hop':    'State Hop',
+}
+
+function FraudFlagsTab({ flags }: { flags: FraudFlag[] }) {
+  const high   = flags.filter(f => f.severity === 'high')
+  const medium = flags.filter(f => f.severity === 'medium')
+
+  if (flags.length === 0) {
+    return (
+      <div className="rounded-xl bg-green-50 border border-green-200 p-8 text-center">
+        <CheckCircle size={32} className="mx-auto text-green-500 mb-3" />
+        <p className="font-semibold text-gray-700 mb-1">No anomalies detected</p>
+        <p className="text-sm text-gray-500">No high-gallon fills, multi-fill days, PPG outliers, or state hops found in this data.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="font-bold text-off-black mb-1">Anomaly Summary</h3>
+        <p className="text-xs text-gray-400 mb-4">
+          These patterns may warrant review. They do not confirm fraud — mismatched data, multi-axle tanks, and multi-stop routes can trigger some flags.
+        </p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {([
+            { label: 'High Gallons',   count: flags.filter(f => f.type === 'high-gallons').length, color: 'text-red-600',    bg: 'bg-red-50 border-red-200',       desc: 'Single fill > 200 gal' },
+            { label: 'Multi-Fill Day', count: flags.filter(f => f.type === 'multi-fill').length,   color: 'text-orange-600', bg: 'bg-orange-50 border-orange-200', desc: '3+ fills same vehicle/day' },
+            { label: 'PPG Outlier',    count: flags.filter(f => f.type === 'ppg-outlier').length,  color: 'text-yellow-700', bg: 'bg-yellow-50 border-yellow-200', desc: 'Price > 2.5× fleet median' },
+            { label: 'State Hop',      count: flags.filter(f => f.type === 'state-hop').length,    color: 'text-red-600',    bg: 'bg-red-50 border-red-200',       desc: '2+ states same vehicle/day' },
+          ] as const).map(item => (
+            <div key={item.label} className={`rounded-xl border p-4 ${item.bg}`}>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{item.label}</p>
+              <p className={`text-2xl font-bold ${item.color}`}>{item.count}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{item.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="font-bold text-off-black mb-3">Flagged Transactions</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200">
+                {['Severity', 'Type', 'Unit #', 'Date', 'Description', 'Gallons', 'Location'].map(h => (
+                  <th key={h} className={`py-2 text-xs font-semibold uppercase tracking-wider text-gray-500 ${['Severity','Type','Unit #','Date','Description'].includes(h) ? 'text-left pr-4' : 'text-right px-4'}`}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {flags.map((f, i) => (
+                <tr key={i} className="hover:bg-gray-50">
+                  <td className="py-2.5 pr-4">
+                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${f.severity === 'high' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                      {f.severity.toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="py-2.5 pr-4 text-xs text-gray-600">{FRAUD_TYPE_LABELS[f.type]}</td>
+                  <td className="py-2.5 pr-4 font-mono font-semibold text-off-black text-xs">{f.unitNumber}</td>
+                  <td className="py-2.5 pr-4 text-gray-500 text-xs whitespace-nowrap">{f.transDate}</td>
+                  <td className="py-2.5 pr-4 text-gray-700 text-xs max-w-[220px]">{f.description}</td>
+                  <td className="py-2.5 px-4 text-right font-medium">{fmtGallons(f.gallons)}</td>
+                  <td className="py-2.5 pl-4 text-right text-gray-500 text-xs whitespace-nowrap">
+                    {f.stationCity}{f.stationState ? `, ${f.stationState}` : ''}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {high.length > 0 && (
+          <p className="mt-3 text-xs text-red-600 font-medium">
+            {high.length} high-severity flag{high.length !== 1 ? 's' : ''} · {medium.length} medium
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 function OTRPageInner() {
@@ -1286,6 +1636,61 @@ function OTRPageInner() {
             </div>
           )
         })()}
+
+        {/* Driver & Vehicle Insights */}
+        {(summary.vehicleBreakdown.length > 0 || summary.hasDriverData) && (
+          <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm mb-6 fade-in">
+            <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-zinc-900 font-bold text-lg">Driver &amp; Vehicle Insights</h2>
+                <p className="text-zinc-500 text-sm mt-0.5">
+                  CK loyalty segments · top opportunity {summary.hasDriverData ? 'drivers' : 'vehicles'}
+                </p>
+              </div>
+              <Users className="text-zinc-400 shrink-0" size={22} />
+            </div>
+            <div className="p-6">
+              <BehavioralInsightsTab summary={summary} />
+            </div>
+          </div>
+        )}
+
+        {/* Time Patterns */}
+        <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm mb-6 fade-in">
+          <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-zinc-900 font-bold text-lg">Time Patterns</h2>
+              <p className="text-zinc-500 text-sm mt-0.5">Hourly and day-of-week fueling distribution</p>
+            </div>
+            <Clock className="text-zinc-400 shrink-0" size={22} />
+          </div>
+          <div className="p-6">
+            <TimePatternsTab summary={summary} />
+          </div>
+        </div>
+
+        {/* Fraud Flags */}
+        {summary.fraudFlags.length > 0 && (
+          <div className="bg-white rounded-2xl border border-red-100 shadow-sm mb-6 fade-in">
+            <div className="bg-red-50 border-b border-red-100 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-zinc-900 font-bold text-lg flex items-center gap-2">
+                  <ShieldAlert size={18} className="text-red-500" />
+                  Fraud &amp; Anomaly Flags
+                </h2>
+                <p className="text-zinc-500 text-sm mt-0.5">
+                  {summary.fraudFlags.length} flagged transaction{summary.fraudFlags.length !== 1 ? 's' : ''} — review recommended
+                </p>
+              </div>
+              <span className="text-xs font-bold text-red-600 bg-red-100 rounded-full px-2.5 py-1">
+                {summary.fraudFlags.filter(f => f.severity === 'high').length} HIGH
+              </span>
+            </div>
+            <div className="p-6">
+              <FraudFlagsTab flags={summary.fraudFlags} />
+            </div>
+          </div>
+        )}
 
         {/* Top CK Opportunity Locations */}
         {summary.topCKOpportunityLocations.length > 0 && (
