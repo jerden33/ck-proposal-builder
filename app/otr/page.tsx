@@ -847,6 +847,13 @@ function OTRPageInner() {
   const totalProxOpp   = (proxTruckOpp ?? 0) + (proxAllOpp ?? 0)
   const monthlyProxOpp = months > 0 ? totalProxOpp / months : totalProxOpp
   const useProxHeader  = proxTruckOpp !== null || proxAllOpp !== null
+
+  // Tiered monthly opportunity at each distance threshold
+  const mo = (n: number) => months > 0 ? n / months : n
+  const oppAt1mi  = mo((proxTruck?.within1mi.gallons ?? 0) + (proxAll?.within1mi.gallons ?? 0))
+  const oppAt2mi  = mo((proxTruck?.within1mi.gallons ?? 0) + (proxTruck?.within2mi.gallons ?? 0) + (proxAll?.within1mi.gallons ?? 0) + (proxAll?.within2mi.gallons ?? 0))
+  const oppAt5mi  = mo((proxTruck?.within1mi.gallons ?? 0) + (proxTruck?.within2mi.gallons ?? 0) + (proxTruck?.within5mi.gallons ?? 0) + (proxAll?.within1mi.gallons ?? 0) + (proxAll?.within2mi.gallons ?? 0) + (proxAll?.within5mi.gallons ?? 0))
+  const oppAt10mi = monthlyProxOpp
   const shownCorridors = expandedTable
     ? otrResult.corridorResults
     : otrResult.corridorResults.slice(0, 12)
@@ -976,10 +983,16 @@ function OTRPageInner() {
               }] : []),
               {
                 label: 'Monthly Opportunity',
-                value: fmtGallons(monthlyProxOpp),
-                sub: `${months !== 12 ? `from ${months.toFixed(1)} mo · ` : ''}proximity-based`,
+                value: '',
+                sub: months !== 12 ? `from ${months.toFixed(1)} mo` : 'proximity-based',
                 accent: true,
                 warn: false,
+                tiers: [
+                  { dist: '≤1mi',  gal: oppAt1mi  },
+                  { dist: '≤2mi',  gal: oppAt2mi  },
+                  { dist: '≤5mi',  gal: oppAt5mi  },
+                  { dist: '≤10mi', gal: oppAt10mi },
+                ],
               },
             ] : [
               {
@@ -1017,20 +1030,34 @@ function OTRPageInner() {
                 accent: true,
                 warn: false,
               },
-            ]).map(({ label, value, sub, accent, warn }) => (
-              <div
-                key={label}
-                className={`px-5 py-4 ${accent ? 'bg-accent' : warn ? 'bg-amber-50' : 'bg-white'}`}
-              >
-                <p className={`text-xs font-medium uppercase tracking-wider mb-1.5 ${accent ? 'text-white/70' : warn ? 'text-amber-600' : 'text-zinc-400'}`}>
-                  {label}
-                </p>
-                <p className={`text-2xl font-bold leading-none ${accent ? 'text-white' : warn ? 'text-amber-700' : 'text-zinc-900'}`}>
-                  {value}
-                </p>
-                <p className={`text-xs mt-1.5 ${accent ? 'text-white/60' : warn ? 'text-amber-500' : 'text-zinc-400'}`}>{sub}</p>
-              </div>
-            ))}
+            ]).map(({ label, value, sub, accent, warn, ...rest }) => {
+              const tiers = (rest as { tiers?: { dist: string; gal: number }[] }).tiers
+              return (
+                <div
+                  key={label}
+                  className={`px-5 py-4 ${accent ? 'bg-accent' : warn ? 'bg-amber-50' : 'bg-white'}`}
+                >
+                  <p className={`text-xs font-medium uppercase tracking-wider mb-1.5 ${accent ? 'text-white/70' : warn ? 'text-amber-600' : 'text-zinc-400'}`}>
+                    {label}
+                  </p>
+                  {tiers ? (
+                    <div className="space-y-1.5 mt-1">
+                      {tiers.map(({ dist, gal }) => (
+                        <div key={dist} className="flex items-baseline justify-between gap-2">
+                          <span className="text-xs text-white/60 w-10 shrink-0">{dist}</span>
+                          <span className="text-sm font-bold text-white tabular-nums">{fmtGallons(gal)}<span className="text-xs font-normal text-white/50 ml-1">gal/mo</span></span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className={`text-2xl font-bold leading-none ${accent ? 'text-white' : warn ? 'text-amber-700' : 'text-zinc-900'}`}>
+                      {value}
+                    </p>
+                  )}
+                  <p className={`text-xs mt-1.5 ${accent ? 'text-white/60' : warn ? 'text-amber-500' : 'text-zinc-400'}`}>{sub}</p>
+                </div>
+              )
+            })}
           </div>
         </div>
 
