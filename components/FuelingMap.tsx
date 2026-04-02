@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
+import { Maximize2, Minimize2 } from 'lucide-react'
 import type { MapPoint } from '@/lib/transaction-analysis'
 import { fmtGallons, fmtDollars, fmtMiles } from '@/lib/transaction-analysis'
 
@@ -93,6 +94,7 @@ export function FuelingMap({
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const loadedRef = useRef(false)
   const truckModeRef = useRef(truckMode)
+  const [fullscreen, setFullscreen] = useState(false)
   useEffect(() => { truckModeRef.current = truckMode }, [truckMode])
 
   // ── Initialize map once ──────────────────────────────────────────────────
@@ -261,9 +263,22 @@ export function FuelingMap({
     )
   }
 
+  const outerStyle = fullscreen
+    ? { position: 'fixed' as const, inset: 0, zIndex: 50, height: '100vh' }
+    : { height }
+
   return (
-    <div className="relative" style={{ height }}>
-      <div ref={containerRef} style={{ width: '100%', height: '100%', borderRadius: '12px', overflow: 'hidden' }} />
+    <div className="relative" style={outerStyle}>
+      <div ref={containerRef} style={{ width: '100%', height: '100%', borderRadius: fullscreen ? 0 : '12px', overflow: 'hidden' }} />
+
+      {/* Fullscreen toggle */}
+      <button
+        onClick={() => setFullscreen(v => !v)}
+        aria-label={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+        className="absolute top-3 right-14 z-10 bg-white/95 rounded-lg border border-gray-200 shadow-sm p-1.5 text-gray-500 hover:text-gray-800 hover:bg-white transition-colors"
+      >
+        {fullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+      </button>
 
       {/* Geocoding overlay */}
       {geocodingInProgress && (

@@ -135,6 +135,12 @@ export function ShareModal({ analysisId, onClose }: Props) {
 
   useEffect(() => { load() }, [load])
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
   const handleCreate = async (type: 'internal' | 'customer') => {
     setCreating(type)
     setError(null)
@@ -163,7 +169,7 @@ export function ShareModal({ analysisId, onClose }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="text-lg font-bold text-off-black">Share Analysis</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+          <button onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600 transition-colors">
             <X size={20} />
           </button>
         </div>

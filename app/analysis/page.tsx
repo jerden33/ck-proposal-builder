@@ -17,8 +17,6 @@ import {
   ChevronUp,
   Info,
   Settings2,
-  DollarSign,
-  TrendingUp,
   Users,
   Clock,
   ShieldAlert,
@@ -44,14 +42,20 @@ import {
   type TransactionSummary,
   type BrandSummary,
   type CKStoreCoord,
-  type VehicleSegment,
-  type DriverSummary,
-  type FraudFlag,
 } from '@/lib/transaction-analysis'
 import { geocodeLocations, geocodeAddresses, geoKey, addrGeoKey } from '@/lib/geocoding'
 import { runOTRAnalysis } from '@/lib/otr-analysis'
 import type { CKStorePin } from '@/components/FuelingMap'
-import type { OTRMapStore } from '@/components/OTRMap'
+import { TopCKLocationsCard } from '@/components/analysis/TopCKLocationsCard'
+import { OpportunityPanel } from '@/components/analysis/OpportunityPanel'
+import { ProximityPanel, DetailedProximityPanel } from '@/components/analysis/ProximityPanel'
+import { SavingsCalculatorPanel } from '@/components/analysis/SavingsCalculatorPanel'
+import { OTRAnalysisPanel } from '@/components/analysis/OTRAnalysisPanel'
+import { AnnualizedPanel } from '@/components/analysis/AnnualizedPanel'
+import { VehiclesTab } from '@/components/analysis/VehiclesTab'
+import { BehavioralInsightsTab } from '@/components/analysis/BehavioralInsightsTab'
+import { TimePatternsTab } from '@/components/analysis/TimePatternsTab'
+import { FraudFlagsTab } from '@/components/analysis/FraudFlagsTab'
 
 // Dynamically import the maps (Mapbox can't SSR)
 const FuelingMap = dynamic(() => import('@/components/FuelingMap').then(m => m.FuelingMap), {
@@ -177,706 +181,6 @@ function BrandBar({ brand, maxGallons }: { brand: BrandSummary; maxGallons: numb
   )
 }
 
-// ─── Top CK Opportunity Locations Card ───────────────────────────────────────
-
-type SortKey = 'competitorGallons' | 'nearbyStationCount' | 'competitorSpend'
-
-function TopCKLocationsCard({ locations }: { locations: import('@/lib/transaction-analysis').CKOpportunityLocation[] }) {
-  const [sortKey, setSortKey] = useState<SortKey>('competitorGallons')
-  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc')
-  const [stateFilter, setStateFilter] = useState<string>('all')
-
-  const allStates = Array.from(new Set(locations.map(l => l.state))).sort()
-  const hasSpend   = locations.some(l => l.competitorSpend > 0)
-
-  const sorted = [...locations]
-    .filter(l => stateFilter === 'all' || l.state === stateFilter)
-    .sort((a, b) => {
-      const diff = a[sortKey] - b[sortKey]
-      return sortDir === 'desc' ? -diff : diff
-    })
-
-  const toggleSort = (key: SortKey) => {
-    if (key === sortKey) setSortDir(d => d === 'desc' ? 'asc' : 'desc')
-    else { setSortKey(key); setSortDir('desc') }
-  }
-
-  const SortIcon = ({ k }: { k: SortKey }) => {
-    if (k !== sortKey) return <span className="ml-0.5 text-gray-300">↕</span>
-    return <span className="ml-0.5 text-accent">{sortDir === 'desc' ? '↓' : '↑'}</span>
-  }
-
-  return (
-    <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden fade-in">
-      <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h2 className="text-zinc-900 font-bold text-lg">Top Circle K Opportunity Locations</h2>
-          <p className="text-zinc-500 text-sm mt-0.5">
-            CK stores closest to the highest competitor activity — your best immediate conversion targets
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <label className="text-xs text-zinc-500 font-medium">State</label>
-          <select
-            value={stateFilter}
-            onChange={e => setStateFilter(e.target.value)}
-            className="text-xs border border-zinc-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
-          >
-            <option value="all">All states</option>
-            {allStates.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-200 bg-zinc-50/50">
-              <th className="py-2.5 pl-5 pr-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Location</th>
-              <th className="py-2.5 px-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Site Type</th>
-              <th className="py-2.5 px-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Fuel Opp.</th>
-              <th
-                className="py-2.5 px-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-zinc-700 select-none whitespace-nowrap"
-                onClick={() => toggleSort('competitorGallons')}
-              >
-                Competitor Gal <SortIcon k="competitorGallons" />
-              </th>
-              <th
-                className="py-2.5 px-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-zinc-700 select-none"
-                onClick={() => toggleSort('nearbyStationCount')}
-              >
-                Stations <SortIcon k="nearbyStationCount" />
-              </th>
-              {hasSpend && (
-                <th
-                  className="py-2.5 pl-3 pr-5 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-zinc-700 select-none whitespace-nowrap"
-                  onClick={() => toggleSort('competitorSpend')}
-                >
-                  Comp. Spend <SortIcon k="competitorSpend" />
-                </th>
-              )}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {sorted.map((loc, i) => {
-              let fuelLabel: string | null = null
-              if (!loc.truckAccessible) {
-                fuelLabel = loc.gasGallons > 0 ? 'Gas' : null
-              } else {
-                const total = loc.competitorGallons || 1
-                const dieselShare = loc.dieselGallons / total
-                const gasShare    = loc.gasGallons    / total
-                if (dieselShare >= 0.25 && gasShare >= 0.25) fuelLabel = 'Both'
-                else if (loc.dieselGallons > loc.gasGallons) fuelLabel = loc.dieselGallons > 0 ? 'Diesel' : null
-                else fuelLabel = loc.gasGallons > 0 ? 'Gas' : null
-              }
-              const fuelColor = fuelLabel === 'Both'
-                ? 'bg-purple-50 text-purple-700 border-purple-200'
-                : fuelLabel === 'Diesel'
-                  ? 'bg-blue-50 text-blue-700 border-blue-200'
-                  : 'bg-green-50 text-green-700 border-green-200'
-              return (
-                <tr key={i} className="hover:bg-gray-50">
-                  {/* Location: city/state primary, CK name + site# secondary */}
-                  <td className="py-3 pl-5 pr-3">
-                    <p className="font-semibold text-zinc-900 text-sm">{loc.city}, {loc.state}</p>
-                    <p className="text-xs text-zinc-400 mt-0.5">
-                      {loc.ckName}{loc.siteNumber && <span className="ml-1">#{loc.siteNumber}</span>}
-                    </p>
-                  </td>
-                  <td className="py-3 px-3">
-                    {loc.truckAccessible
-                      ? <span className="inline-flex items-center gap-1 text-xs bg-zinc-100 text-zinc-600 rounded-md px-2 py-0.5 font-semibold"><Truck size={10} />Truck</span>
-                      : <span className="inline-flex items-center gap-1 text-xs bg-zinc-50 text-zinc-400 rounded-md px-2 py-0.5">C-Store</span>}
-                  </td>
-                  <td className="py-3 px-3">
-                    {fuelLabel
-                      ? <span className={`inline-flex items-center gap-1 text-xs border rounded-md px-2 py-0.5 font-semibold ${fuelColor}`}><Fuel size={10} />{fuelLabel}</span>
-                      : <span className="text-zinc-300 text-xs">—</span>}
-                  </td>
-                  <td className="py-3 px-3 text-right font-semibold text-zinc-800">{fmtGallons(loc.competitorGallons)}</td>
-                  <td className="py-3 px-3 text-right text-zinc-600">{loc.nearbyStationCount}</td>
-                  {hasSpend && (
-                    <td className="py-3 pl-3 pr-5 text-right text-zinc-600">{fmtDollars(loc.competitorSpend)}</td>
-                  )}
-                </tr>
-              )
-            })}
-            {sorted.length === 0 && (
-              <tr>
-                <td colSpan={hasSpend ? 6 : 5} className="py-8 text-center text-sm text-zinc-400">
-                  No locations match the selected state filter.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}
-
-// ─── Opportunity Panel ────────────────────────────────────────────────────────
-
-function OpportunityPanel({ analysis, totalGallons, truckMode = false }: { analysis: TransactionSummary['ckCaptureAnalysis']; totalGallons: number; truckMode?: boolean }) {
-  const { captured, capturable, gap, captureRate, potentialRate } = analysis
-  const uplift = potentialRate - captureRate
-  return (
-    <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-      <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4">
-        <div className="flex items-center gap-3 flex-wrap">
-          <h2 className="text-zinc-900 font-bold text-lg">Circle K Fueling Opportunity</h2>
-          {truckMode && (
-            <span className="text-xs font-semibold bg-zinc-200 text-zinc-600 rounded-md px-2 py-0.5 flex items-center gap-1">
-              <Truck size={11} /> OTR / Truck Mode
-            </span>
-          )}
-        </div>
-        <p className="text-zinc-500 text-sm mt-0.5">
-          {truckMode
-            ? 'Opportunity scoped to truck-accessible CK locations only (451 sites with truck lanes)'
-            : "Where your fleet's gallons go — and what Circle K can capture"}
-        </p>
-      </div>
-      <div className="p-6">
-
-        {/* Hero section — potential rate is the centrepiece */}
-        <div className="flex items-center gap-6 mb-6">
-          {/* Current */}
-          <div className="shrink-0">
-            <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1">Current CK Share</p>
-            <p className="text-3xl font-bold text-zinc-700 leading-none">{fmtPct(captureRate)}</p>
-          </div>
-          {/* Arrow + uplift badge */}
-          <div className="flex flex-col items-center gap-1 shrink-0">
-            <div className="flex items-center gap-1">
-              <div className="h-px w-8 bg-green-300" />
-              <span className="text-green-500 text-lg">→</span>
-            </div>
-            {uplift > 0 && (
-              <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5 whitespace-nowrap">
-                +{fmtPct(uplift)} upside
-              </span>
-            )}
-          </div>
-          {/* Potential — hero */}
-          <div className="shrink-0">
-            <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1">Potential with CK</p>
-            <p className="text-5xl font-bold text-green-600 leading-none">{fmtPct(potentialRate)}</p>
-          </div>
-        </div>
-
-        {/* Progress bars — increased height for visibility */}
-        <div className="space-y-3 mb-6">
-          <div>
-            <div className="flex justify-between text-xs text-zinc-400 mb-1.5">
-              <span>Current Circle K capture</span>
-              <span className="font-semibold text-zinc-600">{fmtPct(captureRate)}</span>
-            </div>
-            <div className="h-3 bg-zinc-100 rounded-full overflow-hidden">
-              <div className="h-3 bg-accent rounded-full bar-grow" style={{ width: `${Math.max(captureRate, 0.5)}%` }} />
-            </div>
-          </div>
-          <div>
-            <div className="flex justify-between text-xs text-zinc-400 mb-1.5">
-              <span>Potential with Circle K {truckMode ? 'truck-accessible ' : ''}network</span>
-              <span className="font-semibold text-green-600">{fmtPct(potentialRate)}</span>
-            </div>
-            <div className="h-3 bg-zinc-100 rounded-full overflow-hidden">
-              <div className="h-3 bg-green-500 rounded-full bar-grow" style={{ width: `${Math.max(potentialRate, 0.5)}%` }} />
-            </div>
-          </div>
-        </div>
-
-        {/* Data grid — 3 segments */}
-        <div className="rounded-xl border border-zinc-200 overflow-hidden bg-zinc-100">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-px">
-            {/* Already at CK */}
-            <div className="bg-white px-5 py-4">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="w-2.5 h-2.5 rounded-full bg-accent shrink-0" />
-                <span className="text-xs font-semibold text-zinc-500">Already at Circle K</span>
-              </div>
-              <p className="text-2xl font-bold text-zinc-900">{fmtGallons(captured.gallons)}</p>
-              <p className="text-xs text-zinc-400 mt-0.5">{captured.transactions.toLocaleString()} transactions</p>
-              {captured.spend > 0 && <p className="text-sm font-semibold text-zinc-600 mt-2">{fmtDollars(captured.spend)}</p>}
-            </div>
-            {/* Opportunity */}
-            <div className="bg-green-50 px-5 py-4 border-l border-r border-green-100">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="w-2.5 h-2.5 rounded-full bg-brand-orange shrink-0" />
-                <span className="text-xs font-semibold text-zinc-600">
-                  {truckMode ? 'Opportunity — Same ZIP as Truck CK' : 'Opportunity — Same ZIP as CK'}
-                </span>
-              </div>
-              <p className="text-2xl font-bold text-zinc-900">{fmtGallons(capturable.gallons)}</p>
-              <p className="text-xs text-zinc-500 mt-0.5">{capturable.transactions.toLocaleString()} transactions</p>
-              {capturable.spend > 0 && <p className="text-sm font-semibold text-zinc-600 mt-2">{fmtDollars(capturable.spend)}</p>}
-            </div>
-            {/* Outside footprint */}
-            <div className="bg-white px-5 py-4">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="w-2.5 h-2.5 rounded-full bg-zinc-300 shrink-0" />
-                <span className="text-xs font-semibold text-zinc-500">Outside CK Footprint</span>
-              </div>
-              <p className="text-2xl font-bold text-zinc-900">{fmtGallons(gap.gallons)}</p>
-              <p className="text-xs text-zinc-400 mt-0.5">{gap.transactions.toLocaleString()} transactions</p>
-              {gap.spend > 0 && <p className="text-sm font-semibold text-zinc-600 mt-2">{fmtDollars(gap.spend)}</p>}
-            </div>
-          </div>
-        </div>
-
-        {capturable.gallons > 0 && (
-          <p className="mt-4 text-sm text-zinc-500">
-            <span className="font-semibold text-zinc-800">{fmtGallons(capturable.gallons)} gallons ({fmtPct((capturable.gallons / totalGallons) * 100)})</span>{' '}
-            are going to competitors in ZIP codes where a {truckMode ? 'truck-accessible Circle K' : 'Circle K'} already exists.
-            {' '}<span className="text-zinc-400 text-xs">For distance-based proximity (≤1–10 mi) see the Map View tab.</span>
-          </p>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ─── Proximity Panel (shown in Map tab) ───────────────────────────────────────
-
-function ProximityPanel({ prox, totalGallons, isMobileFueling, heading, subheading }: {
-  prox: NonNullable<TransactionSummary['proximityBreakdown']>
-  totalGallons: number
-  isMobileFueling: boolean
-  heading?: string
-  subheading?: string
-}) {
-  // Combine all within-10mi buckets into one "opportunity" figure — matches map logic
-  const opportunityGallons =
-    prox.within1mi.gallons + prox.within2mi.gallons +
-    prox.within5mi.gallons + prox.within10mi.gallons
-  const opportunityPct = totalGallons > 0 ? (opportunityGallons / totalGallons) * 100 : 0
-
-  const rows = [
-    { label: 'Fueled at Circle K',              gallons: prox.ckGallons,            color: '#16a34a', opportunity: false },
-    { label: 'Competitor — CK within 10 mi',    gallons: opportunityGallons,         color: '#3b82f6', opportunity: true  },
-    { label: 'Competitor — no CK within 10 mi', gallons: prox.beyond10mi.gallons,   color: '#dc2626', opportunity: false },
-  ]
-
-  return (
-    <div className="space-y-3">
-      {isMobileFueling && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
-          <AlertCircle size={13} className="mt-0.5 shrink-0 text-amber-600" />
-          <span>
-            <strong>Mobile fueling detected.</strong> This report contains fuel deliveries (e.g. Diesel Direct) made directly to the customer's location — not purchases at a fixed pump. Proximity-to-CK figures are based on the delivery city only and are not meaningful for conversion analysis.
-          </span>
-        </div>
-      )}
-      <div className="flex items-start justify-between">
-        <div>
-          <h3 className="font-bold text-off-black">{heading ?? 'Distance-Based Proximity to Circle K'}</h3>
-          <p className="text-xs text-gray-400 mt-0.5">
-            {subheading ?? `Based on geocoded fueling locations · ${fmtPct(prox.geocodedPct)} of total gallons geocoded`}
-          </p>
-        </div>
-        {opportunityGallons > 0 && (
-          <div className="rounded-lg bg-zinc-50 border border-zinc-200 px-3 py-1.5 text-xs text-zinc-600 text-right shrink-0 ml-4">
-            <span className="font-bold">{fmtGallons(opportunityGallons)} gal</span><br />
-            <span className="opacity-80">within 10 mi of CK ({fmtPct(opportunityPct)})</span>
-          </div>
-        )}
-      </div>
-      <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 overflow-hidden">
-        {rows.map(row => {
-          const pct = totalGallons > 0 ? (row.gallons / totalGallons) * 100 : 0
-          return (
-            <div key={row.label} className="flex items-center gap-3 px-4 py-3 bg-white">
-              <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: row.color }} />
-              <span className="flex-1 text-sm text-gray-700">{row.label}</span>
-              {row.opportunity && row.gallons > 0 && (
-                <span className="text-xs bg-green-50 text-green-700 rounded px-1.5 py-0.5 font-semibold">Opportunity</span>
-              )}
-              <span className="text-sm font-semibold text-off-black w-24 text-right">{fmtGallons(row.gallons)} gal</span>
-              <span className="text-xs text-gray-400 w-12 text-right">{fmtPct(pct)}</span>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// ─── Detailed Proximity Panel (OTR-style 5-band breakdown) ───────────────────
-
-function DetailedProximityPanel({
-  prox,
-  title,
-  subtitle,
-  monthSpan,
-}: {
-  prox: NonNullable<TransactionSummary['proximityBreakdown']>
-  title: string
-  subtitle: string
-  monthSpan: number
-}) {
-  const ck  = prox.ckGallons
-  const w2  = prox.within1mi.gallons + prox.within2mi.gallons
-  const w5  = prox.within5mi.gallons
-  const w10 = prox.within10mi.gallons
-  const b10 = prox.beyond10mi.gallons
-  const tot = ck + w2 + w5 + w10 + b10
-  const mx  = Math.max(ck, w2, w5, w10, b10, 1)
-
-  const rows = [
-    { label: 'At Circle K',  gallons: ck,  color: 'bg-green-500',   text: 'text-green-700',   note: 'Already at CK' },
-    { label: 'Within 2 mi',  gallons: w2,  color: 'bg-emerald-400', text: 'text-emerald-700', note: 'Drove right past' },
-    { label: '2–5 mi',       gallons: w5,  color: 'bg-amber-400',   text: 'text-amber-700',   note: 'Strong opportunity' },
-    { label: '5–10 mi',      gallons: w10, color: 'bg-orange-400',  text: 'text-orange-700',  note: 'Moderate detour' },
-    { label: '10+ mi',       gallons: b10, color: 'bg-red-400',     text: 'text-red-700',     note: 'No nearby CK' },
-  ]
-
-  return (
-    <div>
-      <h3 className="font-bold text-off-black text-sm uppercase tracking-wide mb-0.5">{title}</h3>
-      <p className="text-xs text-gray-400 mb-3">{subtitle}</p>
-      {w2 > 0 && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-3 flex items-start gap-2">
-          <CheckCircle size={12} className="text-emerald-600 shrink-0 mt-0.5" />
-          <p className="text-xs text-emerald-800 leading-snug">
-            <strong>{fmtGallons(w2)}</strong> gal within 2 mi
-            {monthSpan > 0 ? ` · ${fmtGallons((w2 / monthSpan) * 12)} / yr` : ''}
-            {' '}— drove right past.
-          </p>
-        </div>
-      )}
-      <div className="space-y-2">
-        {rows.map(({ label, gallons, color, text, note }) => {
-          const pct = tot > 0 ? (gallons / tot) * 100 : 0
-          return (
-            <div key={label}>
-              <div className="flex items-center justify-between mb-0.5">
-                <span className="text-xs text-gray-700">{label}</span>
-                <span className={`text-xs font-semibold ${text}`}>
-                  {fmtGallons(gallons)} <span className="text-gray-400 font-normal">({fmtPct(pct)})</span>
-                </span>
-              </div>
-              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div className={`h-1.5 ${color} rounded-full`} style={{ width: `${(gallons / mx) * 100}%` }} />
-              </div>
-              <p className="text-xs text-gray-400 mt-0.5 leading-none">{note}</p>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// ─── Savings Calculator ────────────────────────────────────────────────────────
-
-function SavingsCalculatorPanel({
-  captured,
-  capturable,
-  months,
-  rebateRate,
-  onRebateChange,
-}: {
-  captured: { gallons: number; spend: number }
-  capturable: { gallons: number; spend: number }
-  months: number
-  rebateRate: number
-  onRebateChange: (v: number) => void
-}) {
-  const eligibleGallons = captured.gallons + capturable.gallons
-
-  const monthlyGal    = eligibleGallons / months
-  const annualGal     = monthlyGal * 12
-  const monthlySavings = monthlyGal * (rebateRate / 100)
-  const annualSavings  = annualGal  * (rebateRate / 100)
-
-  return (
-    <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-      <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
-        <div>
-          <h2 className="text-zinc-900 font-bold text-lg">Savings Calculator</h2>
-          <p className="text-zinc-500 text-sm mt-0.5">Estimated value of switching capturable gallons to Circle K</p>
-        </div>
-        <DollarSign className="text-zinc-400" size={26} />
-      </div>
-      <div className="p-6">
-        <div className="mb-6">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Circle K Rebate Rate
-          </label>
-          <div className="flex items-center gap-4">
-            <input
-              type="range"
-              min={0.5}
-              max={10}
-              step={0.5}
-              value={rebateRate}
-              onChange={e => onRebateChange(Number(e.target.value))}
-              className="flex-1 h-2 cursor-pointer accent-[#0EA5E9]"
-            />
-            <div className="shrink-0 flex items-center gap-1.5">
-              <input
-                type="number"
-                min={0}
-                max={20}
-                step={0.5}
-                value={rebateRate}
-                onChange={e => onRebateChange(Number(e.target.value))}
-                className="w-16 border border-zinc-200 rounded-lg px-2 py-1.5 text-sm text-center font-bold focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
-              />
-              <span className="text-sm text-gray-500 font-medium">¢/gal</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-xl bg-gray-50 border border-gray-200 p-4 text-center">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Total CK Gallons</p>
-            <p className="text-2xl font-bold text-off-black">{fmtGallons(annualGal)}</p>
-            <p className="text-xs text-gray-400 mt-0.5">per year &nbsp;·&nbsp; {fmtGallons(monthlyGal)}/mo</p>
-          </div>
-          <div className="rounded-xl bg-green-50 border border-green-200 p-4 text-center">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Monthly Savings</p>
-            <p className="text-2xl font-bold text-green-600">{fmtDollars(monthlySavings)}</p>
-            <p className="text-xs text-gray-400 mt-0.5">at {rebateRate}¢/gal</p>
-          </div>
-          <div className="rounded-xl bg-green-50 border border-green-300 p-4 text-center">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Annual Savings</p>
-            <p className="text-2xl font-bold text-green-700">{fmtDollars(annualSavings)}</p>
-            <p className="text-xs text-gray-400 mt-0.5">projected per year</p>
-          </div>
-        </div>
-
-        <p className="mt-4 text-xs text-gray-400 flex items-start gap-1.5">
-          <Info size={12} className="shrink-0 mt-0.5" />
-          Based on {fmtGallons(eligibleGallons)} eligible gallons ({fmtGallons(captured.gallons)} current CK + {fmtGallons(capturable.gallons)} capturable) across {months.toFixed(1)} months of data, extrapolated to 12 months.
-        </p>
-      </div>
-    </div>
-  )
-}
-
-// ─── OTR Corridor Analysis Panel ─────────────────────────────────────────────
-
-function OTRAnalysisPanel({ otr, months, mapPoints, ckStorePins, isDieselFleet }: {
-  otr: NonNullable<TransactionSummary['otrAnalysis']>
-  months: number
-  mapPoints: import('@/lib/transaction-analysis').MapPoint[]
-  ckStorePins: CKStorePin[]
-  isDieselFleet: boolean
-}) {
-  const [expanded, setExpanded] = useState(false)
-  const shown = expanded ? otr.corridorResults : otr.corridorResults.slice(0, 8)
-  const totalOpp = otr.corridorResults.reduce((s, r) => s + r.captureGallons, 0)
-  const annualOpp = months > 0 ? (totalOpp / months) * 12 : totalOpp
-
-  // OTRMap needs truck-accessible stores only, shaped as OTRMapStore
-  const truckStores: OTRMapStore[] = ckStorePins
-    .filter(s => s.truckAccessible)
-    .map(s => ({ lat: s.lat, lng: s.lng, name: s.name, city: s.city, state: s.state }))
-
-  return (
-    <>
-      {/* Header row */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-zinc-900 font-bold text-lg">OTR Corridor Analysis</h2>
-          <span className="bg-zinc-200 text-zinc-600 text-xs font-bold px-2 py-0.5 rounded-full">OTR</span>
-        </div>
-        <Truck className="text-zinc-400 shrink-0" size={24} />
-      </div>
-      <p className="text-zinc-500 text-sm mb-4">
-        Opportunity mapped to major interstate corridors — not aerial radius
-      </p>
-
-      {/* Summary strip */}
-      <div className="rounded-xl border border-zinc-200 overflow-hidden bg-zinc-100 mb-5">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-px">
-          {[
-            { label: 'Active Corridors',    value: otr.corridorResults.length.toString() },
-            { label: 'On-Corridor Gallons', value: fmtGallons(otr.totalCorridorGallons) },
-            { label: 'Annual Opp. Gallons', value: fmtGallons(annualOpp), accent: true },
-            { label: 'Off-Corridor Gallons', value: fmtGallons(otr.offCorridorGallons), dim: true },
-          ].map(({ label, value, accent, dim }) => (
-            <div key={label} className={`px-4 py-3 text-center ${accent ? 'bg-accent' : 'bg-white'}`}>
-              <p className={`text-xs font-semibold uppercase tracking-wider mb-0.5 ${accent ? 'text-white/70' : 'text-gray-500'}`}>{label}</p>
-              <p className={`text-xl font-bold ${accent ? 'text-white' : dim ? 'text-gray-400' : 'text-off-black'}`}>{value}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Route Coverage map — only for diesel fleets */}
-      {isDieselFleet && truckStores.length > 0 && mapPoints.length > 0 && (
-        <div className="rounded-2xl border border-zinc-200 overflow-hidden mb-5">
-          <div className="bg-zinc-50 border-b border-zinc-200 px-5 py-3 flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-zinc-800 text-sm">Route Coverage &amp; Gaps</p>
-              <p className="text-xs text-zinc-500 mt-0.5">Orange = corridor activity · gap = no truck CK within 30mi</p>
-            </div>
-            <MapPin className="text-zinc-400 shrink-0" size={18} />
-          </div>
-          <OTRMap
-            transactionPoints={mapPoints}
-            ckStores={truckStores}
-            corridorResults={otr.corridorResults}
-            height={520}
-          />
-        </div>
-      )}
-
-      {/* Fueling locations map */}
-      {mapPoints.length > 0 && (
-        <div className="rounded-2xl border border-zinc-200 overflow-hidden mb-5">
-          <div className="bg-zinc-50 border-b border-zinc-200 px-5 py-3 flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-zinc-800 text-sm">All Fueling Locations</p>
-              <p className="text-xs text-zinc-500 mt-0.5">Customer stops · truck-accessible CK sites · color = proximity</p>
-            </div>
-            <MapPin className="text-zinc-400 shrink-0" size={18} />
-          </div>
-          <FuelingMap
-            transactionPoints={mapPoints}
-            ckStores={ckStorePins.filter(s => s.truckAccessible)}
-            height={480}
-            truckMode={true}
-          />
-        </div>
-      )}
-
-      {/* Corridor table */}
-      <div>
-        <p className="text-xs text-gray-400 mb-3">
-          A fueling event is <span className="font-semibold text-gray-600">on-corridor</span> if it occurred within 15 mi of the interstate.
-          It is <span className="font-semibold text-green-700">capturable</span> if a truck-accessible CK exists on the same corridor within 30 mi.
-        </p>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200">
-                {['Corridor', 'Gallons', 'CK Now', 'Opp. Gallons', 'Gap Gallons', 'Truck CK Stores', 'CK Potential', 'Top Competitor'].map(h => (
-                  <th key={h} className={`py-2 text-xs font-semibold uppercase tracking-wider text-gray-500 ${h === 'Corridor' || h === 'Top Competitor' ? 'text-left pr-4' : 'text-right px-3'}`}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {shown.map(r => {
-                const oppPct = r.totalGallons > 0 ? (r.captureGallons / r.totalGallons) * 100 : 0
-                return (
-                  <tr key={r.corridorId} className="hover:bg-gray-50">
-                    <td className="py-2.5 pr-4">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-zinc-900">{r.corridorName}</span>
-                        {r.isHighway ? (
-                          <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600">US Hwy</span>
-                        ) : (
-                          <span className="text-xs text-zinc-400">{r.direction === 'EW' ? 'E↔W' : 'N↕S'}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-medium">{fmtGallons(r.totalGallons)}</td>
-                    <td className="py-2.5 px-3 text-right">
-                      <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-semibold ${r.captureRate >= 20 ? 'bg-green-100 text-green-700' : r.captureRate > 0 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
-                        {fmtPct(r.captureRate)}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-right">
-                      {r.captureGallons > 0 ? (
-                        <span className="text-green-700 font-semibold">{fmtGallons(r.captureGallons)}</span>
-                      ) : <span className="text-gray-300">—</span>}
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-gray-400 text-xs">{r.gapGallons > 0 ? fmtGallons(r.gapGallons) : '—'}</td>
-                    <td className="py-2.5 px-3 text-right">
-                      <span className={`text-xs font-semibold ${r.truckCKStoreCount >= 5 ? 'text-green-600' : r.truckCKStoreCount > 0 ? 'text-orange-600' : 'text-red-500'}`}>
-                        {r.truckCKStoreCount}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <div className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-2 bg-green-500 rounded-full" style={{ width: `${Math.min(r.potentialRate, 100)}%` }} />
-                        </div>
-                        <span className="text-xs text-gray-500 w-8 text-right">{fmtPct(r.potentialRate)}</span>
-                      </div>
-                    </td>
-                    <td className="py-2.5 pl-3 text-xs text-gray-500 max-w-[120px] truncate">{r.topCompetitorBrand}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {otr.corridorResults.length > 8 && (
-          <button
-            onClick={() => setExpanded(v => !v)}
-            className="mt-3 flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800 transition-colors"
-          >
-            {expanded
-              ? <><ChevronUp size={15} />Show fewer</>
-              : <><ChevronDown size={15} />Show all {otr.corridorResults.length} corridors</>}
-          </button>
-        )}
-
-        {otr.offCorridorGallons > 0 && (
-          <p className="mt-4 text-xs text-gray-400 flex items-start gap-1.5">
-            <Info size={12} className="shrink-0 mt-0.5" />
-            {fmtGallons(otr.offCorridorGallons)} gallons ({otr.offCorridorTransactions.toLocaleString()} transactions) did not snap to a
-            major interstate corridor — likely local delivery or regional routes.
-          </p>
-        )}
-      </div>
-    </>
-  )
-}
-
-// ─── Annualized Projections ───────────────────────────────────────────────────
-
-function AnnualizedPanel({
-  summary,
-  months,
-}: {
-  summary: TransactionSummary
-  months: number
-}) {
-  const monthly = (n: number) => (months > 0 ? n / months : 0)
-  const annual  = (n: number) => monthly(n) * 12
-
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-      <div className="flex items-center gap-2 mb-4">
-        <TrendingUp size={16} className="text-accent" />
-        <h3 className="font-bold text-off-black text-sm">Annualized Projections</h3>
-        <span className="text-xs text-gray-400">
-          {months.toFixed(1)} mo of data → extrapolated to 12 mo
-        </span>
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-gray-50 rounded-xl p-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Total Gallons / Yr</p>
-          <p className="text-2xl font-bold text-off-black">{fmtGallons(annual(summary.totalGallons))}</p>
-          <p className="text-xs text-gray-400 mt-0.5">{fmtGallons(monthly(summary.totalGallons))} / mo</p>
-        </div>
-        <div className="bg-gray-50 rounded-xl p-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Total Spend / Yr</p>
-          <p className="text-2xl font-bold text-off-black">{fmtDollars(annual(summary.totalSpend))}</p>
-          <p className="text-xs text-gray-400 mt-0.5">{fmtDollars(monthly(summary.totalSpend))} / mo</p>
-        </div>
-        <div className="bg-orange-50 rounded-xl p-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">CK Gallons / Yr</p>
-          <p className="text-2xl font-bold text-brand-orange">{fmtGallons(annual(summary.ckCaptureAnalysis.captured.gallons))}</p>
-          <p className="text-xs text-gray-400 mt-0.5">{fmtGallons(monthly(summary.ckCaptureAnalysis.captured.gallons))} / mo</p>
-        </div>
-        <div className="bg-green-50 rounded-xl p-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Opportunity / Yr</p>
-          <p className="text-2xl font-bold text-green-600">{fmtGallons(annual(summary.ckCaptureAnalysis.capturable.gallons))}</p>
-          <p className="text-xs text-gray-400 mt-0.5">{fmtGallons(monthly(summary.ckCaptureAnalysis.capturable.gallons))} / mo</p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ─── Feature Selector (upload screen) ────────────────────────────────────────
 
 function FeatureSelector({
@@ -886,61 +190,71 @@ function FeatureSelector({
   flags: FeatureFlags
   onChange: (key: FeatureKey, val: boolean) => void
 }) {
+  const [open, setOpen] = useState(false)
   return (
-    <div className="mb-5 bg-white rounded-xl border border-gray-200 p-4 space-y-4">
-      {/* Analysis modules */}
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <Settings2 size={15} className="text-gray-500" />
-          <p className="text-sm font-semibold text-off-black">Analysis Modules</p>
+    <div className="mt-4 bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        aria-expanded={open}
+        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Settings2 size={14} className="text-gray-400" />
+          Advanced options
         </div>
-        <p className="text-xs text-gray-400 mb-3 ml-[23px]">
-          Choose what to include. You can toggle these after upload too.
-        </p>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-          {FEATURE_DEFS.map(def => (
-            <label key={def.key} className="flex items-start gap-2.5 cursor-pointer group">
+        {open ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 space-y-4 border-t border-gray-100">
+          {/* Analysis modules */}
+          <div className="pt-3">
+            <p className="text-xs text-gray-400 mb-3">Choose what to include. You can also toggle these after upload.</p>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+              {FEATURE_DEFS.map(def => (
+                <label key={def.key} className="flex items-start gap-2.5 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={flags[def.key]}
+                    onChange={e => onChange(def.key, e.target.checked)}
+                    className="accent-[#0EA5E9] w-4 h-4 mt-0.5 shrink-0"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-off-black group-hover:text-zinc-700 transition-colors">
+                      {def.label}
+                    </span>
+                    <p className="text-xs text-gray-400 leading-tight mt-0.5">{def.desc}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+          {/* Processing option */}
+          <div className="border-t border-gray-100 pt-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Zap size={14} className="text-gray-500" />
+              <p className="text-sm font-semibold text-off-black">Processing Options</p>
+            </div>
+            <label className="flex items-start gap-2.5 cursor-pointer group">
               <input
                 type="checkbox"
-                checked={flags[def.key]}
-                onChange={e => onChange(def.key, e.target.checked)}
+                checked={flags.skipGeocoding}
+                onChange={e => onChange('skipGeocoding', e.target.checked)}
                 className="accent-[#0EA5E9] w-4 h-4 mt-0.5 shrink-0"
               />
               <div>
                 <span className="text-sm font-medium text-off-black group-hover:text-zinc-700 transition-colors">
-                  {def.label}
+                  Quick Analysis (skip geocoding)
                 </span>
-                <p className="text-xs text-gray-400 leading-tight mt-0.5">{def.desc}</p>
+                <p className="text-xs text-gray-400 leading-tight mt-0.5">
+                  Faster load, no Mapbox API calls. Disables map pins and proximity analysis.
+                </p>
               </div>
             </label>
-          ))}
-        </div>
-      </div>
-
-      {/* Processing option */}
-      <div className="border-t border-gray-100 pt-3">
-        <div className="flex items-center gap-2 mb-2">
-          <Zap size={14} className="text-gray-500" />
-          <p className="text-sm font-semibold text-off-black">Processing Options</p>
-        </div>
-        <label className="flex items-start gap-2.5 cursor-pointer group">
-          <input
-            type="checkbox"
-            checked={flags.skipGeocoding}
-            onChange={e => onChange('skipGeocoding', e.target.checked)}
-            className="accent-[#0EA5E9] w-4 h-4 mt-0.5 shrink-0"
-          />
-          <div>
-            <span className="text-sm font-medium text-off-black group-hover:text-zinc-700 transition-colors">
-              Quick Analysis (skip geocoding)
-            </span>
-            <p className="text-xs text-gray-400 leading-tight mt-0.5">
-              Faster load, no Mapbox API calls. Disables map pins and proximity analysis.
-              Best for quick reviews — re-upload to enable full analysis.
-            </p>
           </div>
-        </label>
-      </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -954,554 +268,87 @@ function FeatureToggleBar({
   flags: FeatureFlags
   onChange: (key: FeatureKey, val: boolean) => void
 }) {
-  const [expanded, setExpanded] = useState(false)
-  const activeCount = FEATURE_DEFS.filter(d => flags[d.key]).length
+  const [open, setOpen] = useState(false)
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Settings2 size={15} className="text-gray-400" />
-          <span className="text-sm font-semibold text-gray-700">Modules</span>
-          <span className="text-xs bg-gray-100 text-gray-500 rounded-full px-2 py-0.5">
-            {activeCount} of {FEATURE_DEFS.length} active
-          </span>
+    <div className="relative">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Settings2 size={14} className="text-gray-400 shrink-0" />
+          <span className="text-sm font-semibold text-gray-700">Customize View</span>
+          <div className="flex flex-wrap gap-1.5">
+            {FEATURE_DEFS.filter(d => flags[d.key]).map(def => (
+              <span key={def.key} className="text-xs bg-zinc-100 text-zinc-600 rounded-full px-2.5 py-0.5 font-medium">
+                {def.label}
+              </span>
+            ))}
+          </div>
         </div>
         <button
-          onClick={() => setExpanded(v => !v)}
-          className="text-xs text-zinc-400 hover:text-zinc-700 flex items-center gap-1 font-medium transition-colors"
+          onClick={() => setOpen(v => !v)}
+          aria-expanded={open}
+          aria-label="Customize visible sections"
+          className="ml-3 shrink-0 text-xs text-zinc-500 hover:text-zinc-800 flex items-center gap-1 font-medium transition-colors border border-zinc-200 rounded-lg px-2.5 py-1.5 hover:border-zinc-300"
         >
-          {expanded ? 'Collapse' : 'Edit'}
-          {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          {open ? <><ChevronUp size={13} />Done</> : <><Settings2 size={13} />Edit</>}
         </button>
       </div>
 
-      {/* Collapsed: clickable pills */}
-      {!expanded && (
-        <div className="flex flex-wrap gap-1.5">
-          {FEATURE_DEFS.map(def => (
-            <button
-              key={def.key}
-              onClick={() => onChange(def.key, !flags[def.key])}
-              title={def.desc}
-              className={`text-xs rounded-full px-3 py-1 font-medium transition-all border ${
-                flags[def.key]
-                  ? 'bg-zinc-900 text-white border-zinc-900'
-                  : 'bg-white text-zinc-400 border-zinc-200 hover:border-zinc-400 hover:text-zinc-700'
-              }`}
-            >
-              {def.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Expanded: full grid with descriptions */}
-      {expanded && (
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3 pt-1">
-          {FEATURE_DEFS.map(def => (
-            <label key={def.key} className="flex items-start gap-2.5 cursor-pointer group">
-              <input
-                type="checkbox"
-                checked={flags[def.key]}
-                onChange={e => onChange(def.key, e.target.checked)}
-                className="accent-[#0EA5E9] w-4 h-4 mt-0.5 shrink-0"
-              />
-              <div>
-                <span className="text-sm font-medium text-off-black group-hover:text-zinc-700 transition-colors">
-                  {def.label}
-                </span>
-                <p className="text-xs text-gray-400 leading-tight mt-0.5">{def.desc}</p>
-              </div>
-            </label>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─── Vehicles Tab ────────────────────────────────────────────────────────────
-
-function VehiclesTab({
-  summary,
-  showAll,
-  setShowAll,
-}: {
-  summary: TransactionSummary
-  showAll: boolean
-  setShowAll: (v: boolean) => void
-}) {
-  const [mode, setMode] = useState<'driver' | 'vehicle'>(
-    summary.hasDriverData ? 'driver' : 'vehicle'
-  )
-  const [query, setQuery] = useState('')
-  const byDriver = mode === 'driver' && summary.hasDriverData
-  const allRows = byDriver ? summary.driverBreakdown : summary.vehicleBreakdown
-
-  const rows = query.trim()
-    ? allRows.filter(row => {
-        const q = query.toLowerCase()
-        if ('driverName' in row) {
-          const d = row as DriverSummary
-          return d.driverName.toLowerCase().includes(q) || d.driverCity.toLowerCase().includes(q)
-        }
-        const v = row as (typeof summary.vehicleBreakdown)[0]
-        return v.unitNumber.toLowerCase().includes(q) || v.driverCity.toLowerCase().includes(q)
-      })
-    : allRows
-
-  const shown = (query.trim() || showAll) ? rows : rows.slice(0, 30)
-  const entityLabel = byDriver ? 'drivers' : 'vehicles'
-
-  return (
-    <div>
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <div>
-          <h3 className="font-bold text-off-black">
-            {byDriver ? 'Driver' : 'Vehicle'} Fueling Summary
-          </h3>
-          <p className="text-xs text-gray-400 mt-0.5">
-            Per-{byDriver ? 'driver' : 'unit'} breakdown sorted by total gallons
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <input
-            type="text"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder={`Search ${entityLabel}…`}
-            className="text-xs border border-zinc-200 rounded-lg px-3 py-1.5 w-44 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
-          />
-          <ViewToggle
-            mode={mode} setMode={(m) => { setMode(m); setQuery('') }}
-            hasDriver={summary.hasDriverData}
-            hasVehicle={summary.vehicleBreakdown.length > 0}
-          />
-        </div>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-200">
-              {(byDriver
-                ? ['Driver', 'Home City', 'Units', 'Trans', 'Gallons', 'Spend', 'CK Gallons', 'CK Share']
-                : ['Unit #', 'Driver City', 'Trans', 'Gallons', 'Spend', 'CK Gallons', 'CK Share']
-              ).map(h => (
-                <th
-                  key={h}
-                  className={`py-2 text-xs font-semibold uppercase tracking-wider text-gray-500 ${
-                    ['Driver', 'Unit #', 'Home City', 'Driver City', 'Units'].includes(h)
-                      ? 'text-left pr-4' : 'text-right px-4'
+      {/* Popover panel */}
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-1.5 z-20 bg-white rounded-xl border border-gray-200 shadow-lg p-5">
+          <p className="text-xs text-gray-400 mb-4">Toggle sections on or off. Changes take effect immediately.</p>
+          <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+            {FEATURE_DEFS.map(def => (
+              <label key={def.key} className="flex items-center justify-between gap-3 cursor-pointer group">
+                <div>
+                  <p className="text-sm font-medium text-off-black group-hover:text-zinc-700 transition-colors">{def.label}</p>
+                  <p className="text-xs text-gray-400 leading-tight mt-0.5">{def.desc}</p>
+                </div>
+                {/* Styled toggle switch */}
+                <button
+                  role="switch"
+                  aria-checked={flags[def.key]}
+                  aria-label={`Toggle ${def.label}`}
+                  onClick={() => onChange(def.key, !flags[def.key])}
+                  className={`relative shrink-0 w-9 h-5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent/30 ${
+                    flags[def.key] ? 'bg-accent' : 'bg-gray-200'
                   }`}
-                >{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {shown.map(row => {
-              const isDriver = 'driverName' in row
-              const d = row as DriverSummary
-              const v = row as (typeof summary.vehicleBreakdown)[0]
-              return (
-                <tr key={isDriver ? d.driverName : v.unitNumber} className="hover:bg-gray-50">
-                  {isDriver ? (
-                    <>
-                      <td className="py-2 pr-4 font-semibold text-off-black text-sm">{d.driverName}</td>
-                      <td className="py-2 px-4 text-gray-600 text-xs">{d.driverCity || '—'}</td>
-                      <td className="py-2 px-4 text-gray-500 text-xs">{d.unitNumbers.length || '—'}</td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="py-2 pr-4 font-mono font-semibold text-off-black text-xs">{v.unitNumber}</td>
-                      <td className="py-2 px-4 text-gray-600 text-xs">{v.driverCity || '—'}</td>
-                    </>
-                  )}
-                  <td className="py-2 px-4 text-right text-gray-600">{row.transactions}</td>
-                  <td className="py-2 px-4 text-right font-medium">{fmtGallons(row.gallons)}</td>
-                  <td className="py-2 px-4 text-right text-gray-600">{fmtDollars(row.spend)}</td>
-                  <td className="py-2 px-4 text-right text-brand-orange font-medium">{fmtGallons(row.ckGallons)}</td>
-                  <td className="py-2 pl-4 text-right">
-                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
-                      row.ckSharePct >= 20 ? 'bg-green-100 text-green-700'
-                      : row.ckSharePct > 0 ? 'bg-orange-100 text-orange-700'
-                      : 'bg-gray-100 text-gray-500'
-                    }`}>
-                      {fmtPct(row.ckSharePct)}
-                    </span>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-      {!query.trim() && rows.length > 30 && (
-        <button
-          onClick={() => setShowAll(!showAll)}
-          className="mt-4 flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800 transition-colors"
-        >
-          {showAll
-            ? <><ChevronUp size={16} />Show fewer</>
-            : <><ChevronDown size={16} />Show all {rows.length} {entityLabel}</>}
-        </button>
-      )}
-      {query.trim() && rows.length === 0 && (
-        <p className="mt-4 text-sm text-gray-400 text-center py-4">No results for "{query}"</p>
-      )}
-    </div>
-  )
-}
-
-// ─── Behavioral Insights Tab ─────────────────────────────────────────────────
-
-const SEGMENT_ORDER: VehicleSegment['segment'][] = ['ck-loyal', 'mixed', 'mostly-competitor', 'never-ck']
-
-/** Toggle pill used to switch between "By Driver" and "By Vehicle" views */
-function ViewToggle({
-  mode, setMode, hasDriver, hasVehicle,
-}: {
-  mode: 'driver' | 'vehicle'
-  setMode: (m: 'driver' | 'vehicle') => void
-  hasDriver: boolean
-  hasVehicle: boolean
-}) {
-  if (!hasDriver || !hasVehicle) return null
-  return (
-    <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs font-semibold shrink-0">
-      <button
-        onClick={() => setMode('driver')}
-        className={`px-3 py-1.5 transition-colors ${mode === 'driver' ? 'bg-zinc-800 text-white' : 'bg-white text-zinc-600 hover:bg-zinc-50'}`}
-      >
-        By Driver
-      </button>
-      <button
-        onClick={() => setMode('vehicle')}
-        className={`px-3 py-1.5 border-l border-zinc-200 transition-colors ${mode === 'vehicle' ? 'bg-zinc-800 text-white' : 'bg-white text-zinc-600 hover:bg-zinc-50'}`}
-      >
-        By Vehicle
-      </button>
-    </div>
-  )
-}
-
-function BehavioralInsightsTab({ summary }: { summary: TransactionSummary }) {
-  const [showAll, setShowAll] = useState(false)
-  const [mode, setMode] = useState<'driver' | 'vehicle'>(
-    summary.hasDriverData ? 'driver' : 'vehicle'
-  )
-
-  const byDriver = mode === 'driver' && summary.hasDriverData
-  const segments = SEGMENT_ORDER
-    .map(s => (byDriver ? summary.driverSegments : summary.vehicleSegments).find(seg => seg.segment === s))
-    .filter(Boolean) as VehicleSegment[]
-  const totalEntities = byDriver ? summary.driverBreakdown.length : summary.vehicleBreakdown.length
-  const entityLabel = byDriver ? 'drivers' : 'vehicles'
-
-  // Top opportunity list — works for both modes
-  const topOpportunityVehicles = [...summary.vehicleBreakdown]
-    .filter(v => v.capturableGallons > 0)
-    .sort((a, b) => b.capturableGallons - a.capturableGallons)
-  const topOpportunityDrivers = [...summary.driverBreakdown]
-    .filter(d => d.capturableGallons > 0)
-    .sort((a, b) => b.capturableGallons - a.capturableGallons)
-  const topOpportunity = byDriver ? topOpportunityDrivers : topOpportunityVehicles
-
-  return (
-    <div className="space-y-8">
-      {/* Segment cards */}
-      <div>
-        <div className="flex items-center justify-between gap-4 mb-4">
-          <div>
-            <h3 className="font-bold text-off-black">Fleet CK Loyalty Segments</h3>
-            <p className="text-xs text-gray-400 mt-0.5">
-              How your fleet&apos;s {totalEntities} {entityLabel} break down by Circle K capture rate
-            </p>
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                    flags[def.key] ? 'translate-x-4' : 'translate-x-0'
+                  }`} />
+                </button>
+              </label>
+            ))}
           </div>
-          <ViewToggle
-            mode={mode} setMode={setMode}
-            hasDriver={summary.hasDriverData}
-            hasVehicle={summary.vehicleBreakdown.length > 0}
-          />
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {segments.map(seg => {
-            const pct = totalEntities > 0 ? (seg.count / totalEntities) * 100 : 0
-            return (
-              <div key={seg.segment} className="bg-white rounded-xl border border-gray-200 p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
-                  <span className="font-bold text-off-black text-sm">{seg.label}</span>
+          {/* Quick Analysis toggle */}
+          <div className="border-t border-gray-100 mt-4 pt-4">
+            <label className="flex items-center justify-between gap-3 cursor-pointer group">
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <Zap size={13} className="text-gray-400" />
+                  <p className="text-sm font-medium text-off-black">Quick Analysis (skip geocoding)</p>
                 </div>
-                <p className="text-2xl font-bold text-off-black">{seg.count}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{entityLabel} ({fmtPct(pct)})</p>
-                <p className="text-xs text-gray-500 mt-2">{fmtGallons(seg.gallons)} gal</p>
-                <p className="text-xs text-gray-400 mt-0.5">{seg.description}</p>
+                <p className="text-xs text-gray-400 mt-0.5">Disables map pins and proximity analysis. Faster for quick reviews.</p>
               </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Top opportunity table */}
-      {topOpportunity.length > 0 ? (
-        <div>
-          <div className="flex items-center justify-between gap-4 mb-4">
-            <div>
-              <h3 className="font-bold text-off-black">
-                Top Opportunity {byDriver ? 'Drivers' : 'Vehicles'}
-              </h3>
-              <p className="text-xs text-gray-400 mt-0.5">
-                {byDriver ? 'Drivers' : 'Units'} with the most capturable gallons — currently fueling at competitors where a CK exists in the same area
-              </p>
-            </div>
+              <button
+                role="switch"
+                aria-checked={flags.skipGeocoding}
+                aria-label="Toggle quick analysis mode"
+                onClick={() => onChange('skipGeocoding', !flags.skipGeocoding)}
+                className={`relative shrink-0 w-9 h-5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent/30 ${
+                  flags.skipGeocoding ? 'bg-accent' : 'bg-gray-200'
+                }`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                  flags.skipGeocoding ? 'translate-x-4' : 'translate-x-0'
+                }`} />
+              </button>
+            </label>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  {(byDriver
-                    ? ['Driver', 'Home City', 'Vehicles Used', 'Capturable Gal', 'Top Competitor', 'Total Gal', 'CK Share', 'Avg Days / Fill']
-                    : ['Unit #', 'Driver City', 'Capturable Gal', 'Top Competitor', 'Total Gal', 'CK Share', 'Avg Days / Fill']
-                  ).map(h => (
-                    <th
-                      key={h}
-                      className={`py-2 text-xs font-semibold uppercase tracking-wider text-gray-500 ${
-                        ['Driver', 'Unit #', 'Home City', 'Driver City', 'Top Competitor', 'Vehicles Used'].includes(h)
-                          ? 'text-left pr-4' : 'text-right px-4'
-                      }`}
-                    >{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {(showAll ? topOpportunity : topOpportunity.slice(0, 15)).map(item => {
-                  const isDriver = 'driverName' in item
-                  const d = item as DriverSummary
-                  const v = item as (typeof topOpportunityVehicles)[0]
-                  return (
-                    <tr key={isDriver ? d.driverName : v.unitNumber} className="hover:bg-gray-50">
-                      {isDriver ? (
-                        <>
-                          <td className="py-2.5 pr-4 font-semibold text-off-black text-sm">{d.driverName}</td>
-                          <td className="py-2.5 pr-4 text-gray-600 text-xs">{d.driverCity || '—'}</td>
-                          <td className="py-2.5 pr-4 text-gray-500 text-xs">{d.unitNumbers.length > 0 ? d.unitNumbers.slice(0, 3).join(', ') + (d.unitNumbers.length > 3 ? ` +${d.unitNumbers.length - 3}` : '') : '—'}</td>
-                        </>
-                      ) : (
-                        <>
-                          <td className="py-2.5 pr-4 font-mono font-semibold text-off-black text-xs">{v.unitNumber}</td>
-                          <td className="py-2.5 pr-4 text-gray-600 text-xs">{v.driverCity || '—'}</td>
-                        </>
-                      )}
-                      <td className="py-2.5 px-4 text-right">
-                        <span className="font-bold text-green-600">{fmtGallons(item.capturableGallons)}</span>
-                      </td>
-                      <td className="py-2.5 px-4 text-gray-600 text-xs">{item.topCompetitorBrand}</td>
-                      <td className="py-2.5 px-4 text-right font-medium">{fmtGallons(item.gallons)}</td>
-                      <td className="py-2.5 px-4 text-right">
-                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${item.ckSharePct >= 20 ? 'bg-green-100 text-green-700' : item.ckSharePct > 0 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
-                          {fmtPct(item.ckSharePct)}
-                        </span>
-                      </td>
-                      <td className="py-2.5 pl-4 text-right text-gray-500 text-xs">
-                        {item.avgDaysBetweenFills > 0 ? `${item.avgDaysBetweenFills}d` : '—'}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-          {topOpportunity.length > 15 && (
-            <button onClick={() => setShowAll(v => !v)} className="mt-3 flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800 transition-colors">
-              {showAll ? <><ChevronUp size={16} />Show fewer</> : <><ChevronDown size={16} />Show all {topOpportunity.length} {entityLabel}</>}
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="rounded-xl bg-gray-50 border border-gray-200 p-6 text-center text-sm text-gray-500">
-          No capturable {entityLabel} found — either all fueling is already at Circle K or {byDriver ? 'Driver Name' : 'Unit #'} data is not present in this file.
         </div>
       )}
-    </div>
-  )
-}
-
-// ─── Time Patterns Tab ────────────────────────────────────────────────────────
-
-function TimePatternsTab({ summary }: { summary: TransactionSummary }) {
-  if (!summary.hasTimeData) {
-    return (
-      <div className="rounded-xl bg-gray-50 border border-gray-200 p-8 text-center">
-        <Clock size={32} className="mx-auto text-gray-300 mb-3" />
-        <p className="font-semibold text-gray-600 mb-1">No timestamp data found</p>
-        <p className="text-sm text-gray-400">
-          Time pattern analysis requires a transaction export that includes a time alongside the date
-          (e.g. <span className="font-mono bg-gray-100 px-1 rounded">01/15/2024 14:32:00</span>).
-          WEX and most Fuelman exports include this — check your export settings.
-        </p>
-      </div>
-    )
-  }
-
-  const maxHourlyGal = Math.max(...summary.hourlyBreakdown.map(h => h.gallons), 1)
-  const maxDOWGal    = Math.max(...summary.dayOfWeekBreakdown.map(d => d.gallons), 1)
-
-  const hourLabel = (h: number) => {
-    if (h === 0) return '12a'
-    if (h < 12) return `${h}a`
-    if (h === 12) return '12p'
-    return `${h - 12}p`
-  }
-
-  return (
-    <div className="space-y-8">
-      {/* Hourly chart */}
-      <div>
-        <h3 className="font-bold text-off-black mb-1">Fueling by Hour of Day</h3>
-        <p className="text-xs text-gray-400 mb-4">
-          Total gallons per hour &nbsp;·&nbsp;
-          <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-green-600 inline-block" /> Circle K</span>
-          &nbsp;
-          <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-zinc-400 inline-block" /> Competitor</span>
-        </p>
-        <div className="flex items-end gap-px" style={{ height: 120 }}>
-          {summary.hourlyBreakdown.map(h => {
-            const totalH = (h.gallons / maxHourlyGal) * 100
-            const ckH    = h.gallons > 0 ? (h.ckGallons / h.gallons) * totalH : 0
-            const compH  = totalH - ckH
-            return (
-              <div key={h.hour} className="flex-1 flex flex-col justify-end group relative" style={{ height: '100%' }}>
-                <div className="w-full flex flex-col justify-end" style={{ height: `${totalH}%` }}>
-                  <div className="w-full bg-zinc-400 rounded-t-sm" style={{ height: `${compH > 0 ? (compH / totalH) * 100 : 0}%` }} />
-                  <div className="w-full bg-green-600" style={{ height: `${ckH > 0 ? (ckH / totalH) * 100 : 0}%` }} />
-                </div>
-                {h.gallons > 0 && (
-                  <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs rounded px-1.5 py-1 whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-10">
-                    {hourLabel(h.hour)}: {fmtGallons(h.gallons)} gal
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-        <div className="flex mt-1" style={{ gap: 0 }}>
-          {summary.hourlyBreakdown.map(h => (
-            <div key={h.hour} className="flex-1 text-center" style={{ fontSize: 9, color: '#9ca3af' }}>
-              {h.hour % 3 === 0 ? hourLabel(h.hour) : ''}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Day of week */}
-      <div>
-        <h3 className="font-bold text-off-black mb-1">Fueling by Day of Week</h3>
-        <p className="text-xs text-gray-400 mb-4">Total gallons per day</p>
-        <div className="space-y-2">
-          {summary.dayOfWeekBreakdown.map(d => {
-            const pct     = (d.gallons / maxDOWGal) * 100
-            const ckPct   = d.gallons > 0 ? (d.ckGallons / maxDOWGal) * 100 : 0
-            const compPct = pct - ckPct
-            return (
-              <div key={d.day} className="flex items-center gap-3">
-                <span className="w-8 text-xs font-medium text-gray-600 shrink-0">{d.dayName.slice(0, 3)}</span>
-                <div className="flex-1 h-6 bg-gray-100 rounded-full overflow-hidden flex">
-                  <div className="h-full bg-green-600 rounded-l-full" style={{ width: `${ckPct}%` }} />
-                  <div className="h-full bg-zinc-400" style={{ width: `${compPct}%` }} />
-                </div>
-                <span className="w-24 text-right text-xs font-semibold text-off-black shrink-0">{fmtGallons(d.gallons)} gal</span>
-                <span className="w-16 text-right text-xs text-gray-400 shrink-0">{d.transactions.toLocaleString()} trans</span>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Fraud Flags Tab ──────────────────────────────────────────────────────────
-
-const FRAUD_TYPE_LABELS: Record<FraudFlag['type'], string> = {
-  'high-gallons': 'High Gallons',
-  'multi-fill':   'Multi-Fill Day',
-  'ppg-outlier':  'PPG Outlier',
-  'state-hop':    'State Hop',
-}
-
-function FraudFlagsTab({ flags }: { flags: FraudFlag[] }) {
-  const high   = flags.filter(f => f.severity === 'high')
-  const medium = flags.filter(f => f.severity === 'medium')
-
-  if (flags.length === 0) {
-    return (
-      <div className="rounded-xl bg-green-50 border border-green-200 p-8 text-center">
-        <CheckCircle size={32} className="mx-auto text-green-500 mb-3" />
-        <p className="font-semibold text-gray-700 mb-1">No anomalies detected</p>
-        <p className="text-sm text-gray-500">No high-gallon fills, multi-fill days, PPG outliers, or state hops found in this data.</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Summary */}
-      <div>
-        <h3 className="font-bold text-off-black mb-1">Anomaly Summary</h3>
-        <p className="text-xs text-gray-400 mb-4">
-          These patterns may warrant review. They do not confirm fraud — mismatched data, multi-axle tanks, and multi-stop routes can trigger some flags.
-        </p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {([
-            { label: 'High Gallons',   count: flags.filter(f => f.type === 'high-gallons').length, color: 'text-red-600',    bg: 'bg-red-50 border-red-200',    desc: 'Single fill > 200 gal' },
-            { label: 'Multi-Fill Day', count: flags.filter(f => f.type === 'multi-fill').length,   color: 'text-orange-600', bg: 'bg-orange-50 border-orange-200', desc: '3+ fills same vehicle/day' },
-            { label: 'PPG Outlier',    count: flags.filter(f => f.type === 'ppg-outlier').length,  color: 'text-yellow-700', bg: 'bg-yellow-50 border-yellow-200', desc: 'Price > 2.5× fleet median' },
-            { label: 'State Hop',      count: flags.filter(f => f.type === 'state-hop').length,    color: 'text-red-600',    bg: 'bg-red-50 border-red-200',    desc: '2+ states same vehicle/day' },
-          ] as const).map(item => (
-            <div key={item.label} className={`rounded-xl border p-4 ${item.bg}`}>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{item.label}</p>
-              <p className={`text-2xl font-bold ${item.color}`}>{item.count}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{item.desc}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Flag table */}
-      <div>
-        <h3 className="font-bold text-off-black mb-3">Flagged Transactions</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200">
-                {['Severity', 'Type', 'Unit #', 'Date', 'Description', 'Gallons', 'Location'].map(h => (
-                  <th key={h} className={`py-2 text-xs font-semibold uppercase tracking-wider text-gray-500 ${['Severity','Type','Unit #','Date','Description'].includes(h) ? 'text-left pr-4' : 'text-right px-4'}`}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {flags.map((f, i) => (
-                <tr key={i} className="hover:bg-gray-50">
-                  <td className="py-2.5 pr-4">
-                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${f.severity === 'high' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                      {f.severity.toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="py-2.5 pr-4 text-xs text-gray-600">{FRAUD_TYPE_LABELS[f.type]}</td>
-                  <td className="py-2.5 pr-4 font-mono font-semibold text-off-black text-xs">{f.unitNumber}</td>
-                  <td className="py-2.5 pr-4 text-gray-500 text-xs whitespace-nowrap">{f.transDate}</td>
-                  <td className="py-2.5 pr-4 text-gray-700 text-xs max-w-[220px]">{f.description}</td>
-                  <td className="py-2.5 px-4 text-right font-medium">{fmtGallons(f.gallons)}</td>
-                  <td className="py-2.5 pl-4 text-right text-gray-500 text-xs whitespace-nowrap">
-                    {f.stationCity}{f.stationState ? `, ${f.stationState}` : ''}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   )
 }
@@ -1568,11 +415,11 @@ const TAB_FEATURE_MAP: Record<Tab, FeatureKey> = {
 }
 
 const ALL_TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: 'brands',    label: 'Brand Breakdown',          icon: <BarChart2 size={16} /> },
-  { id: 'geographic',label: 'Geographic',               icon: <MapPin size={16} /> },
-  { id: 'locations', label: 'Top Competitor Locations', icon: <Fuel size={16} /> },
-  { id: 'vehicles',  label: 'Vehicles',                 icon: <Car size={16} /> },
   { id: 'map',       label: 'Map View',                 icon: <MapPin size={16} /> },
+  { id: 'vehicles',  label: 'Vehicles',                 icon: <Car size={16} /> },
+  { id: 'geographic',label: 'Geographic',               icon: <MapPin size={16} /> },
+  { id: 'brands',    label: 'Brand Breakdown',          icon: <BarChart2 size={16} /> },
+  { id: 'locations', label: 'Top Competitor Locations', icon: <Fuel size={16} /> },
   { id: 'insights',  label: 'Behavioral Insights',      icon: <Users size={16} /> },
   { id: 'timing',    label: 'Time Patterns',            icon: <Clock size={16} /> },
   { id: 'fraud',     label: 'Fraud Flags',              icon: <ShieldAlert size={16} /> },
@@ -1594,7 +441,7 @@ function AnalysisPageInner() {
   const [missingFields, setMissingFields] = useState<string[]>([])
   const [summary, setSummary] = useState<TransactionSummary | null>(null)
   const [ckStorePins, setCKStorePins] = useState<CKStorePin[]>([])
-  const [activeTab, setActiveTab] = useState<Tab>('brands')
+  const [activeTab, setActiveTab] = useState<Tab>('map')
   const [showAllBrands, setShowAllBrands] = useState(false)
   const [showAllVehicles, setShowAllVehicles] = useState(false)
   const [restoredFromCache, setRestoredFromCache] = useState(false)
@@ -2096,7 +943,7 @@ function AnalysisPageInner() {
   }
 
   return (
-    <div className="min-h-screen bg-off-white" style={{ backgroundImage: 'radial-gradient(circle, #d1d5db 1px, transparent 1px)', backgroundSize: '28px 28px', backgroundAttachment: 'fixed' }}>
+    <div className="min-h-screen bg-off-white" style={{ backgroundImage: 'radial-gradient(circle, #d1d5db 1px, transparent 1px)', backgroundSize: '28px 28px' }}>
       <Navbar />
 
       <div className="max-w-7xl mx-auto px-6 py-8">
@@ -2122,9 +969,6 @@ function AnalysisPageInner() {
                 className="w-full border border-zinc-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
               />
             </div>
-
-            {/* Feature Selector */}
-            <FeatureSelector flags={featureFlags} onChange={toggleFeature} />
 
             {/* Drop zone */}
             <div
@@ -2154,7 +998,7 @@ function AnalysisPageInner() {
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Required columns</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {['Date', 'City', 'State', 'Gallons', 'Fuel Type'].map(c => (
+                  {['Date', 'City', 'State', 'Gallons'].map(c => (
                     <span key={c} className="bg-zinc-100 text-zinc-600 text-xs rounded px-2 py-0.5 font-mono font-semibold">{c}</span>
                   ))}
                 </div>
@@ -2162,9 +1006,37 @@ function AnalysisPageInner() {
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Optional (enhance analysis)</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {['Station Name', 'Brand', 'Address', 'ZIP', 'Vehicle / Unit #', 'Driver City', 'Amount'].map(c => (
+                  {['Fuel Type', 'Station Name', 'Brand', 'Address', 'ZIP', 'Vehicle / Unit #', 'Driver City', 'Amount'].map(c => (
                     <span key={c} className="bg-gray-100 text-gray-500 text-xs rounded px-2 py-0.5 font-mono">{c}</span>
                   ))}
+                </div>
+              </div>
+              {/* Format example */}
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Example rows</p>
+                <div className="overflow-x-auto rounded-lg border border-gray-100">
+                  <table className="w-full text-xs font-mono">
+                    <thead className="bg-zinc-50 border-b border-gray-100">
+                      <tr>
+                        {['Date', 'City', 'State', 'Gallons', 'Fuel Type', 'Brand', 'Amount'].map(h => (
+                          <th key={h} className="px-2.5 py-1.5 text-left text-gray-500 font-semibold whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {[
+                        ['2024-03-01', 'Dallas',    'TX', '87.4',  'Diesel', 'Pilot',    '$354.10'],
+                        ['2024-03-01', 'Atlanta',   'GA', '62.1',  'Gas',    'Circle K', '$208.55'],
+                        ['2024-03-02', 'Nashville', 'TN', '110.0', 'Diesel', 'Love\'s',  '$446.30'],
+                      ].map((row, i) => (
+                        <tr key={i} className="bg-white">
+                          {row.map((cell, j) => (
+                            <td key={j} className="px-2.5 py-1.5 text-gray-600 whitespace-nowrap">{cell}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
               <p className="text-xs text-gray-400 flex items-start gap-1">
@@ -2172,6 +1044,9 @@ function AnalysisPageInner() {
                 Column headers are detected automatically — exact names and order don't matter.
               </p>
             </div>
+
+            {/* Advanced options (collapsed by default) */}
+            <FeatureSelector flags={featureFlags} onChange={toggleFeature} />
           </div>
         )}
 
@@ -2304,7 +1179,7 @@ function AnalysisPageInner() {
                   </div>
                   {/* Monthly Diesel Opp — shown when diesel proximity data exists */}
                   {proxTruckOpp !== null ? (
-                    <div className="px-5 py-4 bg-accent">
+                    <div className="px-5 py-4 bg-accent border-t-2 border-t-brand-orange">
                       <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-white/70">Monthly Diesel Opp.</p>
                       <div className="space-y-1.5 mt-1">
                         {[
@@ -2323,7 +1198,7 @@ function AnalysisPageInner() {
                     </div>
                   ) : (
                     // Fallback single monthly opp when no diesel data
-                    <div className="px-5 py-4 bg-accent">
+                    <div className="px-5 py-4 bg-accent border-t-2 border-t-brand-orange">
                       <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-white/70">Monthly Opportunity</p>
                       <div className="space-y-1.5 mt-1">
                         {[
@@ -2343,7 +1218,7 @@ function AnalysisPageInner() {
                   )}
                   {/* Monthly Gas Opp — only shown when diesel split is active */}
                   {proxTruckOpp !== null && proxAllOpp !== null && (
-                    <div className="px-5 py-4 bg-accent">
+                    <div className="px-5 py-4 bg-accent border-t-2 border-t-brand-orange">
                       <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-white/70">Monthly Gas Opp.</p>
                       <div className="space-y-1.5 mt-1">
                         {[
@@ -2548,30 +1423,14 @@ function AnalysisPageInner() {
                   {/* ── Map Tab ──────────────────────────────────────────── */}
                   {activeTab === 'map' && featureFlags.mapView && (
                     <div className="space-y-6">
-                      {/* Map first — with legend overlay */}
-                      <div className="relative">
-                        <FuelingMap
-                          transactionPoints={summary.mapPoints}
-                          ckStores={ckStorePins}
-                          height={560}
-                          geocodingInProgress={geocodingInProgress}
-                        />
-                        {/* Map legend */}
-                        <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-sm rounded-xl border border-zinc-200 shadow-md px-3 py-2.5 flex flex-col gap-1.5">
-                          <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-0.5">Map Legend</p>
-                          {[
-                            { color: '#16a34a', label: 'Fueled at Circle K' },
-                            { color: '#3b82f6', label: 'Competitor — CK within 10 mi' },
-                            { color: '#dc2626', label: 'Competitor — no CK nearby' },
-                            { color: '#9ca3af', label: 'Geocoding pending' },
-                          ].map(({ color, label }) => (
-                            <div key={label} className="flex items-center gap-2">
-                              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                              <span className="text-xs text-zinc-600">{label}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                      {/* Map first — legend is rendered inside FuelingMap */}
+                      <FuelingMap
+                        transactionPoints={summary.mapPoints}
+                        ckStores={ckStorePins}
+                        height={560}
+                        geocodingInProgress={geocodingInProgress}
+                        truckMode={isDieselFleet}
+                      />
 
                       {/* Proximity stats below the map */}
                       {(summary.proximityBreakdownAll || summary.proximityBreakdown) && !geocodingInProgress ? (
