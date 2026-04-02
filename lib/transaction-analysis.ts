@@ -741,18 +741,40 @@ export function analyzeTransactions(
 // ─── Map data builder ─────────────────────────────────────────────────────────
 
 /**
- * Classify a raw fuel-type string into 'diesel' (truck fuels: D2, Diesel, DEF),
- * 'gas' (car/light-truck fuels: UNL, Premium, Midgrade), or 'other'.
- * Used to route gallons to the correct proximity panel.
+ * Classify a fuel-type string into 'diesel', 'gas', or 'other'.
+ * Input is expected to be normalised by normalizeFuelType() in the parser;
+ * raw variants are also handled here as a safety net for legacy cached data.
  */
 function fuelCategory(fuelType: string | undefined): 'diesel' | 'gas' | 'other' {
   const r = (fuelType ?? '').toUpperCase().trim()
   if (!r || r === 'UNKNOWN') return 'other'
-  if (r.startsWith('D2') || r.includes('DIESEL') || r === 'DSL' || r === 'DSEL' ||
-      r.includes('DEF') || r.includes('EXHAUST') || r === 'UREA') return 'diesel'
+
+  // ── Diesel (normalised canonical values from normalizeFuelType) ───────────
+  if (r === 'DIESEL') return 'diesel'
+  if (r === 'DEF')    return 'diesel'   // DEF is a diesel-adjacent product
+
+  // ── Diesel raw variants (safety net for un-normalised / legacy cached data) ─
+  if (r.startsWith('D2') || r === 'D-2' || r === '#2' || r.startsWith('#2 ') ||
+      r.includes('DIESEL') || r === 'DSL' || r === 'DSEL' ||
+      r === 'ULSD' || r.includes('ULTRA LOW SULFUR') || r === 'HSD' || r === 'LSD' ||
+      r.includes('REEFER') || r.includes('OFF ROAD') || r.includes('OFF-ROAD') ||
+      r.includes('DYE') || r.includes('DYED') || r.includes('BIODIESEL') ||
+      r.startsWith('B20') || r.startsWith('B10') || r.startsWith('B5 ') ||
+      r === 'NO2' || r === 'NO. 2' || r === 'NUMBER 2' ||
+      r.includes('DEF') || r.includes('EXHAUST') || r === 'UREA' || r === 'ADBLUE'
+  ) return 'diesel'
+
+  // ── Gasoline (normalised) ─────────────────────────────────────────────────
+  if (r === 'GASOLINE') return 'gas'
+
+  // ── Gasoline raw variants ─────────────────────────────────────────────────
   if (r.startsWith('UNL') || r.includes('UNLEAD') || r === 'REG' || r === 'REGULAR' ||
-      r === 'GASOLINE' || r === 'GAS' || r.includes('PREMIUM') || r.includes('MIDGRADE') ||
-      r === 'PRM' || r === 'PRML' || r === 'MID') return 'gas'
+      r === 'GAS' || r.includes('PREMIUM') || r.includes('MIDGRADE') ||
+      r.includes('MID-GRADE') || r === 'PRM' || r === 'PRML' || r === 'MID' ||
+      r === 'SUPER' || r === 'PLUS' || r === 'E85' || r === 'ETHANOL' ||
+      r.includes('FLEX FUEL') || r.match(/^(87|89|91|93)(\s*OCT)?$/) !== null
+  ) return 'gas'
+
   return 'other'
 }
 

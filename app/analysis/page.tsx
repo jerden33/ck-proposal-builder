@@ -1819,14 +1819,51 @@ function AnalysisPageInner() {
   // Months spanned by data (used by Savings Calc and Annualized panels)
   const monthSpan = summary ? computeMonthSpan(summary.dateRange) : 1
 
-  // OTR / diesel detection — for banner and tab indicator
-  // Match fuelCategory() in transaction-analysis.ts — include D2 so the badge
-  // stays consistent with the diesel proximity buckets that also count D2.
+  // OTR / diesel detection — for banner and tab indicator.
+  // After normalizeFuelType() runs at parse time, values are canonical ("DIESEL",
+  // "GASOLINE", "DEF", etc.).  The raw-variant fallbacks cover legacy cached data.
   const dieselGallons = summary
     ? summary.fuelTypeBreakdown
-        .filter(ft => { const r = ft.type.toUpperCase().trim(); return r === 'D2' || r.includes('DIESEL') || r === 'DSL' || r === 'DSEL' })
+        .filter(ft => {
+          const r = ft.type.toUpperCase().trim()
+          return (
+            r === 'DIESEL' || r === 'DEF' ||
+            // legacy raw variants (cached analyses pre-normalisation)
+            r === 'D2' || r === 'D-2' || r === '#2' ||
+            r.includes('DIESEL') || r === 'DSL' || r === 'DSEL' ||
+            r === 'ULSD' || r === 'HSD' || r === 'LSD' ||
+            r.includes('REEFER') || r.includes('BIODIESEL') ||
+            r.startsWith('B20') || r.startsWith('B10')
+          )
+        })
         .reduce((s, ft) => s + ft.gallons, 0)
     : 0
+
+  // Gallons whose fuel type could not be classified as diesel or gas.
+  // A high ratio signals a column-mapping or normalisation gap worth flagging.
+  const unknownFuelGallons = summary
+    ? summary.fuelTypeBreakdown
+        .filter(ft => {
+          const r = ft.type.toUpperCase().trim()
+          const isKnownDiesel = r === 'DIESEL' || r === 'DEF' || r === 'D2' || r === 'D-2' ||
+            r === '#2' || r.includes('DIESEL') || r === 'DSL' || r === 'DSEL' ||
+            r === 'ULSD' || r === 'HSD' || r === 'LSD' || r.includes('REEFER') ||
+            r.includes('BIODIESEL') || r.startsWith('B20') || r.startsWith('B10')
+          const isKnownGas = r === 'GASOLINE' || r === 'GAS' || r.startsWith('UNL') ||
+            r.includes('UNLEAD') || r === 'REG' || r === 'REGULAR' ||
+            r.includes('PREMIUM') || r.includes('MIDGRADE') || r.includes('MID-GRADE') ||
+            r === 'PRM' || r === 'PRML' || r === 'MID' || r === 'SUPER' || r === 'PLUS' ||
+            r === 'E85' || r === 'ETHANOL' || r.includes('FLEX FUEL') ||
+            r.match(/^(87|89|91|93)(\s*OCT)?$/) !== null
+          return !isKnownDiesel && !isKnownGas && r !== 'UNKNOWN' && r !== ''
+        })
+        .reduce((s, ft) => s + ft.gallons, 0)
+    : 0
+  const unknownFuelPct = summary && summary.totalGallons > 0
+    ? (unknownFuelGallons / summary.totalGallons) * 100
+    : 0
+  // Show a warning when unclassified gallons exceed 5% — likely a column-mapping gap
+  const showFuelTypeWarning = unknownFuelPct >= 5
   const DIESEL_FLEET_THRESHOLD = 0.10
   const dieselPct = summary && summary.totalGallons > 0 ? dieselGallons / summary.totalGallons : 0
   const isDieselFleet = dieselPct >= DIESEL_FLEET_THRESHOLD
@@ -2077,6 +2114,19 @@ function AnalysisPageInner() {
 
             {/* Feature Toggle Bar */}
             <FeatureToggleBar flags={featureFlags} onChange={toggleFeature} />
+
+            {/* Unclassified fuel type warning */}
+            {showFuelTypeWarning && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3 text-sm text-amber-800">
+                <AlertCircle size={16} className="shrink-0 mt-0.5 text-amber-600" />
+                <div>
+                  <span className="font-semibold">{fmtPct(unknownFuelPct)} of gallons ({fmtGallons(unknownFuelGallons)}) have an unrecognised fuel type.</span>
+                  {' '}Diesel/gas opportunity figures may be understated. See the{' '}
+                  <span className="font-semibold">Fuel Type Split</span>
+                  {' '}section below to see which values are unclassified — if a common code is missing, contact support so it can be added.
+                </div>
+              </div>
+            )}
 
             {/* Summary stats */}
             <div className="rounded-xl border border-zinc-200 overflow-hidden bg-zinc-100 shadow-sm">

@@ -260,6 +260,83 @@ export function normalizeBrandName(raw: string): string {
   return BRAND_DISPLAY_NAMES[upper] ?? titleCase(raw.trim())
 }
 
+// ─── Fuel type normalisation ───────────────────────────────────────────────────
+/**
+ * Map WEX/NACS numeric product-category codes to canonical fuel names.
+ * Codes sourced from NACS product-category specification and WEX feed docs.
+ */
+const NACS_FUEL_CODES: Record<string, string> = {
+  // Gasoline grades
+  '001': 'GASOLINE', '002': 'GASOLINE', '003': 'GASOLINE', '004': 'GASOLINE',
+  '005': 'GASOLINE', // Ethanol / E85
+  '058': 'GASOLINE', '059': 'GASOLINE', '060': 'GASOLINE', // Mid / Premium variants
+  // Diesel — all ULSD / #2 / premium / off-road / dyed variants
+  '019': 'DIESEL', '020': 'DIESEL', '021': 'DIESEL', '022': 'DIESEL',
+  '023': 'DIESEL', '024': 'DIESEL', '025': 'DIESEL', '017': 'DIESEL',
+  '018': 'DIESEL',
+  // Reefer / auxiliary diesel
+  '057': 'DIESEL',
+  // DEF / exhaust fluid
+  '065': 'DEF', '054': 'DEF',
+  // CNG / LNG / propane — classify as gas for reporting
+  '006': 'GASOLINE', '007': 'GASOLINE', '008': 'GASOLINE',
+}
+
+/**
+ * Normalise a raw fuel-type string from any fleet-card format into a
+ * consistent canonical value (e.g. "DIESEL", "GASOLINE", "DEF").
+ * Called at parse time so every downstream consumer sees unified values.
+ */
+export function normalizeFuelType(raw: string): string {
+  if (!raw || raw.trim() === '') return 'Unknown'
+  const r = raw.trim().toUpperCase()
+
+  // Pure NACS numeric code (e.g. "019", "019-DIESEL #2", "019 Diesel")
+  const nacsMatch = r.match(/^(\d{3})/)
+  if (nacsMatch && NACS_FUEL_CODES[nacsMatch[1]]) return NACS_FUEL_CODES[nacsMatch[1]]
+
+  // ── Diesel variants ────────────────────────────────────────────────────────
+  if (
+    r === 'D2' || r === 'D-2' || r === '#2' ||
+    r.startsWith('D2 ') || r.startsWith('#2 ') ||
+    r.includes('DIESEL') || r === 'DSL' || r === 'DSEL' ||
+    r === 'ULSD' || r.includes('ULTRA LOW SULFUR') || r.includes('LOW SULFUR DIESEL') ||
+    r === 'HSD' || r === 'LS' ||                     // High-Speed Diesel / Low Sulphur
+    r === 'LSD' ||                                   // Low Sulphur Diesel
+    r.includes('REEFER') ||                          // Reefer/refrigerated trailer diesel
+    r === 'REEFER FUEL' || r === 'REEFERF' ||
+    r.includes('OFF ROAD') || r.includes('OFF-ROAD') ||
+    r.includes('DYE') || r.includes('RED DSL') || r.includes('DYED') ||
+    r.includes('BIODIESEL') || r.startsWith('B20') || r.startsWith('B5') ||
+    r.startsWith('B10') || r.startsWith('B2 ') ||   // biodiesel blends
+    r.includes('WINTER DIESEL') || r.includes('ARCTIC DIESEL') ||
+    r === 'CLEAR DIESEL' || r === 'HEATING OIL' ||
+    r === 'NO2' || r === 'NO. 2' || r === 'NUMBER 2'
+  ) return 'DIESEL'
+
+  // ── DEF / exhaust fluid ────────────────────────────────────────────────────
+  if (
+    r === 'DEF' || r.includes('EXHAUST FLUID') || r.includes('EXHAUST') ||
+    r === 'ADBLUE' || r === 'UREA' || r.includes('SCR FLUID')
+  ) return 'DEF'
+
+  // ── Gasoline variants ──────────────────────────────────────────────────────
+  if (
+    r.startsWith('UNL') || r.includes('UNLEAD') ||
+    r === 'REG' || r === 'REGULAR' || r === 'GASOLINE' || r === 'GAS' ||
+    r.includes('PREMIUM') || r.includes('MIDGRADE') || r.includes('MID-GRADE') ||
+    r === 'PRM' || r === 'PRML' || r === 'MID' || r === 'SUPER' || r === 'PLUS' ||
+    r === 'E85' || r === 'ETHANOL' || r.includes('FLEX FUEL') ||
+    r === '87' || r === '89' || r === '91' || r === '93' || // octane grades
+    r.match(/^(87|89|91|93)\s*OCT/) !== null ||
+    r === 'REGULAR UNLEADED' || r === 'PREMIUM UNLEADED'
+  ) return 'GASOLINE'
+
+  // Not recognised — preserve the original value so the Fuel Type Breakdown
+  // tab can surface it and the user/analyst can see what's unclassified.
+  return raw.trim()
+}
+
 /**
  * When no dedicated brand column is present (e.g. RCPA format), try to infer
  * the brand from the station name by matching known brand prefixes.
@@ -426,11 +503,11 @@ export function parseFleetCSV(content: string): ParseResult {
       stationName.toUpperCase().includes('CIRCLE K') ||
       stationAddressRaw.toUpperCase().includes('CIRCLE K')
 
-    // fuelType: prefer dedicated field, fall back to productName
-    const fuelType =
+    // fuelType: prefer dedicated field, fall back to productName; always normalise
+    const fuelType = normalizeFuelType(
       col(cols, colIdx['fuelType']) ||
-      col(cols, colIdx['productName']) ||
-      'Unknown'
+      col(cols, colIdx['productName'])
+    )
 
     // Driver name: prefer combined column; fall back to first + last
     const rawFullName = col(cols, colIdx['driverName'])
