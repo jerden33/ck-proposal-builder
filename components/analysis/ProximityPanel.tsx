@@ -104,8 +104,9 @@ export function DetailedProximityPanel({
         <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-3 flex items-start gap-2">
           <CheckCircle size={12} className="text-emerald-600 shrink-0 mt-0.5" />
           <p className="text-xs text-emerald-800 leading-snug">
-            <strong>{fmtGallons(w2)}</strong> gal within 2 mi
-            {monthSpan > 0 ? ` · ${fmtGallons((w2 / monthSpan) * 12)} / yr` : ''}
+            <strong>{monthSpan > 0 ? fmtGallons(w2 / monthSpan) : fmtGallons(w2)}</strong>
+            {monthSpan > 0 ? ' gal/mo' : ' gal'} within 2 mi
+            {monthSpan > 0 ? ` · ${fmtGallons(w2)} / yr` : ''}
             {' '}— drove right past.
           </p>
         </div>
