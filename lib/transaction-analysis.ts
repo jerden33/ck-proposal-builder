@@ -759,7 +759,7 @@ function fuelCategory(fuelType: string | undefined): 'diesel' | 'gas' | 'other' 
       r === 'ULSD' || r.includes('ULTRA LOW SULFUR') || r === 'HSD' || r === 'LSD' ||
       r.includes('REEFER') || r.includes('OFF ROAD') || r.includes('OFF-ROAD') ||
       r.includes('DYE') || r.includes('DYED') || r.includes('BIODIESEL') ||
-      r.startsWith('B20') || r.startsWith('B10') || r.startsWith('B5 ') ||
+      r.startsWith('B20') || r.startsWith('B10') || r.startsWith('B5 ') || r.startsWith('B2 ') ||
       r === 'NO2' || r === 'NO. 2' || r === 'NUMBER 2' ||
       r.includes('DEF') || r.includes('EXHAUST') || r === 'UREA' || r === 'ADBLUE'
   ) return 'diesel'
@@ -768,10 +768,12 @@ function fuelCategory(fuelType: string | undefined): 'diesel' | 'gas' | 'other' 
   if (r === 'GASOLINE') return 'gas'
 
   // ── Gasoline raw variants ─────────────────────────────────────────────────
-  if (r.startsWith('UNL') || r.includes('UNLEAD') || r === 'REG' || r === 'REGULAR' ||
+  if (r.includes('UNL') || r.includes('UNLEAD') ||   // catches UNL*, ETUNL*, MEUNL*, etc.
+      r === 'REG' || r === 'REGULAR' ||
       r === 'GAS' || r.includes('PREMIUM') || r.includes('MIDGRADE') ||
       r.includes('MID-GRADE') || r === 'PRM' || r === 'PRML' || r === 'MID' ||
-      r === 'SUPER' || r === 'PLUS' || r === 'E85' || r === 'ETHANOL' ||
+      r === 'SUPER' || r === 'PLUS' || r.startsWith('E85') || r === 'ETHANOL' ||
+      r.includes('LEADED') ||                         // Me Reg Leaded, Reg Leaded Gas
       r.includes('FLEX FUEL') || r.match(/^(87|89|91|93)(\s*OCT)?$/) !== null
   ) return 'gas'
 

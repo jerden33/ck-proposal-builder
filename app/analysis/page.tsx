@@ -834,7 +834,8 @@ function AnalysisPageInner() {
             r.includes('DIESEL') || r === 'DSL' || r === 'DSEL' ||
             r === 'ULSD' || r === 'HSD' || r === 'LSD' ||
             r.includes('REEFER') || r.includes('BIODIESEL') ||
-            r.startsWith('B20') || r.startsWith('B10')
+            r.startsWith('B20') || r.startsWith('B10') || r.startsWith('B5 ') || r.startsWith('B2 ') ||
+            r.includes('DEF') || r.includes('EXHAUST') || r === 'UREA' || r === 'ADBLUE'
           )
         })
         .reduce((s, ft) => s + ft.gallons, 0)
@@ -849,12 +850,15 @@ function AnalysisPageInner() {
           const isKnownDiesel = r === 'DIESEL' || r === 'DEF' || r === 'D2' || r === 'D-2' ||
             r === '#2' || r.includes('DIESEL') || r === 'DSL' || r === 'DSEL' ||
             r === 'ULSD' || r === 'HSD' || r === 'LSD' || r.includes('REEFER') ||
-            r.includes('BIODIESEL') || r.startsWith('B20') || r.startsWith('B10')
-          const isKnownGas = r === 'GASOLINE' || r === 'GAS' || r.startsWith('UNL') ||
+            r.includes('BIODIESEL') || r.startsWith('B20') || r.startsWith('B10') ||
+            r.startsWith('B5 ') || r.startsWith('B2 ') ||
+            r.includes('DEF') || r.includes('EXHAUST') || r === 'UREA' || r === 'ADBLUE'
+          const isKnownGas = r === 'GASOLINE' || r === 'GAS' || r.includes('UNL') ||
             r.includes('UNLEAD') || r === 'REG' || r === 'REGULAR' ||
             r.includes('PREMIUM') || r.includes('MIDGRADE') || r.includes('MID-GRADE') ||
             r === 'PRM' || r === 'PRML' || r === 'MID' || r === 'SUPER' || r === 'PLUS' ||
-            r === 'E85' || r === 'ETHANOL' || r.includes('FLEX FUEL') ||
+            r.startsWith('E85') || r === 'ETHANOL' || r.includes('FLEX FUEL') ||
+            r.includes('LEADED') ||
             r.match(/^(87|89|91|93)(\s*OCT)?$/) !== null
           return !isKnownDiesel && !isKnownGas && r !== 'UNKNOWN' && r !== ''
         })

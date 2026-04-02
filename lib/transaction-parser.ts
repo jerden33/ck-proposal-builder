@@ -322,11 +322,12 @@ export function normalizeFuelType(raw: string): string {
 
   // ── Gasoline variants ──────────────────────────────────────────────────────
   if (
-    r.startsWith('UNL') || r.includes('UNLEAD') ||
+    r.includes('UNL') || r.includes('UNLEAD') ||   // catches UNL*, ETUNL*, MEUNL*, etc.
     r === 'REG' || r === 'REGULAR' || r === 'GASOLINE' || r === 'GAS' ||
     r.includes('PREMIUM') || r.includes('MIDGRADE') || r.includes('MID-GRADE') ||
     r === 'PRM' || r === 'PRML' || r === 'MID' || r === 'SUPER' || r === 'PLUS' ||
-    r === 'E85' || r === 'ETHANOL' || r.includes('FLEX FUEL') ||
+    r.startsWith('E85') || r === 'ETHANOL' || r.includes('FLEX FUEL') || // E85 (Et 85%) etc.
+    r.includes('LEADED') ||                         // Me Reg Leaded, Reg Leaded Gas
     r === '87' || r === '89' || r === '91' || r === '93' || // octane grades
     r.match(/^(87|89|91|93)\s*OCT/) !== null ||
     r === 'REGULAR UNLEADED' || r === 'PREMIUM UNLEADED'
