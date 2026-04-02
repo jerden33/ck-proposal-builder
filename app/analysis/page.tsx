@@ -177,64 +177,212 @@ function BrandBar({ brand, maxGallons }: { brand: BrandSummary; maxGallons: numb
   )
 }
 
+// ─── Top CK Opportunity Locations Card ───────────────────────────────────────
+
+type SortKey = 'competitorGallons' | 'nearbyStationCount' | 'competitorSpend'
+
+function TopCKLocationsCard({ locations }: { locations: import('@/lib/transaction-analysis').CKOpportunityLocation[] }) {
+  const [sortKey, setSortKey] = useState<SortKey>('competitorGallons')
+  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc')
+  const [stateFilter, setStateFilter] = useState<string>('all')
+
+  const allStates = Array.from(new Set(locations.map(l => l.state))).sort()
+  const hasSpend   = locations.some(l => l.competitorSpend > 0)
+
+  const sorted = [...locations]
+    .filter(l => stateFilter === 'all' || l.state === stateFilter)
+    .sort((a, b) => {
+      const diff = a[sortKey] - b[sortKey]
+      return sortDir === 'desc' ? -diff : diff
+    })
+
+  const toggleSort = (key: SortKey) => {
+    if (key === sortKey) setSortDir(d => d === 'desc' ? 'asc' : 'desc')
+    else { setSortKey(key); setSortDir('desc') }
+  }
+
+  const SortIcon = ({ k }: { k: SortKey }) => {
+    if (k !== sortKey) return <span className="ml-0.5 text-gray-300">↕</span>
+    return <span className="ml-0.5 text-accent">{sortDir === 'desc' ? '↓' : '↑'}</span>
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden fade-in">
+      <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-zinc-900 font-bold text-lg">Top Circle K Opportunity Locations</h2>
+          <p className="text-zinc-500 text-sm mt-0.5">
+            CK stores closest to the highest competitor activity — your best immediate conversion targets
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <label className="text-xs text-zinc-500 font-medium">State</label>
+          <select
+            value={stateFilter}
+            onChange={e => setStateFilter(e.target.value)}
+            className="text-xs border border-zinc-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+          >
+            <option value="all">All states</option>
+            {allStates.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-200 bg-zinc-50/50">
+              <th className="py-2.5 pl-5 pr-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Location</th>
+              <th className="py-2.5 px-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Site Type</th>
+              <th className="py-2.5 px-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Fuel Opp.</th>
+              <th
+                className="py-2.5 px-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-zinc-700 select-none whitespace-nowrap"
+                onClick={() => toggleSort('competitorGallons')}
+              >
+                Competitor Gal <SortIcon k="competitorGallons" />
+              </th>
+              <th
+                className="py-2.5 px-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-zinc-700 select-none"
+                onClick={() => toggleSort('nearbyStationCount')}
+              >
+                Stations <SortIcon k="nearbyStationCount" />
+              </th>
+              {hasSpend && (
+                <th
+                  className="py-2.5 pl-3 pr-5 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 cursor-pointer hover:text-zinc-700 select-none whitespace-nowrap"
+                  onClick={() => toggleSort('competitorSpend')}
+                >
+                  Comp. Spend <SortIcon k="competitorSpend" />
+                </th>
+              )}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {sorted.map((loc, i) => {
+              let fuelLabel: string | null = null
+              if (!loc.truckAccessible) {
+                fuelLabel = loc.gasGallons > 0 ? 'Gas' : null
+              } else {
+                const total = loc.competitorGallons || 1
+                const dieselShare = loc.dieselGallons / total
+                const gasShare    = loc.gasGallons    / total
+                if (dieselShare >= 0.25 && gasShare >= 0.25) fuelLabel = 'Both'
+                else if (loc.dieselGallons > loc.gasGallons) fuelLabel = loc.dieselGallons > 0 ? 'Diesel' : null
+                else fuelLabel = loc.gasGallons > 0 ? 'Gas' : null
+              }
+              const fuelColor = fuelLabel === 'Both'
+                ? 'bg-purple-50 text-purple-700 border-purple-200'
+                : fuelLabel === 'Diesel'
+                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                  : 'bg-green-50 text-green-700 border-green-200'
+              return (
+                <tr key={i} className="hover:bg-gray-50">
+                  {/* Location: city/state primary, CK name + site# secondary */}
+                  <td className="py-3 pl-5 pr-3">
+                    <p className="font-semibold text-zinc-900 text-sm">{loc.city}, {loc.state}</p>
+                    <p className="text-xs text-zinc-400 mt-0.5">
+                      {loc.ckName}{loc.siteNumber && <span className="ml-1">#{loc.siteNumber}</span>}
+                    </p>
+                  </td>
+                  <td className="py-3 px-3">
+                    {loc.truckAccessible
+                      ? <span className="inline-flex items-center gap-1 text-xs bg-zinc-100 text-zinc-600 rounded-md px-2 py-0.5 font-semibold"><Truck size={10} />Truck</span>
+                      : <span className="inline-flex items-center gap-1 text-xs bg-zinc-50 text-zinc-400 rounded-md px-2 py-0.5">C-Store</span>}
+                  </td>
+                  <td className="py-3 px-3">
+                    {fuelLabel
+                      ? <span className={`inline-flex items-center gap-1 text-xs border rounded-md px-2 py-0.5 font-semibold ${fuelColor}`}><Fuel size={10} />{fuelLabel}</span>
+                      : <span className="text-zinc-300 text-xs">—</span>}
+                  </td>
+                  <td className="py-3 px-3 text-right font-semibold text-zinc-800">{fmtGallons(loc.competitorGallons)}</td>
+                  <td className="py-3 px-3 text-right text-zinc-600">{loc.nearbyStationCount}</td>
+                  {hasSpend && (
+                    <td className="py-3 pl-3 pr-5 text-right text-zinc-600">{fmtDollars(loc.competitorSpend)}</td>
+                  )}
+                </tr>
+              )
+            })}
+            {sorted.length === 0 && (
+              <tr>
+                <td colSpan={hasSpend ? 6 : 5} className="py-8 text-center text-sm text-zinc-400">
+                  No locations match the selected state filter.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 // ─── Opportunity Panel ────────────────────────────────────────────────────────
 
 function OpportunityPanel({ analysis, totalGallons, truckMode = false }: { analysis: TransactionSummary['ckCaptureAnalysis']; totalGallons: number; truckMode?: boolean }) {
   const { captured, capturable, gap, captureRate, potentialRate } = analysis
+  const uplift = potentialRate - captureRate
   return (
     <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
       <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4">
         <div className="flex items-center gap-3 flex-wrap">
           <h2 className="text-zinc-900 font-bold text-lg">Circle K Fueling Opportunity</h2>
           {truckMode && (
-            <span className="text-xs font-semibold bg-zinc-200 text-zinc-600 rounded px-2 py-0.5 flex items-center gap-1">
+            <span className="text-xs font-semibold bg-zinc-200 text-zinc-600 rounded-md px-2 py-0.5 flex items-center gap-1">
               <Truck size={11} /> OTR / Truck Mode
             </span>
           )}
         </div>
         <p className="text-zinc-500 text-sm mt-0.5">
           {truckMode
-            ? "Opportunity scoped to truck-accessible CK locations only (451 sites with truck lanes)"
+            ? 'Opportunity scoped to truck-accessible CK locations only (451 sites with truck lanes)'
             : "Where your fleet's gallons go — and what Circle K can capture"}
         </p>
-        {!truckMode && (
-          <p className="text-zinc-400 text-xs mt-1">
-            <span className="font-medium text-zinc-500">CK Nearby</span> = competitor gallons in a ZIP code that also contains a Circle K. For distance-based proximity tiers (≤1–10 mi), see the Map View tab.
-          </p>
-        )}
       </div>
       <div className="p-6">
-        {/* Hero capture rate */}
-        <div className="flex items-end gap-6 mb-5">
-          <div>
+
+        {/* Hero section — potential rate is the centrepiece */}
+        <div className="flex items-center gap-6 mb-6">
+          {/* Current */}
+          <div className="shrink-0">
             <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1">Current CK Share</p>
-            <p className="text-4xl font-bold text-zinc-900 leading-none">{fmtPct(captureRate)}</p>
+            <p className="text-3xl font-bold text-zinc-700 leading-none">{fmtPct(captureRate)}</p>
           </div>
-          <span className="text-zinc-200 text-2xl font-light pb-0.5">→</span>
-          <div>
-            <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1">Potential</p>
-            <p className="text-4xl font-bold text-green-600 leading-none">{fmtPct(potentialRate)}</p>
+          {/* Arrow + uplift badge */}
+          <div className="flex flex-col items-center gap-1 shrink-0">
+            <div className="flex items-center gap-1">
+              <div className="h-px w-8 bg-green-300" />
+              <span className="text-green-500 text-lg">→</span>
+            </div>
+            {uplift > 0 && (
+              <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5 whitespace-nowrap">
+                +{fmtPct(uplift)} upside
+              </span>
+            )}
+          </div>
+          {/* Potential — hero */}
+          <div className="shrink-0">
+            <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1">Potential with CK</p>
+            <p className="text-5xl font-bold text-green-600 leading-none">{fmtPct(potentialRate)}</p>
           </div>
         </div>
 
-        {/* Slim progress bars */}
-        <div className="space-y-2 mb-6">
+        {/* Progress bars — increased height for visibility */}
+        <div className="space-y-3 mb-6">
           <div>
-            <div className="flex justify-between text-xs text-zinc-400 mb-1">
+            <div className="flex justify-between text-xs text-zinc-400 mb-1.5">
               <span>Current Circle K capture</span>
               <span className="font-semibold text-zinc-600">{fmtPct(captureRate)}</span>
             </div>
-            <div className="h-1.5 bg-zinc-100 rounded-full">
-              <div className="h-1.5 bg-accent rounded-full transition-all" style={{ width: `${captureRate}%` }} />
+            <div className="h-3 bg-zinc-100 rounded-full overflow-hidden">
+              <div className="h-3 bg-accent rounded-full bar-grow" style={{ width: `${Math.max(captureRate, 0.5)}%` }} />
             </div>
           </div>
           <div>
-            <div className="flex justify-between text-xs text-zinc-400 mb-1">
+            <div className="flex justify-between text-xs text-zinc-400 mb-1.5">
               <span>Potential with Circle K {truckMode ? 'truck-accessible ' : ''}network</span>
-              <span className="font-semibold text-zinc-600">{fmtPct(potentialRate)}</span>
+              <span className="font-semibold text-green-600">{fmtPct(potentialRate)}</span>
             </div>
-            <div className="h-1.5 bg-zinc-100 rounded-full">
-              <div className="h-1.5 bg-green-500 rounded-full transition-all" style={{ width: `${potentialRate}%` }} />
+            <div className="h-3 bg-zinc-100 rounded-full overflow-hidden">
+              <div className="h-3 bg-green-500 rounded-full bar-grow" style={{ width: `${Math.max(potentialRate, 0.5)}%` }} />
             </div>
           </div>
         </div>
@@ -242,34 +390,37 @@ function OpportunityPanel({ analysis, totalGallons, truckMode = false }: { analy
         {/* Data grid — 3 segments */}
         <div className="rounded-xl border border-zinc-200 overflow-hidden bg-zinc-100">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-px">
+            {/* Already at CK */}
             <div className="bg-white px-5 py-4">
-              <div className="flex items-center gap-1.5 mb-3">
-                <span className="w-2 h-2 rounded-full bg-accent shrink-0" />
-                <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Already at Circle K</span>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-2.5 h-2.5 rounded-full bg-accent shrink-0" />
+                <span className="text-xs font-semibold text-zinc-500">Already at Circle K</span>
               </div>
               <p className="text-2xl font-bold text-zinc-900">{fmtGallons(captured.gallons)}</p>
               <p className="text-xs text-zinc-400 mt-0.5">{captured.transactions.toLocaleString()} transactions</p>
-              {captured.spend > 0 && <p className="text-sm font-semibold text-zinc-700 mt-2">{fmtDollars(captured.spend)}</p>}
+              {captured.spend > 0 && <p className="text-sm font-semibold text-zinc-600 mt-2">{fmtDollars(captured.spend)}</p>}
             </div>
-            <div className="bg-white px-5 py-4">
-              <div className="flex items-center gap-1.5 mb-3">
-                <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
-                <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-                  {truckMode ? 'Opportunity — Truck CK' : 'Opportunity — CK Nearby'}
+            {/* Opportunity */}
+            <div className="bg-green-50 px-5 py-4 border-l border-r border-green-100">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-2.5 h-2.5 rounded-full bg-brand-orange shrink-0" />
+                <span className="text-xs font-semibold text-zinc-600">
+                  {truckMode ? 'Opportunity — Same ZIP as Truck CK' : 'Opportunity — Same ZIP as CK'}
                 </span>
               </div>
               <p className="text-2xl font-bold text-zinc-900">{fmtGallons(capturable.gallons)}</p>
-              <p className="text-xs text-zinc-400 mt-0.5">{capturable.transactions.toLocaleString()} transactions</p>
-              {capturable.spend > 0 && <p className="text-sm font-semibold text-zinc-700 mt-2">{fmtDollars(capturable.spend)}</p>}
+              <p className="text-xs text-zinc-500 mt-0.5">{capturable.transactions.toLocaleString()} transactions</p>
+              {capturable.spend > 0 && <p className="text-sm font-semibold text-zinc-600 mt-2">{fmtDollars(capturable.spend)}</p>}
             </div>
+            {/* Outside footprint */}
             <div className="bg-white px-5 py-4">
-              <div className="flex items-center gap-1.5 mb-3">
-                <span className="w-2 h-2 rounded-full bg-zinc-300 shrink-0" />
-                <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Outside CK Footprint</span>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-2.5 h-2.5 rounded-full bg-zinc-300 shrink-0" />
+                <span className="text-xs font-semibold text-zinc-500">Outside CK Footprint</span>
               </div>
               <p className="text-2xl font-bold text-zinc-900">{fmtGallons(gap.gallons)}</p>
               <p className="text-xs text-zinc-400 mt-0.5">{gap.transactions.toLocaleString()} transactions</p>
-              {gap.spend > 0 && <p className="text-sm font-semibold text-zinc-700 mt-2">{fmtDollars(gap.spend)}</p>}
+              {gap.spend > 0 && <p className="text-sm font-semibold text-zinc-600 mt-2">{fmtDollars(gap.spend)}</p>}
             </div>
           </div>
         </div>
@@ -277,7 +428,8 @@ function OpportunityPanel({ analysis, totalGallons, truckMode = false }: { analy
         {capturable.gallons > 0 && (
           <p className="mt-4 text-sm text-zinc-500">
             <span className="font-semibold text-zinc-800">{fmtGallons(capturable.gallons)} gallons ({fmtPct((capturable.gallons / totalGallons) * 100)})</span>{' '}
-            are going to competitors where a {truckMode ? 'truck-accessible Circle K' : 'Circle K'} already exists nearby.
+            are going to competitors in ZIP codes where a {truckMode ? 'truck-accessible Circle K' : 'Circle K'} already exists.
+            {' '}<span className="text-zinc-400 text-xs">For distance-based proximity (≤1–10 mi) see the Map View tab.</span>
           </p>
         )}
       </div>
@@ -1773,6 +1925,8 @@ function AnalysisPageInner() {
 
       setGeocodingInProgress(false)
       setGeocodingProgress(null)
+      // Auto-switch to Map View once geocoding completes — the map is now ready
+      if (featureFlagsRef.current.mapView) setActiveTab('map')
 
     } catch (err) {
       setError(`Error: ${err instanceof Error ? err.message : String(err)}`)
@@ -2243,79 +2397,7 @@ function AnalysisPageInner() {
 
             {/* Top CK Opportunity Locations — standalone card */}
             {summary.topCKOpportunityLocations.length > 0 && (
-              <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden fade-in">
-                <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-zinc-900 font-bold text-lg">Top Circle K Opportunity Locations</h2>
-                    <p className="text-zinc-500 text-sm mt-0.5">CK stores with the most competitor gallons fueled within 5 miles — sorted by capture potential</p>
-                  </div>
-                  <MapPin className="text-zinc-400 shrink-0" size={22} />
-                </div>
-                <div className="p-5 overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        {['Circle K Location', 'City / State', 'Site Type', 'Fuel Type', 'Competitor Gallons', 'Stations', 'Comp. Spend'].map(h => (
-                          <th key={h} className={`py-2 ${['Circle K Location', 'City / State', 'Site Type', 'Fuel Type'].includes(h) ? 'text-left px-4 first:pl-0' : 'text-right px-4'} text-xs font-semibold uppercase tracking-wider text-gray-500`}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {summary.topCKOpportunityLocations.map((loc, i) => {
-                        // Determine fuel opportunity label based on site type and dominance.
-                        // C-Stores can't serve diesel trucks, so only show gas opportunity.
-                        // Truck sites: show the dominant fuel type; "Both" only when each
-                        // represents ≥25% of total competitor gallons at this location.
-                        let fuelLabel: string | null = null
-                        if (!loc.truckAccessible) {
-                          fuelLabel = loc.gasGallons > 0 ? 'Gas' : null
-                        } else {
-                          const total = loc.competitorGallons || 1
-                          const dieselShare = loc.dieselGallons / total
-                          const gasShare    = loc.gasGallons    / total
-                          if (dieselShare >= 0.25 && gasShare >= 0.25) {
-                            fuelLabel = 'Both'
-                          } else if (loc.dieselGallons > loc.gasGallons) {
-                            fuelLabel = loc.dieselGallons > 0 ? 'Diesel' : null
-                          } else {
-                            fuelLabel = loc.gasGallons > 0 ? 'Gas' : null
-                          }
-                        }
-                        const fuelColor = fuelLabel === 'Both'
-                          ? 'bg-purple-50 text-purple-700 border-purple-200'
-                          : fuelLabel === 'Diesel'
-                            ? 'bg-blue-50 text-blue-700 border-blue-200'
-                            : 'bg-green-50 text-green-700 border-green-200'
-                        return (
-                          <tr key={i} className="hover:bg-gray-50">
-                            <td className="py-2.5 pr-4 font-medium text-off-black max-w-[200px] truncate">
-                              {loc.ckName}
-                              {loc.siteNumber && <span className="ml-1.5 text-xs text-gray-400 font-normal">#{loc.siteNumber}</span>}
-                            </td>
-                            <td className="py-2.5 px-4 text-gray-500 text-xs whitespace-nowrap">{loc.city}, {loc.state}</td>
-                            <td className="py-2.5 px-4">
-                              {loc.truckAccessible
-                                ? <span className="inline-flex items-center gap-1 text-xs bg-zinc-100 text-zinc-600 rounded px-2 py-0.5 font-semibold"><Truck size={10} />Truck</span>
-                                : <span className="inline-flex items-center gap-1 text-xs bg-zinc-50 text-zinc-400 rounded px-2 py-0.5">C-Store</span>}
-                            </td>
-                            <td className="py-2.5 px-4">
-                              {fuelLabel ? (
-                                <span className={`inline-flex items-center gap-1 text-xs border rounded px-2 py-0.5 font-semibold ${fuelColor}`}>
-                                  <Fuel size={10} />
-                                  {fuelLabel}
-                                </span>
-                              ) : <span className="text-gray-300 text-xs">—</span>}
-                            </td>
-                            <td className="py-2.5 px-4 text-right font-semibold text-zinc-700">{fmtGallons(loc.competitorGallons)}</td>
-                            <td className="py-2.5 px-4 text-right text-gray-600">{loc.nearbyStationCount}</td>
-                            <td className="py-2.5 pl-4 text-right text-gray-600">{fmtDollars(loc.competitorSpend)}</td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              <TopCKLocationsCard locations={summary.topCKOpportunityLocations} />
             )}
 
             {/* Savings Calculator (if enabled) */}
@@ -2466,9 +2548,34 @@ function AnalysisPageInner() {
                   {/* ── Map Tab ──────────────────────────────────────────── */}
                   {activeTab === 'map' && featureFlags.mapView && (
                     <div className="space-y-6">
+                      {/* Map first — with legend overlay */}
+                      <div className="relative">
+                        <FuelingMap
+                          transactionPoints={summary.mapPoints}
+                          ckStores={ckStorePins}
+                          height={560}
+                          geocodingInProgress={geocodingInProgress}
+                        />
+                        {/* Map legend */}
+                        <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-sm rounded-xl border border-zinc-200 shadow-md px-3 py-2.5 flex flex-col gap-1.5">
+                          <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-0.5">Map Legend</p>
+                          {[
+                            { color: '#16a34a', label: 'Fueled at Circle K' },
+                            { color: '#3b82f6', label: 'Competitor — CK within 10 mi' },
+                            { color: '#dc2626', label: 'Competitor — no CK nearby' },
+                            { color: '#9ca3af', label: 'Geocoding pending' },
+                          ].map(({ color, label }) => (
+                            <div key={label} className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                              <span className="text-xs text-zinc-600">{label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Proximity stats below the map */}
                       {(summary.proximityBreakdownAll || summary.proximityBreakdown) && !geocodingInProgress ? (
                         <>
-                          {/* Diesel fleets: show truck-CK proximity panel first */}
                           {isDieselFleet && summary.proximityBreakdown && (
                             <ProximityPanel
                               prox={summary.proximityBreakdown}
@@ -2478,7 +2585,6 @@ function AnalysisPageInner() {
                               subheading={`Non-CK diesel gallons vs. nearest truck CK · ${fmtPct(summary.proximityBreakdown.geocodedPct)} of gallons geocoded`}
                             />
                           )}
-                          {/* All fleets: show full-network proximity panel */}
                           {summary.proximityBreakdownAll && (
                             <ProximityPanel
                               prox={summary.proximityBreakdownAll}
@@ -2531,12 +2637,6 @@ function AnalysisPageInner() {
                           Proximity analysis requires a Mapbox token configured in your environment.
                         </div>
                       )}
-                      <FuelingMap
-                        transactionPoints={summary.mapPoints}
-                        ckStores={ckStorePins}
-                        height={560}
-                        geocodingInProgress={geocodingInProgress}
-                      />
                     </div>
                   )}
 
