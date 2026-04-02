@@ -48,7 +48,7 @@ import { runOTRAnalysis } from '@/lib/otr-analysis'
 import type { CKStorePin } from '@/components/FuelingMap'
 import { TopCKLocationsCard } from '@/components/analysis/TopCKLocationsCard'
 import { OpportunityPanel } from '@/components/analysis/OpportunityPanel'
-import { ProximityPanel, DetailedProximityPanel } from '@/components/analysis/ProximityPanel'
+import { DetailedProximityPanel } from '@/components/analysis/ProximityPanel'
 import { SavingsCalculatorPanel } from '@/components/analysis/SavingsCalculatorPanel'
 import { OTRAnalysisPanel } from '@/components/analysis/OTRAnalysisPanel'
 import { AnnualizedPanel } from '@/components/analysis/AnnualizedPanel'
@@ -1439,26 +1439,6 @@ function AnalysisPageInner() {
                       {/* Proximity stats below the map */}
                       {(summary.proximityBreakdownAll || summary.proximityBreakdown) && !geocodingInProgress ? (
                         <>
-                          {isDieselFleet && summary.proximityBreakdown && (
-                            <ProximityPanel
-                              prox={summary.proximityBreakdown}
-                              totalGallons={summary.totalGallons}
-                              isMobileFueling={isMobileFueling}
-                              heading="Diesel Proximity — Truck-Accessible Circle K"
-                              subheading={`Non-CK diesel gallons vs. nearest truck CK · ${fmtPct(summary.proximityBreakdown.geocodedPct)} of gallons geocoded`}
-                            />
-                          )}
-                          {summary.proximityBreakdownAll && (
-                            <ProximityPanel
-                              prox={summary.proximityBreakdownAll}
-                              totalGallons={summary.totalGallons}
-                              isMobileFueling={isDieselFleet ? false : isMobileFueling}
-                              heading={isDieselFleet ? 'Gas Proximity — Full Circle K Network' : 'Distance-Based Proximity to Circle K'}
-                              subheading={isDieselFleet
-                                ? `Non-CK gas gallons vs. nearest any CK · ${fmtPct(summary.proximityBreakdownAll.geocodedPct)} of gallons geocoded`
-                                : undefined}
-                            />
-                          )}
                           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                             <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
                               <div>

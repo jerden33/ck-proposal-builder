@@ -871,7 +871,7 @@ function buildMapData(
       label: agg.label,
       city: agg.city,
       state: agg.state,
-      nearestCKDistanceMi: dist,
+      nearestCKDistanceMi: distAll >= 0 ? distAll : dist,
     })
 
     prox.geocodedGallons    += agg.gallons
