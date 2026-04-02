@@ -197,6 +197,11 @@ function OpportunityPanel({ analysis, totalGallons, truckMode = false }: { analy
             ? "Opportunity scoped to truck-accessible CK locations only (451 sites with truck lanes)"
             : "Where your fleet's gallons go — and what Circle K can capture"}
         </p>
+        {!truckMode && (
+          <p className="text-zinc-400 text-xs mt-1">
+            <span className="font-medium text-zinc-500">CK Nearby</span> = competitor gallons in a ZIP code that also contains a Circle K. For distance-based proximity tiers (≤1–10 mi), see the Map View tab.
+          </p>
+        )}
       </div>
       <div className="p-6">
         {/* Hero capture rate */}
@@ -282,7 +287,13 @@ function OpportunityPanel({ analysis, totalGallons, truckMode = false }: { analy
 
 // ─── Proximity Panel (shown in Map tab) ───────────────────────────────────────
 
-function ProximityPanel({ prox, totalGallons, isMobileFueling }: { prox: NonNullable<TransactionSummary['proximityBreakdown']>; totalGallons: number; isMobileFueling: boolean }) {
+function ProximityPanel({ prox, totalGallons, isMobileFueling, heading, subheading }: {
+  prox: NonNullable<TransactionSummary['proximityBreakdown']>
+  totalGallons: number
+  isMobileFueling: boolean
+  heading?: string
+  subheading?: string
+}) {
   // Combine all within-10mi buckets into one "opportunity" figure — matches map logic
   const opportunityGallons =
     prox.within1mi.gallons + prox.within2mi.gallons +
@@ -307,9 +318,9 @@ function ProximityPanel({ prox, totalGallons, isMobileFueling }: { prox: NonNull
       )}
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="font-bold text-off-black">Distance-Based Proximity to Circle K</h3>
+          <h3 className="font-bold text-off-black">{heading ?? 'Distance-Based Proximity to Circle K'}</h3>
           <p className="text-xs text-gray-400 mt-0.5">
-            Based on geocoded fueling locations · {fmtPct(prox.geocodedPct)} of total gallons geocoded
+            {subheading ?? `Based on geocoded fueling locations · ${fmtPct(prox.geocodedPct)} of total gallons geocoded`}
           </p>
         </div>
         {opportunityGallons > 0 && (
@@ -1725,16 +1736,20 @@ function AnalysisPageInner() {
         }
       }
 
+      // Filter to truck-accessible stores for diesel proximity analysis
+      const truckStoreCoords = ckStoreCoords.filter(s => s.truckAccessible)
+
+      // Pass truck-only stores as ckStores so diesel proximity is measured against
+      // truck-accessible CK only; ckStoresAll (full network) drives gas proximity.
       const enrichedResult = analyzeTransactions(transactions, ckZipSet, {
         detectedFormat: fmt,
         geocodedCoords,
         geocodedAddresses: geocodedAddrs,
-        ckStores: ckStoreCoords,
+        ckStores: truckStoreCoords,
         ckStoresAll: ckStoreCoords,
       })
 
       // Run OTR corridor analysis automatically if geocoded points are available
-      const truckStoreCoords = ckStoreCoords.filter(s => s.truckAccessible)
       if (truckStoreCoords.length > 0 && enrichedResult.mapPoints.some(p => p.lat != null && p.lng != null)) {
         const otr = runOTRAnalysis(
           enrichedResult.mapPoints,
@@ -1805,9 +1820,11 @@ function AnalysisPageInner() {
   const monthSpan = summary ? computeMonthSpan(summary.dateRange) : 1
 
   // OTR / diesel detection — for banner and tab indicator
+  // Match fuelCategory() in transaction-analysis.ts — include D2 so the badge
+  // stays consistent with the diesel proximity buckets that also count D2.
   const dieselGallons = summary
     ? summary.fuelTypeBreakdown
-        .filter(ft => { const r = ft.type.toUpperCase().trim(); return r.includes('DIESEL') || r === 'DSL' || r === 'DSEL' })
+        .filter(ft => { const r = ft.type.toUpperCase().trim(); return r === 'D2' || r.includes('DIESEL') || r === 'DSL' || r === 'DSEL' })
         .reduce((s, ft) => s + ft.gallons, 0)
     : 0
   const DIESEL_FLEET_THRESHOLD = 0.10
@@ -2065,7 +2082,7 @@ function AnalysisPageInner() {
             <div className="rounded-xl border border-zinc-200 overflow-hidden bg-zinc-100 shadow-sm">
               {useProxHeader ? (
                 // Proximity header — diesel split or single monthly opp
-                <div className={`grid grid-cols-2 gap-px stagger-stats ${proxTruckOpp !== null ? 'sm:grid-cols-3 lg:grid-cols-6' : 'sm:grid-cols-2 lg:grid-cols-4'}`}>
+                <div className={`grid grid-cols-2 gap-px stagger-stats ${proxTruckOpp !== null ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-2 lg:grid-cols-4'}`}>
                   {/* Total Gallons */}
                   <div className="px-5 py-4 bg-white">
                     <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-zinc-400">Total Gallons</p>
@@ -2076,27 +2093,11 @@ function AnalysisPageInner() {
                   <div className="px-5 py-4 bg-white">
                     <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-zinc-400">Currently at CK</p>
                     <p className="text-2xl font-bold leading-none text-zinc-900">{fmtGallons(proxCKTotal)}</p>
-                    <p className="text-xs mt-1.5 text-zinc-400">{fmtPct(proxCKTotal / (summary.totalGallons || 1) * 100)} of total</p>
+                    <p className="text-xs mt-1.5 text-zinc-400">
+                      {fmtPct(proxCKTotal / (summary.totalGallons || 1) * 100)} of total
+                      {isDieselFleet && <span className="ml-2 inline-flex items-center gap-1 bg-blue-50 text-blue-600 border border-blue-200 rounded px-1.5 py-0.5 text-[10px] font-semibold"><Truck size={9} />{fmtPct(dieselPct * 100)} diesel</span>}
+                    </p>
                   </div>
-                  {/* Diesel Opportunity — only when diesel proximity data exists */}
-                  {proxTruckOpp !== null && (
-                    <div className="px-5 py-4 bg-white">
-                      <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-zinc-400">Diesel Opportunity</p>
-                      <p className="text-2xl font-bold leading-none text-zinc-900">{fmtGallons(proxTruckOpp)}</p>
-                      <p className="text-xs mt-1.5 text-zinc-400">
-                        ≤10mi of truck CK
-                        {isDieselFleet && <span className="ml-2 inline-flex items-center gap-1 bg-blue-50 text-blue-600 border border-blue-200 rounded px-1.5 py-0.5 text-[10px] font-semibold"><Truck size={9} />{fmtPct(dieselPct * 100)} fleet</span>}
-                      </p>
-                    </div>
-                  )}
-                  {/* Gas Opportunity */}
-                  {proxAllOpp !== null && (
-                    <div className="px-5 py-4 bg-white">
-                      <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-zinc-400">Gas Opportunity</p>
-                      <p className="text-2xl font-bold leading-none text-zinc-900">{fmtGallons(proxAllOpp)}</p>
-                      <p className="text-xs mt-1.5 text-zinc-400">≤10mi of any CK</p>
-                    </div>
-                  )}
                   {/* Monthly Diesel Opp — shown when diesel proximity data exists */}
                   {proxTruckOpp !== null ? (
                     <div className="px-5 py-4 bg-accent">
@@ -2211,12 +2212,28 @@ function AnalysisPageInner() {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {summary.topCKOpportunityLocations.map((loc, i) => {
-                        const hasDiesel = loc.dieselGallons > 0
-                        const hasGas    = loc.gasGallons > 0
-                        const fuelLabel = hasDiesel && hasGas ? 'Both' : hasDiesel ? 'Diesel' : hasGas ? 'Gas' : null
-                        const fuelColor = hasDiesel && hasGas
+                        // Determine fuel opportunity label based on site type and dominance.
+                        // C-Stores can't serve diesel trucks, so only show gas opportunity.
+                        // Truck sites: show the dominant fuel type; "Both" only when each
+                        // represents ≥25% of total competitor gallons at this location.
+                        let fuelLabel: string | null = null
+                        if (!loc.truckAccessible) {
+                          fuelLabel = loc.gasGallons > 0 ? 'Gas' : null
+                        } else {
+                          const total = loc.competitorGallons || 1
+                          const dieselShare = loc.dieselGallons / total
+                          const gasShare    = loc.gasGallons    / total
+                          if (dieselShare >= 0.25 && gasShare >= 0.25) {
+                            fuelLabel = 'Both'
+                          } else if (loc.dieselGallons > loc.gasGallons) {
+                            fuelLabel = loc.dieselGallons > 0 ? 'Diesel' : null
+                          } else {
+                            fuelLabel = loc.gasGallons > 0 ? 'Gas' : null
+                          }
+                        }
+                        const fuelColor = fuelLabel === 'Both'
                           ? 'bg-purple-50 text-purple-700 border-purple-200'
-                          : hasDiesel
+                          : fuelLabel === 'Diesel'
                             ? 'bg-blue-50 text-blue-700 border-blue-200'
                             : 'bg-green-50 text-green-700 border-green-200'
                         return (
@@ -2399,24 +2416,57 @@ function AnalysisPageInner() {
                   {/* ── Map Tab ──────────────────────────────────────────── */}
                   {activeTab === 'map' && featureFlags.mapView && (
                     <div className="space-y-6">
-                      {summary.proximityBreakdownAll && !geocodingInProgress ? (
+                      {(summary.proximityBreakdownAll || summary.proximityBreakdown) && !geocodingInProgress ? (
                         <>
-                          <ProximityPanel prox={summary.proximityBreakdownAll} totalGallons={summary.totalGallons} isMobileFueling={isMobileFueling} />
+                          {/* Diesel fleets: show truck-CK proximity panel first */}
+                          {isDieselFleet && summary.proximityBreakdown && (
+                            <ProximityPanel
+                              prox={summary.proximityBreakdown}
+                              totalGallons={summary.totalGallons}
+                              isMobileFueling={isMobileFueling}
+                              heading="Diesel Proximity — Truck-Accessible Circle K"
+                              subheading={`Non-CK diesel gallons vs. nearest truck CK · ${fmtPct(summary.proximityBreakdown.geocodedPct)} of gallons geocoded`}
+                            />
+                          )}
+                          {/* All fleets: show full-network proximity panel */}
+                          {summary.proximityBreakdownAll && (
+                            <ProximityPanel
+                              prox={summary.proximityBreakdownAll}
+                              totalGallons={summary.totalGallons}
+                              isMobileFueling={isDieselFleet ? false : isMobileFueling}
+                              heading={isDieselFleet ? 'Gas Proximity — Full Circle K Network' : 'Distance-Based Proximity to Circle K'}
+                              subheading={isDieselFleet
+                                ? `Non-CK gas gallons vs. nearest any CK · ${fmtPct(summary.proximityBreakdownAll.geocodedPct)} of gallons geocoded`
+                                : undefined}
+                            />
+                          )}
                           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                             <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
                               <div>
                                 <h2 className="text-zinc-900 font-bold text-lg">Proximity Breakdown</h2>
-                                <p className="text-zinc-500 text-sm mt-0.5">Distance bands to nearest Circle K</p>
+                                <p className="text-zinc-500 text-sm mt-0.5">
+                                  {isDieselFleet ? 'Distance bands to nearest Circle K by fuel type' : 'Distance bands to nearest Circle K'}
+                                </p>
                               </div>
                               <MapPin className="text-zinc-400 shrink-0" size={22} />
                             </div>
-                            <div className="p-6 grid grid-cols-1">
-                              <DetailedProximityPanel
-                                prox={summary.proximityBreakdownAll}
-                                title="Circle K"
-                                subtitle="Full CK network"
-                                monthSpan={monthSpan}
-                              />
+                            <div className={`p-6 grid gap-6 ${isDieselFleet && summary.proximityBreakdown ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+                              {isDieselFleet && summary.proximityBreakdown && (
+                                <DetailedProximityPanel
+                                  prox={summary.proximityBreakdown}
+                                  title="Diesel — Truck CK"
+                                  subtitle="Non-CK diesel gallons vs. truck-accessible CK sites only"
+                                  monthSpan={monthSpan}
+                                />
+                              )}
+                              {summary.proximityBreakdownAll && (
+                                <DetailedProximityPanel
+                                  prox={summary.proximityBreakdownAll}
+                                  title={isDieselFleet ? 'Gas — Full CK Network' : 'Circle K'}
+                                  subtitle={isDieselFleet ? 'Non-CK gas gallons vs. all CK sites (incl. c-stores)' : 'Full CK network'}
+                                  monthSpan={monthSpan}
+                                />
+                              )}
                             </div>
                           </div>
                         </>
