@@ -26,42 +26,48 @@ export function ProximityPanel({ prox, totalGallons, isMobileFueling, heading, s
   return (
     <div className="space-y-3">
       {isMobileFueling && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
-          <AlertCircle size={13} className="mt-0.5 shrink-0 text-amber-600" />
-          <span>
-            <strong>Mobile fueling detected.</strong> This report contains fuel deliveries (e.g. Diesel Direct) made directly to the customer&apos;s location — not purchases at a fixed pump. Proximity-to-CK figures are based on the delivery city only and are not meaningful for conversion analysis.
-          </span>
-        </div>
-      )}
-      <div className="flex items-start justify-between">
-        <div>
-          <h3 className="font-bold text-off-black">{heading ?? 'Distance-Based Proximity to Circle K'}</h3>
-          <p className="text-xs text-gray-400 mt-0.5">
-            {subheading ?? `Based on geocoded fueling locations · ${fmtPct(prox.geocodedPct)} of total gallons geocoded`}
+        <div className="rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3">
+          <div className="flex items-center gap-2 mb-1">
+            <AlertCircle size={15} className="shrink-0 text-amber-600" />
+            <strong className="text-sm text-amber-900">Mobile Fueling Detected — Proximity Data Not Meaningful</strong>
+          </div>
+          <p className="text-xs text-amber-800 leading-relaxed pl-[23px]">
+            This report contains fuel deliveries (e.g. Diesel Direct, Booster, Yoshi) made directly to the customer&apos;s location — not purchases at a fixed pump.
+            Proximity figures below are based on the delivery city only and <strong>should not be used for conversion analysis.</strong>
           </p>
         </div>
-        {opportunityGallons > 0 && (
-          <div className="rounded-lg bg-zinc-50 border border-zinc-200 px-3 py-1.5 text-xs text-zinc-600 text-right shrink-0 ml-4">
-            <span className="font-bold">{fmtGallons(opportunityGallons)} gal</span><br />
-            <span className="opacity-80">within 10 mi of CK ({fmtPct(opportunityPct)})</span>
+      )}
+      <div className={isMobileFueling ? 'opacity-40 pointer-events-none select-none' : ''}>
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <h3 className="font-bold text-off-black">{heading ?? 'Distance-Based Proximity to Circle K'}</h3>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {subheading ?? `Based on geocoded fueling locations · ${fmtPct(prox.geocodedPct)} of total gallons geocoded`}
+            </p>
           </div>
-        )}
-      </div>
-      <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 overflow-hidden">
-        {rows.map(row => {
-          const pct = totalGallons > 0 ? (row.gallons / totalGallons) * 100 : 0
-          return (
-            <div key={row.label} className="flex items-center gap-3 px-4 py-3 bg-white">
-              <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: row.color }} />
-              <span className="flex-1 text-sm text-gray-700">{row.label}</span>
-              {row.opportunity && row.gallons > 0 && (
-                <span className="text-xs bg-green-50 text-green-700 rounded px-1.5 py-0.5 font-semibold">Opportunity</span>
-              )}
-              <span className="text-sm font-semibold text-off-black w-24 text-right">{fmtGallons(row.gallons)} gal</span>
-              <span className="text-xs text-gray-400 w-12 text-right">{fmtPct(pct)}</span>
+          {opportunityGallons > 0 && (
+            <div className="rounded-lg bg-zinc-50 border border-zinc-200 px-3 py-1.5 text-xs text-zinc-600 text-right shrink-0 ml-4">
+              <span className="font-bold">{fmtGallons(opportunityGallons)} gal</span><br />
+              <span className="opacity-80">within 10 mi of CK ({fmtPct(opportunityPct)})</span>
             </div>
-          )
-        })}
+          )}
+        </div>
+        <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 overflow-hidden">
+          {rows.map(row => {
+            const pct = totalGallons > 0 ? (row.gallons / totalGallons) * 100 : 0
+            return (
+              <div key={row.label} className="flex items-center gap-3 px-4 py-3 bg-white">
+                <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: row.color }} />
+                <span className="flex-1 text-sm text-gray-700">{row.label}</span>
+                {row.opportunity && row.gallons > 0 && (
+                  <span className="text-xs bg-green-50 text-green-700 rounded px-1.5 py-0.5 font-semibold">Opportunity</span>
+                )}
+                <span className="text-sm font-semibold text-off-black w-24 text-right">{fmtGallons(row.gallons)} gal</span>
+                <span className="text-xs text-gray-400 w-12 text-right">{fmtPct(pct)}</span>
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
@@ -85,8 +91,7 @@ export function DetailedProximityPanel({
   const w5  = prox.within5mi.gallons
   const w10 = prox.within10mi.gallons
   const b10 = prox.beyond10mi.gallons
-  const tot = ck + w2 + w5 + w10 + b10
-  const mx  = Math.max(ck, w2, w5, w10, b10, 1)
+  const tot = Math.max(ck + w2 + w5 + w10 + b10, 1)
 
   const rows = [
     { label: 'At Circle K',  gallons: ck,  color: 'bg-green-500',   text: 'text-green-700',   note: 'Already at CK' },
@@ -113,7 +118,7 @@ export function DetailedProximityPanel({
       )}
       <div className="space-y-2">
         {rows.map(({ label, gallons, color, text, note }) => {
-          const pct = tot > 0 ? (gallons / tot) * 100 : 0
+          const pct = (gallons / tot) * 100
           return (
             <div key={label}>
               <div className="flex items-center justify-between mb-0.5">
@@ -123,7 +128,7 @@ export function DetailedProximityPanel({
                 </span>
               </div>
               <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div className={`h-1.5 ${color} rounded-full`} style={{ width: `${(gallons / mx) * 100}%` }} />
+                <div className={`h-1.5 ${color} rounded-full`} style={{ width: `${pct}%` }} />
               </div>
               <p className="text-xs text-gray-400 mt-0.5 leading-none">{note}</p>
             </div>

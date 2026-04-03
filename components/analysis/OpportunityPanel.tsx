@@ -1,6 +1,6 @@
 'use client'
 
-import { CheckCircle, TrendingUp, XCircle, Truck } from 'lucide-react'
+import { CheckCircle, TrendingUp, XCircle, Truck, Info } from 'lucide-react'
 import { fmtGallons, fmtDollars, fmtPct, type TransactionSummary } from '@/lib/transaction-analysis'
 
 export function OpportunityPanel({ analysis, totalGallons, truckMode = false }: {
@@ -52,6 +52,15 @@ export function OpportunityPanel({ analysis, totalGallons, truckMode = false }: 
           </div>
         </div>
 
+        {/* ZIP-based methodology note */}
+        <div className="flex items-start gap-2 bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2 mb-5 text-xs text-zinc-500">
+          <Info size={12} className="shrink-0 mt-0.5 text-zinc-400" />
+          <span>
+            <strong className="text-zinc-600">ZIP code matching</strong> — segments below are based on whether a{truckMode ? ' truck-accessible' : ''} Circle K exists in the same ZIP code as each transaction.
+            For distance-based proximity (within 1–10 mi), see the <strong className="text-zinc-600">Map View</strong> tab.
+          </span>
+        </div>
+
         {/* Progress bars */}
         <div className="space-y-3 mb-6">
           <div>
@@ -87,21 +96,25 @@ export function OpportunityPanel({ analysis, totalGallons, truckMode = false }: 
               {captured.spend > 0 && <p className="text-sm font-semibold text-zinc-600 mt-2">{fmtDollars(captured.spend)}</p>}
             </div>
             <div className="bg-orange-50 px-5 py-4 border-l border-r border-orange-100 border-t-2 border-t-brand-orange">
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-1">
                 <TrendingUp size={14} className="text-brand-orange shrink-0" />
                 <span className="text-xs font-semibold text-zinc-600">
-                  {truckMode ? 'Opportunity — Same ZIP as Truck CK' : 'Opportunity — Same ZIP as CK'}
+                  Competitor — CK in Same ZIP
                 </span>
               </div>
+              <p className="text-[10px] text-zinc-400 mb-3 pl-5">
+                {truckMode ? 'Truck-accessible CK exists in the same ZIP code' : 'A Circle K exists in the same ZIP code'}
+              </p>
               <p className="text-2xl font-bold text-zinc-900">{fmtGallons(capturable.gallons)}</p>
               <p className="text-xs text-zinc-500 mt-0.5">{capturable.transactions.toLocaleString()} transactions</p>
               {capturable.spend > 0 && <p className="text-sm font-semibold text-zinc-600 mt-2">{fmtDollars(capturable.spend)}</p>}
             </div>
             <div className="bg-white px-5 py-4">
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-1">
                 <XCircle size={14} className="text-zinc-300 shrink-0" />
-                <span className="text-xs font-semibold text-zinc-500">Outside CK Footprint</span>
+                <span className="text-xs font-semibold text-zinc-500">No CK in Same ZIP Code</span>
               </div>
+              <p className="text-[10px] text-zinc-400 mb-3 pl-5">No {truckMode ? 'truck-accessible ' : ''}CK in the transaction ZIP code</p>
               <p className="text-2xl font-bold text-zinc-900">{fmtGallons(gap.gallons)}</p>
               <p className="text-xs text-zinc-400 mt-0.5">{gap.transactions.toLocaleString()} transactions</p>
               {gap.spend > 0 && <p className="text-sm font-semibold text-zinc-600 mt-2">{fmtDollars(gap.spend)}</p>}
@@ -113,7 +126,6 @@ export function OpportunityPanel({ analysis, totalGallons, truckMode = false }: 
           <p className="mt-4 text-sm text-zinc-500">
             <span className="font-semibold text-zinc-800">{fmtGallons(capturable.gallons)} gallons ({fmtPct((capturable.gallons / totalGallons) * 100)})</span>{' '}
             are going to competitors in ZIP codes where a {truckMode ? 'truck-accessible Circle K' : 'Circle K'} already exists.
-            {' '}<span className="text-zinc-400 text-xs">For distance-based proximity (≤1–10 mi) see the Map View tab.</span>
           </p>
         )}
       </div>

@@ -43,10 +43,18 @@ interface ShareRowProps {
 }
 
 function ShareRow({ type, share, onCreate, onRevoke, creating, revoking }: ShareRowProps) {
+  const [confirmingRevoke, setConfirmingRevoke] = useState(false)
   const isCustomer = type === 'customer'
   const shareUrl = share
     ? `${typeof window !== 'undefined' ? window.location.origin : ''}/share/${share.token}`
     : null
+
+  const handleRevokeClick = () => setConfirmingRevoke(true)
+  const handleRevokeCancel = () => setConfirmingRevoke(false)
+  const handleRevokeConfirm = async () => {
+    setConfirmingRevoke(false)
+    await onRevoke(share!.token)
+  }
 
   return (
     <div className="rounded-xl border border-gray-200 overflow-hidden">
@@ -86,18 +94,38 @@ function ShareRow({ type, share, onCreate, onRevoke, creating, revoking }: Share
               <CopyButton url={shareUrl!} />
             </div>
             {/* Revoke */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between min-h-[24px]">
               <span className="text-xs text-gray-400">
                 Created {new Date(share.created_at).toLocaleDateString()} &nbsp;·&nbsp; Never expires
               </span>
-              <button
-                onClick={() => onRevoke(share.token)}
-                disabled={revoking}
-                className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 disabled:opacity-50 transition-colors"
-              >
-                <Trash2 size={12} />
-                {revoking ? 'Revoking…' : 'Revoke'}
-              </button>
+              {confirmingRevoke ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-red-600 font-medium">Revoke this link?</span>
+                  <button
+                    onClick={handleRevokeCancel}
+                    className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleRevokeConfirm}
+                    disabled={revoking}
+                    className="flex items-center gap-1 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 transition-colors rounded px-2 py-0.5"
+                  >
+                    <Trash2 size={11} />
+                    {revoking ? 'Revoking…' : 'Yes, revoke'}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleRevokeClick}
+                  disabled={revoking}
+                  className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 disabled:opacity-50 transition-colors"
+                >
+                  <Trash2 size={12} />
+                  {revoking ? 'Revoking…' : 'Revoke'}
+                </button>
+              )}
             </div>
           </div>
         ) : (
