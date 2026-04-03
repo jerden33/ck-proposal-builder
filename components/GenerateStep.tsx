@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { OpportunityData, Address, ProposalSections, products as productList } from '@/lib/types'
-import { FileText, CheckCircle2, Share2, Copy, ExternalLink, FileDown, RefreshCw } from 'lucide-react'
+import { FileText, Download, Eye, CheckCircle2, Share2, Copy, ExternalLink, FileDown } from 'lucide-react'
 
 interface GenerateStepProps {
   opportunityData: OpportunityData

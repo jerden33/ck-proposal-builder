@@ -228,87 +228,75 @@ export function OpportunityStep({
       <div className="card">
         <h2 className="text-2xl font-bold mb-6">Deal details</h2>
 
-        {(() => {
-          const hasFuelCard = data.selectedProducts.includes('fleet') || data.selectedProducts.includes('universal')
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div>
+            <label className="input-label">Fleet size</label>
+            <input
+              type="number"
+              value={data.fleetSize}
+              onChange={(e) => updateOpportunity('fleetSize', e.target.value)}
+              placeholder="50"
+              className="input-field"
+            />
+            <p className="text-xs text-gray-500 mt-1">Number of vehicles</p>
+          </div>
 
-          return (
-            <>
-              <div className={`grid grid-cols-1 gap-5 ${hasFuelCard ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
-                <div>
-                  <label className="input-label">Fleet size</label>
-                  <input
-                    type="number"
-                    value={data.fleetSize}
-                    onChange={(e) => updateOpportunity('fleetSize', e.target.value)}
-                    placeholder="50"
-                    className="input-field"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Number of vehicles</p>
-                </div>
+          <div>
+            <label className="input-label">Monthly gallons</label>
+            <input
+              type="number"
+              value={data.monthlyGallons}
+              onChange={(e) => updateOpportunity('monthlyGallons', e.target.value)}
+              placeholder="15000"
+              className="input-field"
+            />
+            <p className="text-xs text-gray-500 mt-1">Estimated monthly fuel usage</p>
+          </div>
 
-                {hasFuelCard && (
-                  <div>
-                    <label className="input-label">Monthly gallons</label>
-                    <input
-                      type="number"
-                      value={data.monthlyGallons}
-                      onChange={(e) => updateOpportunity('monthlyGallons', e.target.value)}
-                      placeholder="15000"
-                      className="input-field"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Estimated monthly fuel usage</p>
-                  </div>
-                )}
+          <div>
+            <label className="input-label">Target close date</label>
+            <input
+              type="date"
+              value={data.closeDate}
+              onChange={(e) => updateOpportunity('closeDate', e.target.value)}
+              className="input-field"
+            />
+          </div>
+        </div>
 
-                <div>
-                  <label className="input-label">Target close date</label>
-                  <input
-                    type="date"
-                    value={data.closeDate}
-                    onChange={(e) => updateOpportunity('closeDate', e.target.value)}
-                    className="input-field"
-                  />
-                </div>
+        <div className="mt-5 p-4 bg-gradient-to-br from-orange-50 to-white border border-brand-orange/30 rounded-xl">
+          <h3 className="text-lg font-bold mb-4 text-dark-orange">Pricing Information</h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="input-label">Per gallon discount</label>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="0.01"
+                  value={data.perGallonDiscount}
+                  onChange={(e) => updateOpportunity('perGallonDiscount', e.target.value)}
+                  placeholder="0.12"
+                  className="input-field"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">¢</span>
               </div>
+              <p className="text-xs text-gray-500 mt-1">Enter discount per gallon (e.g., 0.12 for 12¢)</p>
+            </div>
 
-              {hasFuelCard && (
-                <div className="mt-5 p-4 bg-gradient-to-br from-orange-50 to-white border border-brand-orange/30 rounded-xl">
-                  <h3 className="text-lg font-bold mb-4 text-dark-orange">Pricing Information</h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                      <label className="input-label">Per gallon discount</label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={data.perGallonDiscount}
-                          onChange={(e) => updateOpportunity('perGallonDiscount', e.target.value)}
-                          placeholder="0.12"
-                          className="input-field"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">¢</span>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">Enter discount per gallon (e.g., 0.12 for 12¢)</p>
-                    </div>
-
-                    <div>
-                      <label className="input-label">Additional cost savings</label>
-                      <textarea
-                        value={data.additionalSavings}
-                        onChange={(e) => updateOpportunity('additionalSavings', e.target.value)}
-                        placeholder="Reduced admin costs: $500/month&#10;Fleet management fees waived: $200/month"
-                        rows={3}
-                        className="input-field"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Optional line items (one per line)</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </>
-          )
-        })()}
+            <div>
+              <label className="input-label">Additional cost savings</label>
+              <textarea
+                value={data.additionalSavings}
+                onChange={(e) => updateOpportunity('additionalSavings', e.target.value)}
+                placeholder="Reduced admin costs: $500/month&#10;Fleet management fees waived: $200/month"
+                rows={3}
+                className="input-field"
+              />
+              <p className="text-xs text-gray-500 mt-1">Optional line items (one per line)</p>
+            </div>
+          </div>
+        </div>
 
         <div className="mt-5">
           <label className="input-label">Internal notes</label>

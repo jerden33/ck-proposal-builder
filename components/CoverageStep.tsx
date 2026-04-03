@@ -109,7 +109,7 @@ export function CoverageStep({ addresses, addAddress, removeAddress, updateAddre
                         
                         {addr.nearbyStores.length > 0 && (
                           <div className="mt-4">
-                            <h4 className="font-semibold text-sm mb-3">Nearest locations</h4>
+                            <h4 className="font-semibold text-sm mb-3">Nearest locations (within 10 miles)</h4>
                             <div className="space-y-2 max-h-60 overflow-y-auto">
                               {addr.nearbyStores.slice(0, 20).map((store: any, idx: number) => (
                                 <div key={idx} className="flex items-start gap-3 p-3 bg-off-white rounded-lg text-sm">
@@ -161,7 +161,7 @@ export function CoverageStep({ addresses, addAddress, removeAddress, updateAddre
             <div>
               <h3 className="font-semibold mb-1">Coverage tip</h3>
               <p className="text-sm text-gray-700">
-                Click <strong>Analyze</strong> for each address to map nearby Circle K locations and generate coverage stats. Analyzed locations will appear as interactive maps in your proposal.
+                Addresses will be geocoded and analyzed in the next step. Each location will show nearby Circle K stores and coverage statistics for your proposal.
               </p>
             </div>
           </div>
