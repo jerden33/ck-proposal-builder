@@ -10,19 +10,20 @@ interface ConfigureStepProps {
 }
 
 const sectionList = [
-  { key: 'executiveSummary' as keyof ProposalSections, name: 'Executive summary', description: 'High-level overview and value proposition', recommended: true },
-  { key: 'aboutCircleK' as keyof ProposalSections, name: 'About Circle K Pro', description: 'Company background and capabilities', recommended: true },
-  { key: 'solutionOverview' as keyof ProposalSections, name: 'Solution overview', description: 'Detailed product and service information', recommended: true },
-  { key: 'coverageAnalysis' as keyof ProposalSections, name: 'Coverage analysis', description: 'Maps and location data for customer addresses', recommended: true },
-  { key: 'pricingTable' as keyof ProposalSections, name: 'Pricing table', description: 'Cost breakdown and pricing options', recommended: false },
-  { key: 'implementationTimeline' as keyof ProposalSections, name: 'Implementation timeline', description: 'Project phases and milestones', recommended: false },
-  { key: 'caseStudies' as keyof ProposalSections, name: 'Case studies', description: 'Customer success stories and testimonials', recommended: false },
-  { key: 'termsConditions' as keyof ProposalSections, name: 'Terms and conditions', description: 'Legal terms and agreement details', recommended: true },
-  { key: 'signaturePage' as keyof ProposalSections, name: 'Signature page', description: 'Authorization and sign-off section', recommended: true }
+  { key: 'executiveSummary' as keyof ProposalSections, name: 'Executive summary', description: 'High-level overview and value proposition', recommended: true, available: true },
+  { key: 'aboutCircleK' as keyof ProposalSections, name: 'About Circle K Pro', description: 'Company background and capabilities', recommended: true, available: true },
+  { key: 'solutionOverview' as keyof ProposalSections, name: 'Solution overview', description: 'Detailed product and service information', recommended: true, available: true },
+  { key: 'coverageAnalysis' as keyof ProposalSections, name: 'Coverage analysis', description: 'Maps and location data for customer addresses', recommended: true, available: true },
+  { key: 'termsConditions' as keyof ProposalSections, name: 'Terms and conditions', description: 'Legal terms and agreement details', recommended: true, available: true },
+  { key: 'signaturePage' as keyof ProposalSections, name: 'Next steps', description: 'Contact information and call to action for signing', recommended: true, available: true },
+  { key: 'implementationTimeline' as keyof ProposalSections, name: 'Implementation timeline', description: 'Project phases and milestones', recommended: false, available: false },
+  { key: 'caseStudies' as keyof ProposalSections, name: 'Case studies', description: 'Customer success stories and testimonials', recommended: false, available: false },
+  { key: 'pricingTable' as keyof ProposalSections, name: 'Pricing table', description: 'Detailed cost breakdown and pricing options', recommended: false, available: false },
 ]
 
 export function ConfigureStep({ sections, toggleSection, opportunityData }: ConfigureStepProps) {
-  const selectedCount = Object.values(sections).filter(Boolean).length
+  const availableSections = sectionList.filter(s => s.available)
+  const selectedCount = availableSections.filter(s => sections[s.key]).length
 
   // Check which pricing options are available based on data
   const hasPerGallonDiscount = opportunityData.perGallonDiscount && parseFloat(opportunityData.perGallonDiscount) > 0
@@ -40,7 +41,7 @@ export function ConfigureStep({ sections, toggleSection, opportunityData }: Conf
           </div>
           <div className="text-right">
             <div className="text-sm text-gray-500">Selected</div>
-            <div className="text-2xl font-bold text-brand-orange">{selectedCount}/{sectionList.length}</div>
+            <div className="text-2xl font-bold text-brand-orange">{selectedCount}/{availableSections.length}</div>
           </div>
         </div>
         
@@ -48,25 +49,30 @@ export function ConfigureStep({ sections, toggleSection, opportunityData }: Conf
           {sectionList.map(section => (
             <div
               key={section.key}
-              onClick={() => toggleSection(section.key)}
-              className={`section-toggle ${sections[section.key] ? 'active' : ''}`}
+              onClick={() => section.available && toggleSection(section.key)}
+              className={`section-toggle ${sections[section.key] && section.available ? 'active' : ''} ${!section.available ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <div className="flex items-start gap-4">
                 <div className={`flex-shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all mt-0.5 ${
-                  sections[section.key]
-                    ? 'bg-dark-orange border-dark-orange' 
+                  sections[section.key] && section.available
+                    ? 'bg-dark-orange border-dark-orange'
                     : 'border-ck-grey'
                 }`}>
-                  {sections[section.key] && (
+                  {sections[section.key] && section.available && (
                     <Check size={16} className="text-white" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-semibold text-off-black">{section.name}</h3>
-                    {section.recommended && (
+                    {section.recommended && section.available && (
                       <span className="px-2 py-0.5 bg-brand-orange/10 text-brand-orange text-xs font-medium rounded-full">
                         Recommended
+                      </span>
+                    )}
+                    {!section.available && (
+                      <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs font-medium rounded-full">
+                        Coming soon
                       </span>
                     )}
                   </div>

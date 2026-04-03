@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { MapPin, TrendingUp, Users, Fuel, CheckCircle2, ImageIcon } from 'lucide-react'
+import { MapPin, CheckCircle2, ImageIcon, Phone, Mail } from 'lucide-react'
 import { MapComponent } from '@/components/MapComponent'
 import { getProposal, incrementProposalViews, getImageSettings } from '@/lib/supabase/queries'
 import type { OpportunityData, Address, ProposalSections, Product, ImageSettings } from '@/lib/types'
@@ -160,6 +160,41 @@ function ProposalContent() {
           </p>
         </div>
       </section>
+
+      {/* ABOUT CIRCLE K PRO */}
+      {sections.aboutCircleK && (
+        <section className="bg-gradient-to-b from-[#F9FAFB] to-white py-16 border-b border-gray-200">
+          <div className="max-w-6xl mx-auto px-8">
+            <h2 className="text-3xl font-bold text-[#D64303] mb-2 border-l-4 border-[#ED8B00] pl-4">
+              About Circle K Pro
+            </h2>
+            <p className="text-gray-600 mb-8 pl-4">
+              Your trusted partner in fleet fuel management
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="bg-white rounded-xl border border-gray-200 p-6 text-center transition-all hover:shadow-md">
+                <div className="text-4xl font-bold text-[#ED8B00] mb-2">6,000+</div>
+                <div className="text-sm text-gray-600 uppercase tracking-wide">Circle K Locations</div>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 p-6 text-center transition-all hover:shadow-md">
+                <div className="text-4xl font-bold text-[#ED8B00] mb-2">95,000+</div>
+                <div className="text-sm text-gray-600 uppercase tracking-wide">Network Locations via WEX</div>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 p-6 text-center transition-all hover:shadow-md">
+                <div className="text-4xl font-bold text-[#ED8B00] mb-2">40+</div>
+                <div className="text-sm text-gray-600 uppercase tracking-wide">Years Serving Fleets</div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-200 p-8" style={{ boxShadow: 'var(--shadow-md)' }}>
+              <p className="text-lg text-gray-700 leading-relaxed">
+                Circle K Pro is a leading provider of fleet fuel management solutions, helping businesses control fuel costs, streamline operations, and gain real-time visibility into their fleet's fuel usage. With one of the largest fueling networks in North America and best-in-class digital tools, we deliver convenience, savings, and control wherever your fleet operates.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* EXECUTIVE SUMMARY */}
       {sections.executiveSummary && (
@@ -460,6 +495,53 @@ function ProposalContent() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* NEXT STEPS */}
+      {sections.signaturePage && (
+        <section className="max-w-6xl mx-auto px-8 py-16">
+          <h2 className="text-3xl font-bold text-[#D64303] mb-2 border-l-4 border-[#ED8B00] pl-4">
+            Next Steps
+          </h2>
+          <p className="text-gray-600 mb-8 pl-4">
+            Ready to get started? Here's how we move forward
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            {[
+              { step: '01', title: 'Review Proposal', desc: 'Share this proposal with your team and review the solution details and coverage analysis.' },
+              { step: '02', title: 'Schedule a Call', desc: 'Connect with your Circle K Pro representative to answer questions and finalize program details.' },
+              { step: '03', title: 'Launch Your Program', desc: 'Sign your agreement and we'll get your fleet enrolled and fueling within days.' }
+            ].map(({ step, title, desc }) => (
+              <div key={step} className="bg-white rounded-xl border border-gray-200 p-6 transition-all hover:shadow-md">
+                <div className="text-4xl font-bold text-[#ED8B00]/30 mb-3">{step}</div>
+                <h3 className="text-lg font-bold text-[#101820] mb-2">{title}</h3>
+                <p className="text-sm text-gray-600">{desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-gradient-to-br from-[#FFF7ED] to-[#FFEDD5] rounded-xl border-2 border-[#FED7AA] p-8 text-center">
+            <h3 className="text-2xl font-bold text-[#D64303] mb-2">
+              Questions? We're Here to Help.
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Your dedicated Circle K Pro representative is ready to support you every step of the way.
+            </p>
+            {opportunityData.contactEmail && (
+              <div className="flex items-center justify-center gap-2 text-gray-700 mb-2">
+                <Mail size={16} className="text-[#ED8B00]" />
+                <span>{opportunityData.contactEmail}</span>
+              </div>
+            )}
+            {opportunityData.contactPhone && (
+              <div className="flex items-center justify-center gap-2 text-gray-700">
+                <Phone size={16} className="text-[#ED8B00]" />
+                <span>{opportunityData.contactPhone}</span>
+              </div>
+            )}
           </div>
         </section>
       )}
