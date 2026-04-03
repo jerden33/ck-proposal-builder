@@ -39,10 +39,14 @@ export function VehiclesTab({
 
   const allRows = (byDriver ? summary.driverBreakdown : summary.vehicleBreakdown) as (DriverSummary | VehicleRow)[]
 
+  const getSortVal = (row: DriverSummary | VehicleRow): number => {
+    const r = row as unknown as { [k: string]: unknown }
+    return typeof r[sortKey] === 'number' ? (r[sortKey] as number) : 0
+  }
+
   const sorted = [...allRows].sort((a, b) => {
-    const av = (a as Record<string, unknown>)[sortKey] as number ?? 0
-    const bv = (b as Record<string, unknown>)[sortKey] as number ?? 0
-    return sortDir === 'desc' ? bv - av : av - bv
+    const diff = getSortVal(a) - getSortVal(b)
+    return sortDir === 'desc' ? -diff : diff
   })
 
   const rows = query.trim()
