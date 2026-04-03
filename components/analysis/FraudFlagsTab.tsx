@@ -1,6 +1,6 @@
 'use client'
 
-import { CheckCircle } from 'lucide-react'
+import { CheckCircle, Info } from 'lucide-react'
 import { fmtGallons, type FraudFlag } from '@/lib/transaction-analysis'
 
 const FRAUD_TYPE_LABELS: Record<FraudFlag['type'], string> = {
@@ -42,6 +42,22 @@ export function FraudFlagsTab({ flags }: { flags: FraudFlag[] }) {
               <p className="text-xs text-gray-400 mt-0.5">{item.desc}</p>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Severity legend */}
+      <div className="rounded-xl bg-gray-50 border border-gray-200 px-4 py-3 flex flex-wrap gap-4 text-xs text-gray-600">
+        <div className="flex items-center gap-1.5">
+          <Info size={12} className="text-gray-400 shrink-0" />
+          <span className="font-semibold text-gray-500 uppercase tracking-wider mr-1">Severity legend:</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block px-2 py-0.5 rounded bg-red-100 text-red-700 font-bold text-xs">HIGH</span>
+          <span>≥300 gal single fill · ≥4 same-day fills · state hop</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 font-bold text-xs">MEDIUM</span>
+          <span>200–299 gal fill · 3 same-day fills · PPG outlier (&gt;2.5× median)</span>
         </div>
       </div>
 

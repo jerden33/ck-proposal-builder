@@ -105,11 +105,11 @@ const DEFAULT_FEATURES: FeatureFlags = {
   vehicles: true,
   mapView: true,
   fuelTypeSplit: true,
-  savingsCalc: false,
-  annualized: false,
+  savingsCalc: true,
+  annualized: true,
   behavioralInsights: true,
   timeOfDay: true,
-  fraudFlags: false,
+  fraudFlags: true,
   otrCorridors: false,
   skipGeocoding: false,
 }
@@ -453,6 +453,7 @@ function AnalysisPageInner() {
   const [summaryCopied, setSummaryCopied] = useState(false)
   const [rebateRate, setRebateRate] = useState(3)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const geocodingStartRef = useRef<number | null>(null)
   // Always-current ref so processFile can read flags without stale closure
   const featureFlagsRef = useRef<FeatureFlags>(DEFAULT_FEATURES)
   useEffect(() => { featureFlagsRef.current = featureFlags }, [featureFlags])
@@ -461,8 +462,13 @@ function AnalysisPageInner() {
     setFeatureFlags(prev => ({ ...prev, [key]: val }))
   }, [])
 
-  // Restore last analysis from localStorage on mount
+  // Restore last analysis from localStorage on mount (skip if ?new=1 — user wants fresh upload)
   useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      try { localStorage.removeItem('ck-analysis-v1') } catch { /* ignore */ }
+      window.history.replaceState(null, '', '/analysis')
+      return
+    }
     try {
       const raw = localStorage.getItem('ck-analysis-v1')
       if (!raw) return
@@ -708,6 +714,7 @@ function AnalysisPageInner() {
 
       setLoading(false)
       setGeocodingInProgress(true)
+      geocodingStartRef.current = Date.now()
       const totalGeoItems = uniqueLocations.length + uniqueAddresses.length
       setGeocodingProgress({ done: 0, total: totalGeoItems })
       let geoDone = 0
@@ -913,6 +920,17 @@ function AnalysisPageInner() {
       ? Math.round((geocodingProgress.done / geocodingProgress.total) * 100)
       : 0
 
+    // Estimate remaining time based on observed geocoding rate
+    let etaText: string | null = null
+    if (isGeocoding && geocodingProgress && geocodingProgress.done > 5 && geocodingStartRef.current) {
+      const elapsedSec = (Date.now() - geocodingStartRef.current) / 1000
+      const rate = geocodingProgress.done / elapsedSec
+      const remaining = geocodingProgress.total - geocodingProgress.done
+      const etaSec = Math.ceil(remaining / rate)
+      if (etaSec >= 60) etaText = `~${Math.ceil(etaSec / 60)} min remaining`
+      else if (etaSec > 5) etaText = `~${etaSec}s remaining`
+    }
+
     return (
       <div className="min-h-screen bg-off-white">
         <Navbar />
@@ -936,6 +954,7 @@ function AnalysisPageInner() {
               </div>
               <p className="text-xs text-gray-400">
                 {geocodingProgress.done.toLocaleString()} / {geocodingProgress.total.toLocaleString()} ({pct}%)
+                {etaText && <span className="ml-2 text-gray-400">· {etaText}</span>}
               </p>
             </>
           ) : (

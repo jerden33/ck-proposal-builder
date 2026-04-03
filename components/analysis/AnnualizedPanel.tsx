@@ -1,6 +1,6 @@
 'use client'
 
-import { TrendingUp } from 'lucide-react'
+import { TrendingUp, AlertTriangle } from 'lucide-react'
 import { fmtGallons, fmtDollars, type TransactionSummary } from '@/lib/transaction-analysis'
 
 export function AnnualizedPanel({
@@ -13,6 +13,9 @@ export function AnnualizedPanel({
   const monthly = (n: number) => (months > 0 ? n / months : 0)
   const annual  = (n: number) => monthly(n) * 12
 
+  const isPartialMonth = months < 1
+  const isLongDataset  = months > 13
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
       <div className="flex items-center gap-2 mb-4">
@@ -22,6 +25,14 @@ export function AnnualizedPanel({
           {months.toFixed(1)} mo of data → extrapolated to 12 mo
         </span>
       </div>
+      {(isPartialMonth || isLongDataset) && (
+        <div className="flex items-start gap-2 rounded-lg bg-yellow-50 border border-yellow-200 px-3 py-2.5 mb-4 text-xs text-yellow-800">
+          <AlertTriangle size={13} className="text-yellow-500 shrink-0 mt-0.5" />
+          {isPartialMonth
+            ? 'Dataset is less than 1 month — annualized figures may be unreliable. Upload a longer date range for accurate projections.'
+            : 'Dataset spans more than 13 months — projections are averaged over the full period. Recent trends may differ from the annualized view.'}
+        </div>
+      )}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-gray-50 rounded-xl p-4">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Total Gallons / Yr</p>

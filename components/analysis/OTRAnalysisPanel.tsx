@@ -65,40 +65,54 @@ export function OTRAnalysisPanel({ otr, months, mapPoints, ckStorePins, isDiesel
 
       {/* Route Coverage map */}
       {isDieselFleet && truckStores.length > 0 && mapPoints.length > 0 && (
-        <div className="rounded-2xl border border-zinc-200 overflow-hidden mb-5">
-          <div className="bg-zinc-50 border-b border-zinc-200 px-5 py-3 flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-zinc-800 text-sm">Route Coverage &amp; Gaps</p>
-              <p className="text-xs text-zinc-500 mt-0.5">Orange = corridor activity · gap = no truck CK within 30mi</p>
-            </div>
-            <MapPin className="text-zinc-400 shrink-0" size={18} />
+        <>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex-1 h-px bg-zinc-200" />
+            <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Map 1 — Corridor Coverage &amp; Gaps</span>
+            <div className="flex-1 h-px bg-zinc-200" />
           </div>
-          <OTRMap
-            transactionPoints={mapPoints}
-            ckStores={truckStores}
-            corridorResults={otr.corridorResults}
-            height={520}
-          />
-        </div>
+          <div className="rounded-2xl border border-zinc-200 overflow-hidden mb-6">
+            <div className="bg-zinc-50 border-b border-zinc-200 px-5 py-3 flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-zinc-800 text-sm">Route Coverage &amp; Gaps</p>
+                <p className="text-xs text-zinc-500 mt-0.5">Orange = corridor activity · gap = no truck CK within 30mi of route</p>
+              </div>
+              <MapPin className="text-zinc-400 shrink-0" size={18} />
+            </div>
+            <OTRMap
+              transactionPoints={mapPoints}
+              ckStores={truckStores}
+              corridorResults={otr.corridorResults}
+              height={520}
+            />
+          </div>
+        </>
       )}
 
       {/* Fueling locations map */}
       {mapPoints.length > 0 && (
-        <div className="rounded-2xl border border-zinc-200 overflow-hidden mb-5">
-          <div className="bg-zinc-50 border-b border-zinc-200 px-5 py-3 flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-zinc-800 text-sm">All Fueling Locations</p>
-              <p className="text-xs text-zinc-500 mt-0.5">Customer stops · truck-accessible CK sites · color = proximity</p>
-            </div>
-            <MapPin className="text-zinc-400 shrink-0" size={18} />
+        <>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex-1 h-px bg-zinc-200" />
+            <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Map 2 — All Fueling Locations</span>
+            <div className="flex-1 h-px bg-zinc-200" />
           </div>
-          <FuelingMap
-            transactionPoints={mapPoints}
-            ckStores={ckStorePins.filter(s => s.truckAccessible)}
-            height={480}
-            truckMode={true}
-          />
-        </div>
+          <div className="rounded-2xl border border-zinc-200 overflow-hidden mb-6">
+            <div className="bg-zinc-50 border-b border-zinc-200 px-5 py-3 flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-zinc-800 text-sm">All Fueling Locations</p>
+                <p className="text-xs text-zinc-500 mt-0.5">Customer stops · truck-accessible CK sites · color = proximity</p>
+              </div>
+              <MapPin className="text-zinc-400 shrink-0" size={18} />
+            </div>
+            <FuelingMap
+              transactionPoints={mapPoints}
+              ckStores={ckStorePins.filter(s => s.truckAccessible)}
+              height={480}
+              truckMode={true}
+            />
+          </div>
+        </>
       )}
 
       {/* Corridor table */}

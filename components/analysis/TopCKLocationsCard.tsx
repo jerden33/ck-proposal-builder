@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Truck, Fuel } from 'lucide-react'
+import { Truck, Fuel, Info } from 'lucide-react'
 import { fmtGallons, fmtDollars, type CKOpportunityLocation } from '@/lib/transaction-analysis'
 
 type SortKey = 'competitorGallons' | 'nearbyStationCount' | 'competitorSpend'
@@ -58,7 +58,19 @@ export function TopCKLocationsCard({ locations }: { locations: CKOpportunityLoca
             <tr className="border-b border-gray-200 bg-zinc-50/50">
               <th scope="col" className="py-2.5 pl-5 pr-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Location</th>
               <th scope="col" className="py-2.5 px-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Site Type</th>
-              <th scope="col" className="py-2.5 px-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Fuel Opp.</th>
+              <th scope="col" className="py-2.5 px-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <span className="inline-flex items-center gap-1">
+                  Fuel Opp.
+                  <span className="group relative cursor-default">
+                    <Info size={11} className="text-gray-300 hover:text-gray-500 transition-colors" />
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-64 text-xs font-normal normal-case tracking-normal bg-gray-800 text-white rounded-lg px-3 py-2 opacity-0 group-hover:opacity-100 pointer-events-none z-30 shadow-lg leading-relaxed">
+                      <strong>Diesel</strong> / <strong>Gas</strong> — competitor gallons at this CK are ≥25% that type.<br />
+                      <strong>Both</strong> — ≥25% diesel AND ≥25% gas from competitors.<br />
+                      C-stores only show <strong>Gas</strong> (not truck-accessible).
+                    </span>
+                  </span>
+                </span>
+              </th>
               <th
                 scope="col"
                 aria-sort={sortKey === 'competitorGallons' ? (sortDir === 'desc' ? 'descending' : 'ascending') : 'none'}

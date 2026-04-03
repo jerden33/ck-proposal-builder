@@ -20,7 +20,7 @@ function CopyButton({ url }: { url: string }) {
   const copy = async () => {
     await navigator.clipboard.writeText(url)
     setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    setTimeout(() => setCopied(false), 4500)
   }
 
   return (
