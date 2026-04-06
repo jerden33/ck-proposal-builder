@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getUserProfile } from '@/lib/supabase/queries'
 import type { UserProfile } from '@/lib/types'
-import { BarChart2, LayoutDashboard, Settings, LogOut, Gauge } from 'lucide-react'
+import { BarChart2, LayoutDashboard, Settings, LogOut, Zap } from 'lucide-react'
 
 const NAV_LINKS = [
   { label: 'Analysis',  href: '/analysis',   icon: BarChart2 },
@@ -60,15 +60,11 @@ export function Navbar() {
             onClick={() => router.push('/dashboard')}
             className="flex items-center gap-2 group"
           >
-            <div
-              className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 shadow-sm"
-              style={{ background: 'linear-gradient(135deg, #ED8B00 0%, #0EA5E9 100%)' }}
-            >
-              <Gauge size={14} className="text-white" strokeWidth={2.5} />
+            <div className="w-7 h-7 bg-accent rounded-lg flex items-center justify-center shrink-0">
+              <Zap size={14} className="text-white" strokeWidth={2.5} />
             </div>
-            <span className="font-bold text-sm tracking-tight font-display">
-              <span className="text-zinc-900">Fleet</span>
-              <span className="text-accent">Insights</span>
+            <span className="font-semibold text-zinc-800 text-sm tracking-tight group-hover:text-zinc-900 transition-colors">
+              Fleet Insights
             </span>
           </button>
 

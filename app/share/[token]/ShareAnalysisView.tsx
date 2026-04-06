@@ -28,7 +28,7 @@ import {
   Mail,
   User,
   Truck,
-  Gauge,
+  Zap,
 } from 'lucide-react'
 import type { OTRAnalysis } from '@/lib/otr-analysis'
 import {
@@ -924,16 +924,10 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
       <div className="bg-white border-b border-zinc-200 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <div
-              className="w-6 h-6 rounded-md flex items-center justify-center shadow-sm"
-              style={{ background: 'linear-gradient(135deg, #ED8B00 0%, #0EA5E9 100%)' }}
-            >
-              <Gauge size={12} className="text-white" strokeWidth={2.5} />
+            <div className="w-6 h-6 bg-accent rounded-md flex items-center justify-center">
+              <Zap size={12} className="text-white" strokeWidth={2.5} />
             </div>
-            <span className="font-bold text-sm tracking-tight font-display">
-              <span className="text-zinc-800">Fleet</span>
-              <span className="text-accent">Insights</span>
-            </span>
+            <span className="font-semibold text-zinc-800 text-sm">Fleet Insights</span>
           </div>
           <div className="w-px h-4 bg-zinc-200" />
           <span className="text-zinc-400 text-sm">Fleet Analysis Report</span>
