@@ -927,7 +927,7 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
             <div className="w-6 h-6 bg-accent rounded-md flex items-center justify-center">
               <Zap size={12} className="text-white" strokeWidth={2.5} />
             </div>
-            <span className="font-semibold text-zinc-800 text-sm">Fleet Insights</span>
+            <span className="font-semibold text-zinc-800 text-sm">FuelSight</span>
           </div>
           <div className="w-px h-4 bg-zinc-200" />
           <span className="text-zinc-400 text-sm">Fleet Analysis Report</span>

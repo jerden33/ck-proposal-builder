@@ -17,8 +17,8 @@ const spaceGrotesk = Space_Grotesk({
 })
 
 export const metadata: Metadata = {
-  title: 'Circle K Pro - Fleet Insights',
-  description: 'Analyze fleet fueling transactions and identify Circle K savings opportunities',
+  title: 'FuelSight by Circle K',
+  description: 'Analyze fleet fueling transactions and uncover Circle K savings opportunities',
 }
 
 export default function RootLayout({

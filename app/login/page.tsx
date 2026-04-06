@@ -48,7 +48,7 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-11 h-11 bg-accent rounded-xl mb-4">
             <Zap size={20} className="text-white" strokeWidth={2.5} />
           </div>
-          <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">Fleet Insights</h1>
+          <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">FuelSight</h1>
           <p className="text-sm text-zinc-500 mt-1">Sign in to your account</p>
         </div>
 

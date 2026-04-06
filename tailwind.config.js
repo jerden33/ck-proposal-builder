@@ -22,7 +22,7 @@ module.exports = {
         'ck-grey':      '#D0D0CE',
       },
       fontFamily: {
-        sans: ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-dm-sans)', 'system-ui', 'sans-serif'],
         display: ['var(--font-space-grotesk)', 'system-ui', 'sans-serif'],
       },
       animation: {

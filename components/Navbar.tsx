@@ -64,7 +64,7 @@ export function Navbar() {
               <Zap size={14} className="text-white" strokeWidth={2.5} />
             </div>
             <span className="font-semibold text-zinc-800 text-sm tracking-tight group-hover:text-zinc-900 transition-colors">
-              Fleet Insights
+              FuelSight
             </span>
           </button>
 

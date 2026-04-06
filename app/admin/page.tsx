@@ -264,7 +264,7 @@ export default function AdminPage() {
               <div>
                 <h2 className="text-2xl font-bold text-off-black mb-2">Default Product Features</h2>
                 <p className="text-gray-600">
-                  Configure the default features for each Circle K Pro product
+                  Configure the default features for each Circle K fleet product
                 </p>
               </div>
 

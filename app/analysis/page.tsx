@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect, Suspense } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import * as XLSX from 'xlsx'
 import { useSearchParams } from 'next/navigation'
