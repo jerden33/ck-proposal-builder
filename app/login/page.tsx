@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Mail, Lock, AlertCircle, Zap } from 'lucide-react'
+import { Mail, Lock, AlertCircle, Gauge } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -45,10 +45,16 @@ export default function LoginPage() {
 
         {/* Product mark */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-11 h-11 bg-accent rounded-xl mb-4">
-            <Zap size={20} className="text-white" strokeWidth={2.5} />
+          <div
+            className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-4 shadow-md"
+            style={{ background: 'linear-gradient(135deg, #ED8B00 0%, #0EA5E9 100%)' }}
+          >
+            <Gauge size={24} className="text-white" strokeWidth={2.5} />
           </div>
-          <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">FuelSight</h1>
+          <h1 className="text-2xl font-bold tracking-tight font-display">
+            <span className="text-zinc-900">Fleet</span>
+            <span className="text-accent">Insights</span>
+          </h1>
           <p className="text-sm text-zinc-500 mt-1">Sign in to your account</p>
         </div>
 
