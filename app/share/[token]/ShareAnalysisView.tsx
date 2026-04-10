@@ -129,7 +129,8 @@ function OpportunityPanel({
   totalGallons: number
   isCustomer: boolean
 }) {
-  const { captured, capturable, gap, captureRate, potentialRate } = analysis
+  const { captured, capturable, gap, captureRate, potentialRate, methodology } = analysis
+  const isProximity = methodology === 'proximity'
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4">
@@ -217,8 +218,8 @@ function OpportunityPanel({
           <p className="mt-4 text-sm text-zinc-500">
             <span className="font-semibold text-zinc-800">{fmtGallons(capturable.gallons)} gallons ({fmtPct((capturable.gallons / totalGallons) * 100)})</span>{' '}
             {isCustomer
-              ? 'are going to other stations where a Circle K already exists nearby — a direct savings opportunity.'
-              : 'are going to competitors where a Circle K already exists in the same area.'}
+              ? `are going to other stations where a Circle K already exists ${isProximity ? 'within 10 miles' : 'nearby'} — a direct savings opportunity.`
+              : `are going to competitors where a Circle K already exists ${isProximity ? 'within 10 miles' : 'in the same area'}.`}
           </p>
         )}
       </div>

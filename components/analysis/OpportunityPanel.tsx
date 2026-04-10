@@ -8,8 +8,9 @@ export function OpportunityPanel({ analysis, totalGallons, truckMode = false }: 
   totalGallons: number
   truckMode?: boolean
 }) {
-  const { captured, capturable, gap, captureRate, potentialRate } = analysis
+  const { captured, capturable, gap, captureRate, potentialRate, methodology } = analysis
   const uplift = potentialRate - captureRate
+  const isProximity = methodology === 'proximity'
 
   return (
     <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
@@ -52,13 +53,20 @@ export function OpportunityPanel({ analysis, totalGallons, truckMode = false }: 
           </div>
         </div>
 
-        {/* ZIP-based methodology note */}
+        {/* Methodology note */}
         <div className="flex items-start gap-2 bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2 mb-5 text-xs text-zinc-500">
           <Info size={12} className="shrink-0 mt-0.5 text-zinc-400" />
-          <span>
-            <strong className="text-zinc-600">ZIP code matching</strong> — segments below are based on whether a{truckMode ? ' truck-accessible' : ''} Circle K exists in the same ZIP code as each transaction.
-            For distance-based proximity (within 1–10 mi), see the <strong className="text-zinc-600">Map View</strong> tab.
-          </span>
+          {isProximity ? (
+            <span>
+              <strong className="text-zinc-600">Proximity-based</strong> — competitor gallons are capturable when a{truckMode ? ' truck-accessible' : ''} Circle K is within 10 miles of the fueling location.
+              Distance-to-nearest-CK is calculated from geocoded coordinates.
+            </span>
+          ) : (
+            <span>
+              <strong className="text-zinc-600">ZIP code matching</strong> — segments below are based on whether a{truckMode ? ' truck-accessible' : ''} Circle K exists in the same ZIP code as each transaction.
+              Run with map view enabled for proximity-based analysis.
+            </span>
+          )}
         </div>
 
         {/* Progress bars */}
@@ -99,11 +107,13 @@ export function OpportunityPanel({ analysis, totalGallons, truckMode = false }: 
               <div className="flex items-center gap-2 mb-1">
                 <TrendingUp size={14} className="text-brand-orange shrink-0" />
                 <span className="text-xs font-semibold text-zinc-600">
-                  Competitor — CK in Same ZIP
+                  {isProximity ? 'Competitor — CK within 10 mi' : 'Competitor — CK in Same ZIP'}
                 </span>
               </div>
               <p className="text-[10px] text-zinc-400 mb-3 pl-5">
-                {truckMode ? 'Truck-accessible CK exists in the same ZIP code' : 'A Circle K exists in the same ZIP code'}
+                {isProximity
+                  ? `A${truckMode ? ' truck-accessible' : ''} Circle K is within 10 miles`
+                  : (truckMode ? 'Truck-accessible CK exists in the same ZIP code' : 'A Circle K exists in the same ZIP code')}
               </p>
               <p className="text-2xl font-bold text-zinc-900">{fmtGallons(capturable.gallons)}</p>
               <p className="text-xs text-zinc-500 mt-0.5">{capturable.transactions.toLocaleString()} transactions</p>
@@ -112,9 +122,15 @@ export function OpportunityPanel({ analysis, totalGallons, truckMode = false }: 
             <div className="bg-white px-5 py-4">
               <div className="flex items-center gap-2 mb-1">
                 <XCircle size={14} className="text-zinc-300 shrink-0" />
-                <span className="text-xs font-semibold text-zinc-500">No CK in Same ZIP Code</span>
+                <span className="text-xs font-semibold text-zinc-500">
+                  {isProximity ? 'No CK within 10 mi' : 'No CK in Same ZIP Code'}
+                </span>
               </div>
-              <p className="text-[10px] text-zinc-400 mb-3 pl-5">No {truckMode ? 'truck-accessible ' : ''}CK in the transaction ZIP code</p>
+              <p className="text-[10px] text-zinc-400 mb-3 pl-5">
+                {isProximity
+                  ? `No ${truckMode ? 'truck-accessible ' : ''}CK within 10 miles`
+                  : `No ${truckMode ? 'truck-accessible ' : ''}CK in the transaction ZIP code`}
+              </p>
               <p className="text-2xl font-bold text-zinc-900">{fmtGallons(gap.gallons)}</p>
               <p className="text-xs text-zinc-400 mt-0.5">{gap.transactions.toLocaleString()} transactions</p>
               {gap.spend > 0 && <p className="text-sm font-semibold text-zinc-600 mt-2">{fmtDollars(gap.spend)}</p>}
@@ -125,7 +141,9 @@ export function OpportunityPanel({ analysis, totalGallons, truckMode = false }: 
         {capturable.gallons > 0 && (
           <p className="mt-4 text-sm text-zinc-500">
             <span className="font-semibold text-zinc-800">{fmtGallons(capturable.gallons)} gallons ({fmtPct((capturable.gallons / totalGallons) * 100)})</span>{' '}
-            are going to competitors in ZIP codes where a {truckMode ? 'truck-accessible Circle K' : 'Circle K'} already exists.
+            {isProximity
+              ? `are going to competitors within 10 miles of a ${truckMode ? 'truck-accessible Circle K' : 'Circle K'}.`
+              : `are going to competitors in ZIP codes where a ${truckMode ? 'truck-accessible Circle K' : 'Circle K'} already exists.`}
           </p>
         )}
       </div>

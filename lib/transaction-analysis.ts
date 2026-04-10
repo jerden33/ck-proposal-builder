@@ -121,6 +121,8 @@ export interface CKCaptureAnalysis {
   gap:        { transactions: number; gallons: number; spend: number }
   captureRate: number
   potentialRate: number
+  /** How capturable/gap were computed — 'proximity' when geocoding was available, 'zip' otherwise */
+  methodology: 'zip' | 'proximity'
 }
 
 /** A single map point representing aggregated fueling in one city */
@@ -705,7 +707,27 @@ export function analyzeTransactions(
   )
 
   // Map points + proximity breakdown + CK opportunity locations (requires geocoding)
-  const { mapPoints, proximityBreakdown, proximityBreakdownAll, topCKOpportunityLocations } = buildMapData(transactions, geocodedCoords, ckStores, totalGallons, geocodedAddresses, ckStoresAll)
+  const { mapPoints, proximityBreakdown, proximityBreakdownAll, topCKOpportunityLocations, proxCapturable } = buildMapData(transactions, geocodedCoords, ckStores, totalGallons, geocodedAddresses, ckStoresAll)
+
+  // Use proximity-based capture when geocoding was done; fall back to ZIP-based otherwise
+  let ckCaptureAnalysis: CKCaptureAnalysis
+  if (proxCapturable !== null) {
+    const proxGap = {
+      gallons:      Math.max(0, totalGallons - captured.gallons - proxCapturable.gallons),
+      transactions: Math.max(0, totalTransactions - captured.transactions - proxCapturable.transactions),
+      spend:        Math.max(0, totalSpend - captured.spend - proxCapturable.spend),
+    }
+    ckCaptureAnalysis = {
+      captured,
+      capturable: proxCapturable,
+      gap: proxGap,
+      captureRate,
+      potentialRate: totalGallons > 0 ? ((captured.gallons + proxCapturable.gallons) / totalGallons) * 100 : 0,
+      methodology: 'proximity',
+    }
+  } else {
+    ckCaptureAnalysis = { captured, capturable, gap, captureRate, potentialRate, methodology: 'zip' }
+  }
 
   // Behavioural / timing
   const hasTimeData = transactions.some(t => !!t.transTime)
@@ -718,7 +740,7 @@ export function analyzeTransactions(
     totalTransactions, totalGallons, totalSpend, uniqueVehicles, uniqueStations, uniqueStates,
     dateRange, detectedFormat,
     brandBreakdown,
-    ckCaptureAnalysis: { captured, capturable, gap, captureRate, potentialRate },
+    ckCaptureAnalysis,
     stateBreakdown,
     topCompetitorLocations,
     fuelTypeBreakdown,
@@ -787,9 +809,9 @@ function buildMapData(
   totalGallons: number,
   geocodedAddresses?: Map<string, GeocodedCoord>,
   ckStoresAll?: CKStoreCoord[]
-): { mapPoints: MapPoint[]; proximityBreakdown: ProximityBreakdown | null; proximityBreakdownAll: ProximityBreakdown | null; topCKOpportunityLocations: CKOpportunityLocation[] } {
+): { mapPoints: MapPoint[]; proximityBreakdown: ProximityBreakdown | null; proximityBreakdownAll: ProximityBreakdown | null; topCKOpportunityLocations: CKOpportunityLocation[]; proxCapturable: { gallons: number; transactions: number; spend: number } | null } {
   if (!geocodedCoords || geocodedCoords.size === 0) {
-    return { mapPoints: [], proximityBreakdown: null, proximityBreakdownAll: null, topCKOpportunityLocations: [] }
+    return { mapPoints: [], proximityBreakdown: null, proximityBreakdownAll: null, topCKOpportunityLocations: [], proxCapturable: null }
   }
 
   // Aggregate transactions by individual fueling station (not city)
@@ -847,6 +869,8 @@ function buildMapData(
   const prox    = mkProxBuckets()
   const proxAll = mkProxBuckets()  // against all CK sites
   const ckOppMap = new Map<string, CKOpportunityLocation>()
+  // Combined proximity capture (for opportunity panel): non-CK gallons within 10 mi of appropriate CK
+  const proxCapt = { gallons: 0, transactions: 0, spend: 0 }
 
   for (const [, agg] of Array.from(stationMap)) {
     // Prefer address-level coords (precise) over city centroid
@@ -925,6 +949,40 @@ function buildMapData(
         entry.nearbyStationCount++
         ckOppMap.set(k, entry)
       }
+
+      // Proximity-based opportunity capture: classify non-CK gallons by distance to CK
+      // Diesel uses truck-accessible CK distance; gas uses full-network CK distance;
+      // unknown fuel type uses the best available distance.
+      const diesel = agg.nonCKDieselGallons
+      const gas    = agg.nonCKGasGallons
+      const other  = nonCKGallons - diesel - gas
+
+      if (diesel > 0) {
+        const r = diesel / Math.max(agg.gallons, 1)
+        if (dist >= 0 && dist < 10) {
+          proxCapt.gallons      += diesel
+          proxCapt.transactions += Math.round(agg.transactions * r)
+          proxCapt.spend        += agg.spend * r
+        }
+      }
+      if (gas > 0) {
+        const r = gas / Math.max(agg.gallons, 1)
+        if (distAll >= 0 && distAll < 10) {
+          proxCapt.gallons      += gas
+          proxCapt.transactions += Math.round(agg.transactions * r)
+          proxCapt.spend        += agg.spend * r
+        }
+      }
+      if (other > 0) {
+        // Unknown fuel type: use whichever distance is available (prefer smaller)
+        const bestDist = dist >= 0 ? (distAll >= 0 ? Math.min(dist, distAll) : dist) : distAll
+        const r = other / Math.max(agg.gallons, 1)
+        if (bestDist >= 0 && bestDist < 10) {
+          proxCapt.gallons      += other
+          proxCapt.transactions += Math.round(agg.transactions * r)
+          proxCapt.spend        += agg.spend * r
+        }
+      }
     }
   }
 
@@ -949,6 +1007,7 @@ function buildMapData(
     proximityBreakdown:    ckStores    ? toBreakdown(prox)    : null,
     proximityBreakdownAll: ckStoresAll ? toBreakdown(proxAll) : null,
     topCKOpportunityLocations,
+    proxCapturable: (ckStores?.length || ckStoresAll?.length) ? proxCapt : null,
   }
 }
 
@@ -965,6 +1024,7 @@ function createEmptySummary(): TransactionSummary {
       capturable: { transactions: 0, gallons: 0, spend: 0 },
       gap:        { transactions: 0, gallons: 0, spend: 0 },
       captureRate: 0, potentialRate: 0,
+      methodology: 'zip' as const,
     },
     stateBreakdown: [],
     topCompetitorLocations: [],
