@@ -35,17 +35,10 @@ export async function geocodeAddress(address: string): Promise<GeocodingResult |
     }
 
     const data = await response.json()
-    
-    console.log('Geocoding response:', data)
-    
+
     if (data.features && data.features.length > 0) {
       const feature = data.features[0]
-      
-      // Check if we got a reasonable match
       const relevance = feature.relevance || 0
-      
-      // Log the result for debugging
-      console.log('Found location:', feature.place_name, 'Relevance:', relevance)
       
       return {
         coordinates: {
@@ -56,7 +49,6 @@ export async function geocodeAddress(address: string): Promise<GeocodingResult |
       }
     }
     
-    console.log('No results found for address:', cleanAddress)
     return null
   } catch (error) {
     console.error('Geocoding error:', error)

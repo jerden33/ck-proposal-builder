@@ -1,5 +1,5 @@
 import { createClient } from './client'
-import type { UserProfile, ProposalRecord, ProductConfig, AppSetting } from '@/lib/types'
+import type { UserProfile, ProductConfig, AppSetting, AnalysisRecord, AnalysisShare } from '@/lib/types'
 import { nanoid } from 'nanoid'
 
 // User Queries
@@ -27,216 +27,6 @@ export async function getUserProfile(): Promise<UserProfile | null> {
   }
 
   return data
-}
-
-// Proposal Queries
-export async function getUserProposals(): Promise<ProposalRecord[]> {
-  const supabase = createClient()
-  const user = await getCurrentUser()
-
-  console.log('[getUserProposals] Current user:', user?.id, user?.email)
-
-  if (!user) {
-    console.log('[getUserProposals] No user found, returning empty array')
-    return []
-  }
-
-  // Check if user is super admin (only super admins can see all proposals)
-  const profile = await getUserProfile()
-  console.log('[getUserProposals] User profile:', {
-    id: profile?.id,
-    email: profile?.email,
-    is_admin: profile?.is_admin,
-    is_super_admin: profile?.is_super_admin
-  })
-
-  // Build query - fetch proposals WITHOUT join to avoid FK dependency
-  let query = supabase
-    .from('proposals')
-    .select('*')
-    .order('updated_at', { ascending: false })
-
-  // Only super admins can see all proposals, everyone else sees only their own
-  if (!profile?.is_super_admin) {
-    console.log('[getUserProposals] User is NOT super admin, filtering to own proposals only')
-    query = query.eq('user_id', user.id)
-  } else {
-    console.log('[getUserProposals] User IS super admin, fetching ALL proposals')
-  }
-
-  const { data: proposals, error } = await query
-
-  if (error) {
-    console.error('[getUserProposals] Error fetching proposals:', error)
-    return []
-  }
-
-  console.log('[getUserProposals] Found', proposals?.length || 0, 'proposals')
-
-  // If super admin and we have proposals, fetch user profiles separately
-  if (profile?.is_super_admin && proposals && proposals.length > 0) {
-    const userIds = Array.from(new Set(proposals.map(p => p.user_id)))
-
-    const { data: profilesData } = await supabase
-      .from('profiles')
-      .select('id, email, full_name')
-      .in('id', userIds)
-
-    // Create a map of profiles
-    const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || [])
-
-    // Attach profile data to each proposal
-    return proposals.map(proposal => ({
-      ...proposal,
-      profiles: profilesMap.get(proposal.user_id) || null
-    })) as ProposalRecord[]
-  }
-
-  return (proposals || []) as ProposalRecord[]
-}
-
-export async function getProposal(id: string): Promise<ProposalRecord | null> {
-  const supabase = createClient()
-
-  const { data, error } = await supabase
-    .from('proposals')
-    .select('*')
-    .eq('id', id)
-    .single()
-
-  if (error) {
-    console.error('Error fetching proposal:', error)
-    return null
-  }
-
-  return data
-}
-
-export async function createProposal(proposalData: ProposalRecord['data']): Promise<{ id: string; url: string } | null> {
-  const supabase = createClient()
-  const user = await getCurrentUser()
-
-  if (!user) {
-    throw new Error('User not authenticated')
-  }
-
-  const id = nanoid(10) // Generate short, URL-friendly ID
-  const customerName = proposalData.opportunityData.customerName || 'Untitled Proposal'
-
-  const { error } = await supabase
-    .from('proposals')
-    .insert({
-      id,
-      user_id: user.id,
-      customer_name: customerName,
-      status: 'draft',
-      data: proposalData
-    })
-
-  if (error) {
-    console.error('Error creating proposal:', error)
-    return null
-  }
-
-  return {
-    id,
-    url: `/proposal?id=${id}`
-  }
-}
-
-export async function updateProposal(id: string, proposalData: Partial<ProposalRecord>): Promise<boolean> {
-  const supabase = createClient()
-  const user = await getCurrentUser()
-
-  if (!user) return false
-
-  const { error } = await supabase
-    .from('proposals')
-    .update({
-      ...proposalData,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', id)
-    .eq('user_id', user.id)
-
-  if (error) {
-    console.error('Error updating proposal:', error)
-    return false
-  }
-
-  return true
-}
-
-export async function archiveProposal(id: string): Promise<boolean> {
-  return updateProposal(id, { status: 'archived' })
-}
-
-export async function deleteProposal(id: string): Promise<boolean> {
-  const supabase = createClient()
-  const user = await getCurrentUser()
-
-  if (!user) {
-    console.error('User not authenticated')
-    return false
-  }
-
-  // Check if user is admin
-  const profile = await getUserProfile()
-  if (!profile?.is_admin) {
-    console.error('User is not authorized to delete proposals')
-    return false
-  }
-
-  const { error } = await supabase
-    .from('proposals')
-    .delete()
-    .eq('id', id)
-
-  if (error) {
-    console.error('Error deleting proposal:', error)
-    return false
-  }
-
-  return true
-}
-
-export async function duplicateProposal(id: string): Promise<{ id: string; url: string } | null> {
-  const supabase = createClient()
-  const user = await getCurrentUser()
-
-  if (!user) return null
-
-  // Get the original proposal
-  const original = await getProposal(id)
-  if (!original) return null
-
-  // Create new proposal with copied data
-  const newId = nanoid(10)
-  const { error } = await supabase
-    .from('proposals')
-    .insert({
-      id: newId,
-      user_id: user.id,
-      customer_name: `${original.customer_name} (Copy)`,
-      status: 'draft',
-      data: original.data
-    })
-
-  if (error) {
-    console.error('Error duplicating proposal:', error)
-    return null
-  }
-
-  return {
-    id: newId,
-    url: `/proposal?id=${newId}`
-  }
-}
-
-export async function incrementProposalViews(id: string): Promise<void> {
-  const supabase = createClient()
-
-  await supabase.rpc('increment_proposal_views', { proposal_id: id })
 }
 
 // Product Config Queries
@@ -376,69 +166,45 @@ export async function getImageSettings(): Promise<import('@/lib/types').ImageSet
 }
 
 export async function updateProductImage(productId: string, imageUrl: string | null): Promise<boolean> {
-  console.log('[updateProductImage] START - productId:', productId, 'imageUrl:', imageUrl)
-
   const supabase = createClient()
   const user = await getCurrentUser()
 
-  console.log('[updateProductImage] Current user:', user?.id)
+  if (!user) return false
 
-  if (!user) {
-    console.error('[updateProductImage] FAIL - No user found')
-    return false
-  }
-
-  // Check if user is admin
   const profile = await getUserProfile()
-  console.log('[updateProductImage] User profile:', { id: profile?.id, email: profile?.email, is_admin: profile?.is_admin })
-
-  if (!profile?.is_admin) {
-    console.error('[updateProductImage] FAIL - User is not admin')
-    return false
-  }
-
-  console.log('[updateProductImage] Fetching current product_images from database...')
+  if (!profile?.is_admin) return false
 
   // Get current product_images setting
-  const { data: currentSetting, error: fetchError } = await supabase
+  const { data: currentSetting } = await supabase
     .from('app_settings')
     .select('value')
     .eq('key', 'product_images')
     .single()
 
-  console.log('[updateProductImage] Current setting:', currentSetting, 'Fetch error:', fetchError)
-
-  let productImages: any = { fleet: null, universal: null, digital: null }
+  let productImages: Record<string, string | null> = { fleet: null, universal: null, digital: null }
   if (currentSetting) {
     try {
       productImages = JSON.parse(currentSetting.value)
-      console.log('[updateProductImage] Parsed existing images:', productImages)
     } catch (e) {
       console.error('[updateProductImage] Failed to parse JSON:', e)
     }
   }
 
-  // Update the specific product
   productImages[productId] = imageUrl
-  console.log('[updateProductImage] Updated images object:', productImages)
-
-  const stringified = JSON.stringify(productImages)
-  console.log('[updateProductImage] Stringified for database:', stringified)
 
   const { error } = await supabase
     .from('app_settings')
     .update({
-      value: stringified,
+      value: JSON.stringify(productImages),
       updated_at: new Date().toISOString()
     })
     .eq('key', 'product_images')
 
   if (error) {
-    console.error('[updateProductImage] FAIL - Database update error:', error)
+    console.error('Error updating product image:', error)
     return false
   }
 
-  console.log('[updateProductImage] SUCCESS - Image URL saved to database!')
   return true
 }
 
@@ -468,5 +234,188 @@ export async function updateHeroImage(imageUrl: string | null): Promise<boolean>
     return false
   }
 
+  return true
+}
+
+// ─── Analysis Queries ──────────────────────────────────────────────────────────
+
+export async function createAnalysis(
+  accountName: string,
+  fileName: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  summary: Record<string, any>
+): Promise<{ id: string } | null> {
+  const supabase = createClient()
+  const user = await getCurrentUser()
+  if (!user) return null
+
+  const id = nanoid(10)
+
+  const { error } = await supabase
+    .from('analyses')
+    .insert({
+      id,
+      user_id: user.id,
+      account_name: accountName || '',
+      file_name: fileName,
+      detected_format: summary.detectedFormat ?? '',
+      total_transactions: summary.totalTransactions ?? 0,
+      total_gallons: summary.totalGallons ?? 0,
+      total_spend: summary.totalSpend ?? 0,
+      date_range_start: summary.dateRange?.start ?? null,
+      date_range_end: summary.dateRange?.end ?? null,
+      status: 'saved',
+      data: summary,
+    })
+
+  if (error) {
+    console.error('Error creating analysis:', error)
+    return null
+  }
+
+  return { id }
+}
+
+export async function getUserAnalyses(): Promise<AnalysisRecord[]> {
+  const supabase = createClient()
+  const user = await getCurrentUser()
+  if (!user) return []
+
+  const profile = await getUserProfile()
+
+  let query = supabase
+    .from('analyses')
+    .select('id, user_id, account_name, file_name, detected_format, total_transactions, total_gallons, total_spend, date_range_start, date_range_end, status, data, created_at, updated_at')
+    .order('updated_at', { ascending: false })
+
+  if (!profile?.is_super_admin) {
+    query = query.eq('user_id', user.id)
+  }
+
+  const { data, error } = await query
+  if (error) {
+    console.error('Error fetching analyses:', error)
+    return []
+  }
+
+  const analyses = (data || []) as AnalysisRecord[]
+
+  // Attach profile data for super admins
+  if (profile?.is_super_admin && analyses.length > 0) {
+    const userIds = Array.from(new Set(analyses.map(a => a.user_id)))
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, email, full_name')
+      .in('id', userIds)
+    const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || [])
+    return analyses.map(a => ({ ...a, profiles: profilesMap.get(a.user_id) || undefined }))
+  }
+
+  return analyses
+}
+
+export async function getAnalysis(id: string): Promise<AnalysisRecord | null> {
+  const supabase = createClient()
+
+  const { data, error } = await supabase
+    .from('analyses')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (error) {
+    console.error('Error fetching analysis:', error)
+    return null
+  }
+
+  return data as AnalysisRecord
+}
+
+export async function updateAnalysisAccountName(id: string, accountName: string): Promise<boolean> {
+  const supabase = createClient()
+  const user = await getCurrentUser()
+  if (!user) return false
+
+  const { error } = await supabase
+    .from('analyses')
+    .update({ account_name: accountName, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('user_id', user.id)
+
+  if (error) {
+    console.error('Error renaming analysis:', error)
+    return false
+  }
+  return true
+}
+
+export async function deleteAnalysis(id: string): Promise<boolean> {
+  const supabase = createClient()
+  const user = await getCurrentUser()
+  if (!user) return false
+
+  const { error } = await supabase
+    .from('analyses')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id)
+
+  if (error) {
+    console.error('Error deleting analysis:', error)
+    return false
+  }
+
+  return true
+}
+
+// ─── Analysis Share Queries ────────────────────────────────────────────────────
+
+export async function getAnalysisShares(analysisId: string): Promise<AnalysisShare[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('analysis_shares')
+    .select('*')
+    .eq('analysis_id', analysisId)
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    console.error('Error fetching analysis shares:', error)
+    return []
+  }
+  return data ?? []
+}
+
+export async function createAnalysisShare(
+  analysisId: string,
+  type: 'internal' | 'customer'
+): Promise<AnalysisShare | null> {
+  const supabase = createClient()
+  const user = await getCurrentUser()
+  if (!user) return null
+
+  const { data, error } = await supabase
+    .from('analysis_shares')
+    .insert({ analysis_id: analysisId, type, created_by: user.id })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error creating analysis share:', error)
+    return null
+  }
+  return data
+}
+
+export async function revokeAnalysisShare(token: string): Promise<boolean> {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('analysis_shares')
+    .delete()
+    .eq('token', token)
+
+  if (error) {
+    console.error('Error revoking analysis share:', error)
+    return false
+  }
   return true
 }

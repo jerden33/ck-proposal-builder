@@ -264,7 +264,7 @@ export default function AdminPage() {
               <div>
                 <h2 className="text-2xl font-bold text-off-black mb-2">Default Product Features</h2>
                 <p className="text-gray-600">
-                  Configure the default features that appear when users create new proposals
+                  Configure the default features for each Circle K fleet product
                 </p>
               </div>
 
@@ -356,7 +356,7 @@ export default function AdminPage() {
               <div>
                 <h2 className="text-2xl font-bold text-off-black mb-2">Image Library</h2>
                 <p className="text-gray-600">
-                  Upload and manage images used throughout proposals
+                  Upload and manage images used throughout the application
                 </p>
               </div>
             </div>
@@ -366,7 +366,7 @@ export default function AdminPage() {
               <div className="mb-6">
                 <h3 className="text-xl font-bold text-off-black mb-2">Product Card Images</h3>
                 <p className="text-sm text-gray-600">
-                  These images appear on product cards in proposals. Recommended size: 600×338px (16:9 ratio)
+                  Product card images. Recommended size: 600×338px (16:9 ratio)
                 </p>
               </div>
 
@@ -408,7 +408,7 @@ export default function AdminPage() {
               <div className="mb-6">
                 <h3 className="text-xl font-bold text-off-black mb-2">Hero Image</h3>
                 <p className="text-sm text-gray-600">
-                  Optional banner image displayed at the top of proposals. Recommended size: 1920×600px (16:5 ratio)
+                  Optional banner image. Recommended size: 1920×600px (16:5 ratio)
                 </p>
               </div>
 
@@ -416,7 +416,7 @@ export default function AdminPage() {
                 currentImageUrl={imageSettings.hero_image}
                 onImageChange={handleHeroImageChange}
                 folder="hero"
-                label="Proposal Hero Image"
+                label="Hero Image"
                 recommendedSize="1920×600px"
                 aspectRatio="16:5"
               />
