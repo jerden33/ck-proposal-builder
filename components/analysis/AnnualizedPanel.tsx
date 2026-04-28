@@ -33,24 +33,26 @@ export function AnnualizedPanel({
             : 'Dataset spans more than 13 months — projections are averaged over the full period. Recent trends may differ from the annualized view.'}
         </div>
       )}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className={`grid gap-4 ${summary.totalSpend > 0 ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-1 sm:grid-cols-3'}`}>
         <div className="bg-gray-50 rounded-xl p-4">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Total Gallons / Yr</p>
           <p className="text-2xl font-bold text-off-black">{fmtGallons(annual(summary.totalGallons))}</p>
           <p className="text-xs text-gray-400 mt-0.5">{fmtGallons(monthly(summary.totalGallons))} / mo</p>
         </div>
-        <div className="bg-gray-50 rounded-xl p-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Total Spend / Yr</p>
-          <p className="text-2xl font-bold text-off-black">{fmtDollars(annual(summary.totalSpend))}</p>
-          <p className="text-xs text-gray-400 mt-0.5">{fmtDollars(monthly(summary.totalSpend))} / mo</p>
-        </div>
+        {summary.totalSpend > 0 && (
+          <div className="bg-gray-50 rounded-xl p-4">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Total Spend / Yr</p>
+            <p className="text-2xl font-bold text-off-black">{fmtDollars(annual(summary.totalSpend))}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{fmtDollars(monthly(summary.totalSpend))} / mo</p>
+          </div>
+        )}
         <div className="bg-orange-50 rounded-xl p-4">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">CK Gallons / Yr</p>
           <p className="text-2xl font-bold text-brand-orange">{fmtGallons(annual(summary.ckCaptureAnalysis.captured.gallons))}</p>
           <p className="text-xs text-gray-400 mt-0.5">{fmtGallons(monthly(summary.ckCaptureAnalysis.captured.gallons))} / mo</p>
         </div>
         <div className="bg-green-50 rounded-xl p-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Opportunity / Yr</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Capturable / Yr</p>
           <p className="text-2xl font-bold text-green-600">{fmtGallons(annual(summary.ckCaptureAnalysis.capturable.gallons))}</p>
           <p className="text-xs text-gray-400 mt-0.5">{fmtGallons(monthly(summary.ckCaptureAnalysis.capturable.gallons))} / mo</p>
         </div>

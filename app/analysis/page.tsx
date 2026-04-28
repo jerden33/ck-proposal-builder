@@ -1180,18 +1180,16 @@ function AnalysisPageInner() {
               </div>
             )}
 
-            {/* Summary stats */}
+            {/* Summary stats — meta strip */}
             <div className="rounded-xl border border-zinc-200 overflow-hidden bg-zinc-100 shadow-sm">
               {useProxHeader ? (
-                // Proximity header — diesel split or single monthly opp
-                <div className={`grid grid-cols-2 gap-px stagger-stats ${proxTruckOpp !== null ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-2 lg:grid-cols-4'}`}>
-                  {/* Total Gallons */}
+                // Compact 4-stat strip when proximity data is available
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-px stagger-stats">
                   <div className="px-5 py-4 bg-white">
                     <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-zinc-400">Total Gallons</p>
                     <p className="text-2xl font-bold leading-none text-zinc-900">{fmtGallons(summary.totalGallons)}</p>
                     <p className="text-xs mt-1.5 text-zinc-400">{summary.totalTransactions.toLocaleString()} transactions</p>
                   </div>
-                  {/* Currently at CK */}
                   <div className="px-5 py-4 bg-white">
                     <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-zinc-400">Currently at CK</p>
                     <p className="text-2xl font-bold leading-none text-zinc-900">{fmtGallons(proxCKTotal)}</p>
@@ -1200,65 +1198,16 @@ function AnalysisPageInner() {
                       {isDieselFleet && <span className="ml-2 inline-flex items-center gap-1 bg-blue-50 text-blue-600 border border-blue-200 rounded px-1.5 py-0.5 text-[10px] font-semibold"><Truck size={9} />{fmtPct(dieselPct * 100)} diesel</span>}
                     </p>
                   </div>
-                  {/* Monthly Diesel Opp — shown when diesel proximity data exists */}
-                  {proxTruckOpp !== null ? (
-                    <div className="px-5 py-4 bg-accent border-t-2 border-t-brand-orange">
-                      <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-white/70">Monthly Diesel Opp.</p>
-                      <div className="space-y-1.5 mt-1">
-                        {[
-                          { dist: '≤1mi',  gal: dieselAt1mi  },
-                          { dist: '≤2mi',  gal: dieselAt2mi  },
-                          { dist: '≤5mi',  gal: dieselAt5mi  },
-                          { dist: '≤10mi', gal: dieselAt10mi },
-                        ].map(({ dist, gal }) => (
-                          <div key={dist} className="flex items-baseline justify-between gap-2">
-                            <span className="text-xs text-white/60 w-10 shrink-0">{dist}</span>
-                            <span className="text-sm font-bold text-white tabular-nums">{fmtGallons(gal)}<span className="text-xs font-normal text-white/50 ml-1">gal/mo</span></span>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-xs mt-1.5 text-white/60">{monthSpan !== 12 ? `from ${monthSpan.toFixed(1)} mo` : 'proximity-based'}</p>
-                    </div>
-                  ) : (
-                    // Fallback single monthly opp when no diesel data
-                    <div className="px-5 py-4 bg-accent border-t-2 border-t-brand-orange">
-                      <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-white/70">Monthly Opportunity</p>
-                      <div className="space-y-1.5 mt-1">
-                        {[
-                          { dist: '≤1mi',  gal: otrOppAt1mi  },
-                          { dist: '≤2mi',  gal: otrOppAt2mi  },
-                          { dist: '≤5mi',  gal: otrOppAt5mi  },
-                          { dist: '≤10mi', gal: otrOppAt10mi },
-                        ].map(({ dist, gal }) => (
-                          <div key={dist} className="flex items-baseline justify-between gap-2">
-                            <span className="text-xs text-white/60 w-10 shrink-0">{dist}</span>
-                            <span className="text-sm font-bold text-white tabular-nums">{fmtGallons(gal)}<span className="text-xs font-normal text-white/50 ml-1">gal/mo</span></span>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-xs mt-1.5 text-white/60">{monthSpan !== 12 ? `from ${monthSpan.toFixed(1)} mo` : 'proximity-based'}</p>
-                    </div>
-                  )}
-                  {/* Monthly Gas Opp — only shown when diesel split is active */}
-                  {proxTruckOpp !== null && proxAllOpp !== null && (
-                    <div className="px-5 py-4 bg-accent border-t-2 border-t-brand-orange">
-                      <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-white/70">Monthly Gas Opp.</p>
-                      <div className="space-y-1.5 mt-1">
-                        {[
-                          { dist: '≤1mi',  gal: gasAt1mi  },
-                          { dist: '≤2mi',  gal: gasAt2mi  },
-                          { dist: '≤5mi',  gal: gasAt5mi  },
-                          { dist: '≤10mi', gal: gasAt10mi },
-                        ].map(({ dist, gal }) => (
-                          <div key={dist} className="flex items-baseline justify-between gap-2">
-                            <span className="text-xs text-white/60 w-10 shrink-0">{dist}</span>
-                            <span className="text-sm font-bold text-white tabular-nums">{fmtGallons(gal)}<span className="text-xs font-normal text-white/50 ml-1">gal/mo</span></span>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-xs mt-1.5 text-white/60">{monthSpan !== 12 ? `from ${monthSpan.toFixed(1)} mo` : 'proximity-based'}</p>
-                    </div>
-                  )}
+                  <div className="px-5 py-4 bg-white">
+                    <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-zinc-400">Vehicles</p>
+                    <p className="text-2xl font-bold leading-none text-zinc-900">{summary.uniqueVehicles.toLocaleString()}</p>
+                    <p className="text-xs mt-1.5 text-zinc-400">{summary.uniqueStates.length} states · {summary.uniqueStations.toLocaleString()} stations</p>
+                  </div>
+                  <div className="px-5 py-4 bg-white">
+                    <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-zinc-400">Data Period</p>
+                    <p className="text-xl font-bold leading-none text-zinc-900">{monthSpan.toFixed(1)} months</p>
+                    <p className="text-xs mt-1.5 text-zinc-400">{summary.dateRange.start} – {summary.dateRange.end || summary.dateRange.start}</p>
+                  </div>
                 </div>
               ) : (
                 // No proximity data — show basic fleet stats
@@ -1266,7 +1215,7 @@ function AnalysisPageInner() {
                   {[
                     { label: 'Transactions',    value: summary.totalTransactions.toLocaleString(), sub: undefined },
                     { label: 'Total Gallons',   value: fmtGallons(summary.totalGallons),           sub: undefined },
-                    { label: 'Total Spend',     value: fmtDollars(summary.totalSpend),             sub: undefined },
+                    ...(summary.totalSpend > 0 ? [{ label: 'Total Spend', value: fmtDollars(summary.totalSpend), sub: undefined }] : []),
                     { label: 'Vehicles',        value: summary.uniqueVehicles.toLocaleString(),    sub: undefined },
                     { label: 'Unique Stations', value: summary.uniqueStations.toLocaleString(),    sub: undefined },
                     {
@@ -1285,6 +1234,50 @@ function AnalysisPageInner() {
               )}
             </div>
 
+            {/* Hero: Monthly Gallon Opportunity by Proximity */}
+            {hasProxTiers && !geocodingInProgress && (
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden fade-in">
+                <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-zinc-900 font-bold text-lg">Monthly Gallon Opportunity</h2>
+                    <p className="text-zinc-500 text-sm mt-0.5">
+                      Non-CK gallons by distance to nearest Circle K · averaged over {monthSpan.toFixed(1)} months
+                    </p>
+                  </div>
+                  <MapPin className="text-zinc-400 shrink-0" size={22} />
+                </div>
+                <div className={`p-6 grid gap-6 ${isDieselFleet && summary.proximityBreakdown ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+                  {isDieselFleet && summary.proximityBreakdown && (
+                    <DetailedProximityPanel
+                      prox={summary.proximityBreakdown}
+                      title="Diesel — Truck CK"
+                      subtitle="Non-CK diesel gallons vs. truck-accessible CK sites only"
+                      monthSpan={monthSpan}
+                    />
+                  )}
+                  {summary.proximityBreakdownAll && (
+                    <DetailedProximityPanel
+                      prox={summary.proximityBreakdownAll}
+                      title={isDieselFleet ? 'Gas — Full CK Network' : 'Circle K Proximity'}
+                      subtitle={isDieselFleet ? 'Non-CK gas gallons vs. all CK sites (incl. c-stores)' : 'Full CK network'}
+                      monthSpan={monthSpan}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Savings Calculator — follows the hero opportunity card */}
+            {featureFlags.savingsCalc && (
+              <div className="fade-in"><SavingsCalculatorPanel
+                captured={summary.ckCaptureAnalysis.captured}
+                capturable={summary.ckCaptureAnalysis.capturable}
+                months={monthSpan}
+                rebateRate={rebateRate}
+                onRebateChange={setRebateRate}
+              /></div>
+            )}
+
             {/* Annualized Projections (if enabled) */}
             {featureFlags.annualized && (
               <div className="fade-in"><AnnualizedPanel summary={summary} months={monthSpan} /></div>
@@ -1296,17 +1289,6 @@ function AnalysisPageInner() {
             {/* Top CK Opportunity Locations — standalone card */}
             {summary.topCKOpportunityLocations.length > 0 && (
               <TopCKLocationsCard locations={summary.topCKOpportunityLocations} />
-            )}
-
-            {/* Savings Calculator (if enabled) */}
-            {featureFlags.savingsCalc && (
-              <div className="fade-in"><SavingsCalculatorPanel
-                captured={summary.ckCaptureAnalysis.captured}
-                capturable={summary.ckCaptureAnalysis.capturable}
-                months={monthSpan}
-                rebateRate={rebateRate}
-                onRebateChange={setRebateRate}
-              /></div>
             )}
 
             {/* Tabbed detail sections — only shown if at least one tab is visible */}
@@ -1445,8 +1427,7 @@ function AnalysisPageInner() {
 
                   {/* ── Map Tab ──────────────────────────────────────────── */}
                   {activeTab === 'map' && featureFlags.mapView && (
-                    <div className="space-y-6">
-                      {/* Map first — legend is rendered inside FuelingMap */}
+                    <div className="space-y-4">
                       <FuelingMap
                         transactionPoints={summary.mapPoints}
                         ckStores={ckStorePins}
@@ -1454,49 +1435,11 @@ function AnalysisPageInner() {
                         geocodingInProgress={geocodingInProgress}
                         truckMode={isDieselFleet}
                       />
-
-                      {/* Proximity stats below the map */}
-                      {(summary.proximityBreakdownAll || summary.proximityBreakdown) && !geocodingInProgress ? (
-                        <>
-                          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                            <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between">
-                              <div>
-                                <h2 className="text-zinc-900 font-bold text-lg">Proximity Breakdown</h2>
-                                <p className="text-zinc-500 text-sm mt-0.5">
-                                  {isDieselFleet ? 'Distance bands to nearest Circle K by fuel type' : 'Distance bands to nearest Circle K'}
-                                </p>
-                              </div>
-                              <MapPin className="text-zinc-400 shrink-0" size={22} />
-                            </div>
-                            <div className={`p-6 grid gap-6 ${isDieselFleet && summary.proximityBreakdown ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
-                              {isDieselFleet && summary.proximityBreakdown && (
-                                <DetailedProximityPanel
-                                  prox={summary.proximityBreakdown}
-                                  title="Diesel — Truck CK"
-                                  subtitle="Non-CK diesel gallons vs. truck-accessible CK sites only"
-                                  monthSpan={monthSpan}
-                                />
-                              )}
-                              {summary.proximityBreakdownAll && (
-                                <DetailedProximityPanel
-                                  prox={summary.proximityBreakdownAll}
-                                  title={isDieselFleet ? 'Gas — Full CK Network' : 'Circle K'}
-                                  subtitle={isDieselFleet ? 'Non-CK gas gallons vs. all CK sites (incl. c-stores)' : 'Full CK network'}
-                                  monthSpan={monthSpan}
-                                />
-                              )}
-                            </div>
-                          </div>
-                        </>
-                      ) : geocodingInProgress ? (
+                      {geocodingInProgress && (
                         <div className="rounded-xl bg-accent-muted border border-accent/20 px-4 py-3 text-sm text-accent flex items-center gap-2">
                           <span className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin shrink-0" />
                           Geocoding locations for proximity analysis…
                           {geocodingProgress && ` (${geocodingProgress.done}/${geocodingProgress.total})`}
-                        </div>
-                      ) : (
-                        <div className="rounded-xl bg-gray-50 border border-gray-200 px-4 py-3 text-sm text-gray-500">
-                          Proximity analysis requires a Mapbox token configured in your environment.
                         </div>
                       )}
                     </div>

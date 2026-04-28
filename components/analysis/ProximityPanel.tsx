@@ -109,22 +109,21 @@ export function DetailedProximityPanel({
         <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-3 flex items-start gap-2">
           <CheckCircle size={12} className="text-emerald-600 shrink-0 mt-0.5" />
           <p className="text-xs text-emerald-800 leading-snug">
-            <strong>{monthSpan > 0 ? fmtGallons(w2 / monthSpan) : fmtGallons(w2)}</strong>
-            {monthSpan > 0 ? ' gal/mo' : ' gal'} within 2 mi
-            {monthSpan > 0 ? ` · ${fmtGallons(w2)} / yr` : ''}
-            {' '}— drove right past.
+            <strong>{fmtGallons(monthSpan > 0 ? w2 / monthSpan : w2)} gal/mo</strong> within 2 mi — drove right past a Circle K.
           </p>
         </div>
       )}
       <div className="space-y-2">
         {rows.map(({ label, gallons, color, text, note }) => {
           const pct = (gallons / tot) * 100
+          const monthly = monthSpan > 0 ? gallons / monthSpan : gallons
           return (
             <div key={label}>
               <div className="flex items-center justify-between mb-0.5">
                 <span className="text-xs text-gray-700">{label}</span>
                 <span className={`text-xs font-semibold ${text}`}>
-                  {fmtGallons(gallons)} <span className="text-gray-400 font-normal">({fmtPct(pct)})</span>
+                  {fmtGallons(monthly)}<span className="text-gray-400 font-normal text-[11px]">/mo</span>
+                  <span className="text-gray-400 font-normal"> ({fmtPct(pct)})</span>
                 </span>
               </div>
               <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
