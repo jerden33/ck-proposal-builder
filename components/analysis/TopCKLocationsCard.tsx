@@ -64,8 +64,9 @@ export function TopCKLocationsCard({ locations }: { locations: CKOpportunityLoca
                   <span className="group relative cursor-default">
                     <Info size={11} className="text-gray-300 hover:text-gray-500 transition-colors" />
                     <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-64 text-xs font-normal normal-case tracking-normal bg-gray-800 text-white rounded-lg px-3 py-2 opacity-0 group-hover:opacity-100 pointer-events-none z-30 shadow-lg leading-relaxed">
-                      <strong>Diesel</strong> / <strong>Gas</strong> — competitor gallons at this CK are ≥25% that type.<br />
-                      <strong>Both</strong> — ≥25% diesel AND ≥25% gas from competitors.<br />
+                      <strong>Diesel</strong> / <strong>Gas</strong> — ≥25% of competitor gallons are that type.<br />
+                      <strong>Both</strong> — ≥25% diesel AND ≥25% gas.<br />
+                      <strong>Mixed</strong> — neither type reaches 25% (split or unclassified).<br />
                       C-stores only show <strong>Gas</strong> (not truck-accessible).
                     </span>
                   </span>
@@ -109,14 +110,17 @@ export function TopCKLocationsCard({ locations }: { locations: CKOpportunityLoca
                 const dieselShare = loc.dieselGallons / total
                 const gasShare    = loc.gasGallons    / total
                 if (dieselShare >= 0.25 && gasShare >= 0.25) fuelLabel = 'Both'
-                else if (loc.dieselGallons > loc.gasGallons) fuelLabel = loc.dieselGallons > 0 ? 'Diesel' : null
-                else fuelLabel = loc.gasGallons > 0 ? 'Gas' : null
+                else if (dieselShare >= 0.25) fuelLabel = 'Diesel'
+                else if (gasShare >= 0.25) fuelLabel = 'Gas'
+                else if (loc.dieselGallons > 0 || loc.gasGallons > 0) fuelLabel = 'Mixed'
               }
               const fuelColor = fuelLabel === 'Both'
                 ? 'bg-purple-50 text-purple-700 border-purple-200'
                 : fuelLabel === 'Diesel'
                   ? 'bg-blue-50 text-blue-700 border-blue-200'
-                  : 'bg-green-50 text-green-700 border-green-200'
+                  : fuelLabel === 'Mixed'
+                    ? 'bg-zinc-100 text-zinc-500 border-zinc-200'
+                    : 'bg-green-50 text-green-700 border-green-200'
               return (
                 <tr key={i} className="hover:bg-gray-50">
                   <td className="py-3 pl-5 pr-3">

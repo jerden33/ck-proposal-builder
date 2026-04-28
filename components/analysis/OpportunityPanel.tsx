@@ -25,7 +25,7 @@ export function OpportunityPanel({ analysis, totalGallons, truckMode = false }: 
         </div>
         <p className="text-zinc-500 text-sm mt-0.5">
           {truckMode
-            ? 'Opportunity scoped to truck-accessible CK locations only (451 sites with truck lanes)'
+            ? 'Opportunity scoped to truck-accessible Circle K locations only'
             : "Where your fleet's gallons go — and what Circle K can capture"}
         </p>
       </div>
@@ -77,7 +77,7 @@ export function OpportunityPanel({ analysis, totalGallons, truckMode = false }: 
               <span className="font-semibold text-zinc-600">{fmtPct(captureRate)}</span>
             </div>
             <div className="h-3 bg-zinc-100 rounded-full overflow-hidden">
-              <div className="h-3 bg-accent rounded-full bar-grow" style={{ width: `${Math.max(captureRate, 0.5)}%` }} />
+              <div className="h-3 bg-accent rounded-full bar-grow" style={{ width: `${captureRate > 0 ? Math.max(captureRate, 0.5) : 0}%` }} />
             </div>
           </div>
           <div>
@@ -86,7 +86,7 @@ export function OpportunityPanel({ analysis, totalGallons, truckMode = false }: 
               <span className="font-semibold text-green-600">{fmtPct(potentialRate)}</span>
             </div>
             <div className="h-3 bg-zinc-100 rounded-full overflow-hidden">
-              <div className="h-3 bg-green-500 rounded-full bar-grow" style={{ width: `${Math.max(potentialRate, 0.5)}%` }} />
+              <div className="h-3 bg-green-500 rounded-full bar-grow" style={{ width: `${potentialRate > 0 ? Math.max(potentialRate, 0.5) : 0}%` }} />
             </div>
           </div>
         </div>

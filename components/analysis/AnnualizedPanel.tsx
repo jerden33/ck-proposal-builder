@@ -13,7 +13,7 @@ export function AnnualizedPanel({
   const monthly = (n: number) => (months > 0 ? n / months : 0)
   const annual  = (n: number) => monthly(n) * 12
 
-  const isPartialMonth = months < 1
+  const isShortDataset = months < 2
   const isLongDataset  = months > 13
 
   return (
@@ -25,11 +25,11 @@ export function AnnualizedPanel({
           {months.toFixed(1)} mo of data → extrapolated to 12 mo
         </span>
       </div>
-      {(isPartialMonth || isLongDataset) && (
+      {(isShortDataset || isLongDataset) && (
         <div className="flex items-start gap-2 rounded-lg bg-yellow-50 border border-yellow-200 px-3 py-2.5 mb-4 text-xs text-yellow-800">
           <AlertTriangle size={13} className="text-yellow-500 shrink-0 mt-0.5" />
-          {isPartialMonth
-            ? 'Dataset is less than 1 month — annualized figures may be unreliable. Upload a longer date range for accurate projections.'
+          {isShortDataset
+            ? `Dataset is only ${months.toFixed(1)} months — annualized figures are extrapolated ${(12 / Math.max(months, 0.1)).toFixed(0)}× and may be unreliable. Upload at least 2 months of data for accurate projections.`
             : 'Dataset spans more than 13 months — projections are averaged over the full period. Recent trends may differ from the annualized view.'}
         </div>
       )}

@@ -31,7 +31,7 @@ export function FraudFlagsTab({ flags }: { flags: FraudFlag[] }) {
         </p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {([
-            { label: 'High Gallons',   count: flags.filter(f => f.type === 'high-gallons').length, color: 'text-red-600',    bg: 'bg-red-50 border-red-200',       desc: 'Single fill > 200 gal' },
+            { label: 'High Gallons',   count: flags.filter(f => f.type === 'high-gallons').length, color: 'text-red-600',    bg: 'bg-red-50 border-red-200',       desc: '200–299 gal = medium · 300+ gal = high' },
             { label: 'Multi-Fill Day', count: flags.filter(f => f.type === 'multi-fill').length,   color: 'text-orange-600', bg: 'bg-orange-50 border-orange-200', desc: '3+ fills same vehicle/day' },
             { label: 'PPG Outlier',    count: flags.filter(f => f.type === 'ppg-outlier').length,  color: 'text-yellow-700', bg: 'bg-yellow-50 border-yellow-200', desc: 'Price > 2.5× fleet median' },
             { label: 'State Hop',      count: flags.filter(f => f.type === 'state-hop').length,    color: 'text-red-600',    bg: 'bg-red-50 border-red-200',       desc: '2+ states same vehicle/day' },
@@ -57,7 +57,7 @@ export function FraudFlagsTab({ flags }: { flags: FraudFlag[] }) {
         </div>
         <div className="flex items-center gap-1.5">
           <span className="inline-block px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 font-bold text-xs">MEDIUM</span>
-          <span>200–299 gal fill · 3 same-day fills · PPG outlier (&gt;2.5× median)</span>
+          <span>200–299 gal fill · 3 same-day fills · PPG outlier ({'>'}2.5× median)</span>
         </div>
       </div>
 

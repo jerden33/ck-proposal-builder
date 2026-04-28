@@ -142,7 +142,7 @@ export function VehiclesTab({
                   )}
                   <td className="py-2 px-4 text-right text-gray-600">{row.transactions}</td>
                   <td className="py-2 px-4 text-right font-medium">{fmtGallons(row.gallons)}</td>
-                  <td className="py-2 px-4 text-right text-gray-600">{fmtDollars(row.spend)}</td>
+                  <td className="py-2 px-4 text-right text-gray-600">{row.spend > 0 ? fmtDollars(row.spend) : <span className="text-gray-300">—</span>}</td>
                   <td className="py-2 px-4 text-right text-brand-orange font-medium">{fmtGallons(row.ckGallons)}</td>
                   <td className="py-2 pl-4 text-right">
                     <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${

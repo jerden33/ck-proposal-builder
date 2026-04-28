@@ -66,11 +66,17 @@ export function BehavioralInsightsTab({ summary }: { summary: TransactionSummary
               How your fleet&apos;s {totalEntities} {entityLabel} break down by Circle K capture rate
             </p>
           </div>
-          <ViewToggle
-            mode={mode} setMode={setMode}
-            hasDriver={summary.hasDriverData}
-            hasVehicle={summary.vehicleBreakdown.length > 0}
-          />
+          {summary.hasDriverData ? (
+            <ViewToggle
+              mode={mode} setMode={setMode}
+              hasDriver={summary.hasDriverData}
+              hasVehicle={summary.vehicleBreakdown.length > 0}
+            />
+          ) : (
+            <span className="text-xs text-zinc-400 bg-zinc-50 border border-zinc-200 rounded-lg px-2.5 py-1.5">
+              No driver data in file — showing by vehicle
+            </span>
+          )}
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {segments.map(seg => {

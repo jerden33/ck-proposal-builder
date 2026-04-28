@@ -272,25 +272,22 @@ function FeatureToggleBar({
 
   return (
     <div className="relative">
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Settings2 size={14} className="text-gray-400 shrink-0" />
-          <span className="text-sm font-semibold text-gray-700">Customize View</span>
-          <div className="flex flex-wrap gap-1.5">
-            {FEATURE_DEFS.filter(d => flags[d.key]).map(def => (
-              <span key={def.key} className="text-xs bg-zinc-100 text-zinc-600 rounded-full px-2.5 py-0.5 font-medium">
-                {def.label}
-              </span>
-            ))}
-          </div>
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-2.5 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Settings2 size={13} className="text-gray-400 shrink-0" />
+          <span className="text-xs font-medium text-gray-500">
+            {FEATURE_DEFS.filter(d => !flags[d.key]).length > 0
+              ? `${FEATURE_DEFS.filter(d => !flags[d.key]).length} section${FEATURE_DEFS.filter(d => !flags[d.key]).length > 1 ? 's' : ''} hidden`
+              : 'All sections visible'}
+          </span>
         </div>
         <button
           onClick={() => setOpen(v => !v)}
           aria-expanded={open}
           aria-label="Customize visible sections"
-          className="ml-3 shrink-0 text-xs text-zinc-500 hover:text-zinc-800 flex items-center gap-1 font-medium transition-colors border border-zinc-200 rounded-lg px-2.5 py-1.5 hover:border-zinc-300"
+          className="text-xs text-zinc-500 hover:text-zinc-800 flex items-center gap-1 font-medium transition-colors border border-zinc-200 rounded-lg px-2.5 py-1.5 hover:border-zinc-300"
         >
-          {open ? <><ChevronUp size={13} />Done</> : <><Settings2 size={13} />Edit</>}
+          {open ? <><ChevronUp size={13} />Done</> : <><Settings2 size={13} />Customize view</>}
         </button>
       </div>
 
@@ -1242,6 +1239,13 @@ function AnalysisPageInner() {
                     <h2 className="text-zinc-900 font-bold text-lg">Monthly Gallon Opportunity</h2>
                     <p className="text-zinc-500 text-sm mt-0.5">
                       Non-CK gallons by distance to nearest Circle K · averaged over {monthSpan.toFixed(1)} months
+                      {(() => {
+                        const geocodedPct = summary.proximityBreakdownAll?.geocodedPct ?? summary.proximityBreakdown?.geocodedPct ?? null
+                        if (geocodedPct !== null && geocodedPct < 99) {
+                          return <span className="ml-2 text-amber-600 text-xs font-medium">· based on {fmtPct(geocodedPct)} of gallons geocoded</span>
+                        }
+                        return null
+                      })()}
                     </p>
                   </div>
                   <MapPin className="text-zinc-400 shrink-0" size={22} />
@@ -1357,7 +1361,7 @@ function AnalysisPageInner() {
                                 <td className="py-2.5 pr-4 font-semibold text-off-black">{row.state}</td>
                                 <td className="py-2.5 px-4 text-right text-gray-600">{row.transactions.toLocaleString()}</td>
                                 <td className="py-2.5 px-4 text-right font-medium">{fmtGallons(row.gallons)}</td>
-                                <td className="py-2.5 px-4 text-right text-gray-600">{fmtDollars(row.spend)}</td>
+                                <td className="py-2.5 px-4 text-right text-gray-600">{row.spend > 0 ? fmtDollars(row.spend) : <span className="text-gray-300">—</span>}</td>
                                 <td className="py-2.5 px-4 text-right text-accent font-medium">{fmtGallons(row.ckGallons)}</td>
                                 <td className="py-2.5 px-4 text-right text-green-600 font-medium">
                                   {row.capturableGallons > 0 ? fmtGallons(row.capturableGallons) : <span className="text-gray-300">—</span>}
@@ -1399,7 +1403,7 @@ function AnalysisPageInner() {
                                 <td className="py-2.5 px-4 text-gray-500 text-xs whitespace-nowrap">{loc.city}, {loc.state} {loc.zipCode}</td>
                                 <td className="py-2.5 px-4 text-right text-gray-600">{loc.transactions}</td>
                                 <td className="py-2.5 px-4 text-right font-medium">{fmtGallons(loc.gallons)}</td>
-                                <td className="py-2.5 px-4 text-right text-gray-600">{fmtDollars(loc.spend)}</td>
+                                <td className="py-2.5 px-4 text-right text-gray-600">{loc.spend > 0 ? fmtDollars(loc.spend) : <span className="text-gray-300">—</span>}</td>
                                 <td className="py-2.5 px-4 text-right text-xs text-gray-500">
                                   {loc.nearestCKDistanceMi >= 0 ? fmtMiles(loc.nearestCKDistanceMi) : '—'}
                                 </td>
