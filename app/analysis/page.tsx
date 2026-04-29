@@ -447,6 +447,9 @@ function AnalysisPageInner() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [showShareModal, setShowShareModal] = useState(false)
+  const [manualMonthSpan, setManualMonthSpan] = useState<number | null>(null)
+  const [editingPeriod, setEditingPeriod] = useState(false)
+  const [periodInputVal, setPeriodInputVal] = useState('')
   const [summaryCopied, setSummaryCopied] = useState(false)
   const [rebateRate, setRebateRate] = useState(3)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -813,6 +816,8 @@ function AnalysisPageInner() {
     setFeatureFlags(DEFAULT_FEATURES)
     setSavedAnalysisId(null)
     setSaveError(null)
+    setManualMonthSpan(null)
+    setEditingPeriod(false)
     try { localStorage.removeItem('ck-analysis-v1') } catch { /* ignore */ }
     if (fileInputRef.current) fileInputRef.current.value = ''
     window.history.replaceState(null, '', '/analysis')
@@ -821,8 +826,11 @@ function AnalysisPageInner() {
   // Tabs filtered to only those whose feature is enabled
   const visibleTabs = ALL_TABS.filter(t => featureFlags[TAB_FEATURE_MAP[t.id]])
 
-  // Months spanned by data (used by Savings Calc and Annualized panels)
-  const monthSpan = summary ? computeMonthSpan(summary.dateRange) : 1
+  // Months spanned by data (used by Savings Calc and Annualized panels).
+  // manualMonthSpan overrides the date-detected value — used when transaction
+  // dates are missing or placeholder (e.g. full-year data loaded as 1 month).
+  const detectedMonthSpan = summary ? computeMonthSpan(summary.dateRange) : 1
+  const monthSpan = manualMonthSpan ?? detectedMonthSpan
 
   // OTR / diesel detection — for banner and tab indicator.
   // After normalizeFuelType() runs at parse time, values are canonical ("DIESEL",
@@ -988,6 +996,48 @@ function AnalysisPageInner() {
                 placeholder="e.g. Heartland Logistics"
                 className="w-full border border-zinc-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
               />
+            </div>
+
+            {/* Data period override */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                Data Period <span className="text-gray-400 font-normal text-xs">— optional</span>
+              </label>
+              <p className="text-xs text-gray-400 mb-2">
+                Set this if your file has no dates or placeholder dates. Controls all monthly and annual figures.
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                {([null, 1, 3, 6, 12] as (number | null)[]).map(mo => (
+                  <button
+                    key={mo ?? 'auto'}
+                    type="button"
+                    onClick={() => setManualMonthSpan(mo)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                      manualMonthSpan === mo
+                        ? 'bg-accent text-white border-accent'
+                        : 'bg-white text-gray-600 border-zinc-200 hover:border-zinc-400'
+                    }`}
+                  >
+                    {mo === null ? 'Auto-detect' : mo === 1 ? '1 month' : `${mo} months`}
+                  </button>
+                ))}
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    min={1}
+                    max={60}
+                    placeholder="Other"
+                    value={manualMonthSpan !== null && ![1, 3, 6, 12].includes(manualMonthSpan) ? manualMonthSpan : ''}
+                    onChange={e => {
+                      const v = parseFloat(e.target.value)
+                      if (v > 0) setManualMonthSpan(v)
+                      else if (e.target.value === '') setManualMonthSpan(null)
+                    }}
+                    className="w-20 border border-zinc-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
+                  />
+                  <span className="text-xs text-gray-400">mo</span>
+                </div>
+              </div>
             </div>
 
             {/* Drop zone */}
@@ -1202,8 +1252,69 @@ function AnalysisPageInner() {
                   </div>
                   <div className="px-5 py-4 bg-white">
                     <p className="text-xs font-medium uppercase tracking-wider mb-1.5 text-zinc-400">Data Period</p>
-                    <p className="text-xl font-bold leading-none text-zinc-900">{monthSpan.toFixed(1)} months</p>
-                    <p className="text-xs mt-1.5 text-zinc-400">{summary.dateRange.start} – {summary.dateRange.end || summary.dateRange.start}</p>
+                    {editingPeriod ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            min={0.5}
+                            max={60}
+                            step={0.5}
+                            value={periodInputVal}
+                            onChange={e => setPeriodInputVal(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                const v = parseFloat(periodInputVal)
+                                if (v > 0) setManualMonthSpan(v)
+                                setEditingPeriod(false)
+                              }
+                              if (e.key === 'Escape') setEditingPeriod(false)
+                            }}
+                            autoFocus
+                            className="w-14 border border-accent rounded px-2 py-1 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-accent/30"
+                          />
+                          <span className="text-xs text-zinc-400">months</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              const v = parseFloat(periodInputVal)
+                              if (v > 0) setManualMonthSpan(v)
+                              setEditingPeriod(false)
+                            }}
+                            className="text-xs bg-accent text-white rounded px-2 py-0.5 font-semibold"
+                          >Set</button>
+                          {manualMonthSpan !== null && (
+                            <button
+                              onClick={() => { setManualMonthSpan(null); setEditingPeriod(false) }}
+                              className="text-xs text-zinc-400 hover:text-zinc-700 underline"
+                            >Auto-detect</button>
+                          )}
+                          <button
+                            onClick={() => setEditingPeriod(false)}
+                            className="text-xs text-zinc-300 hover:text-zinc-500"
+                          >Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { setPeriodInputVal(monthSpan.toFixed(1)); setEditingPeriod(true) }}
+                        className="group text-left w-full"
+                      >
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-xl font-bold leading-none text-zinc-900">{monthSpan.toFixed(1)} months</span>
+                          {manualMonthSpan !== null && (
+                            <span className="text-[10px] font-semibold text-accent bg-accent/10 rounded px-1 py-0.5 leading-none">override</span>
+                          )}
+                          <span className="text-[10px] text-zinc-300 group-hover:text-zinc-400 transition-colors leading-none">edit</span>
+                        </div>
+                        <p className="text-xs mt-1.5 text-zinc-400">
+                          {manualMonthSpan !== null
+                            ? `dates ignored · set to ${manualMonthSpan} mo`
+                            : `${summary.dateRange.start} – ${summary.dateRange.end || summary.dateRange.start}`}
+                        </p>
+                      </button>
+                    )}
                   </div>
                 </div>
               ) : (
