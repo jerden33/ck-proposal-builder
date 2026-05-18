@@ -340,12 +340,12 @@ function buildDayOfWeekBreakdown(transactions: FuelingTransaction[]): DayOfWeekB
   return buckets
 }
 
-function buildVehicleSegments(vehicleBreakdown: VehicleSummary[]): VehicleSegment[] {
+function buildVehicleSegments(vehicleBreakdown: VehicleSummary[], loyalT = 70, mixedT = 20): VehicleSegment[] {
   const defs: { segment: VehicleSegment['segment']; label: string; description: string; color: string; test: (v: VehicleSummary) => boolean }[] = [
-    { segment: 'ck-loyal',          label: 'CK Loyal',         description: '≥ 70% of gallons at Circle K',       color: '#16a34a', test: v => v.ckSharePct >= 70 },
-    { segment: 'mixed',             label: 'Mixed',             description: '20–69% at Circle K',                 color: '#3b82f6', test: v => v.ckSharePct >= 20 && v.ckSharePct < 70 },
-    { segment: 'mostly-competitor', label: 'Mostly Competitor', description: '1–19% at Circle K',                  color: '#f59e0b', test: v => v.ckSharePct > 0  && v.ckSharePct < 20 },
-    { segment: 'never-ck',          label: 'Never CK',          description: '0% at Circle K',                     color: '#dc2626', test: v => v.ckSharePct === 0 },
+    { segment: 'ck-loyal',          label: 'CK Loyal',         description: `≥ ${loyalT}% of gallons at Circle K`,              color: '#16a34a', test: v => v.ckSharePct >= loyalT },
+    { segment: 'mixed',             label: 'Mixed',             description: `${mixedT}–${loyalT - 1}% at Circle K`,             color: '#3b82f6', test: v => v.ckSharePct >= mixedT && v.ckSharePct < loyalT },
+    { segment: 'mostly-competitor', label: 'Mostly Competitor', description: `1–${mixedT - 1}% at Circle K`,                     color: '#f59e0b', test: v => v.ckSharePct > 0  && v.ckSharePct < mixedT },
+    { segment: 'never-ck',          label: 'Never CK',          description: '0% at Circle K',                                   color: '#dc2626', test: v => v.ckSharePct === 0 },
   ]
   return defs.map(def => {
     const matched = vehicleBreakdown.filter(def.test)
@@ -465,11 +465,17 @@ export function analyzeTransactions(
     geocodedAddresses?: Map<string, GeocodedCoord> // key: addrGeoKey(addr, city, state)
     ckStores?: CKStoreCoord[]
     ckStoresAll?: CKStoreCoord[]  // all CK sites (c-stores + truck), for mixed-fleet proximity
+    captureRadiusMi?: number      // miles threshold for "capturable" gallons (default 10)
+    loyalThreshold?: number       // min CK share % for "CK Loyal" segment (default 70)
+    mixedThreshold?: number       // min CK share % for "Mixed" segment (default 20)
   }
 ): TransactionSummary {
   if (transactions.length === 0) return createEmptySummary()
 
   const { detectedFormat = 'Unknown', geocodedCoords, geocodedAddresses, ckStores, ckStoresAll } = options ?? {}
+  const captureRadiusMi = options?.captureRadiusMi ?? 10
+  const loyalThreshold  = options?.loyalThreshold  ?? 70
+  const mixedThreshold  = options?.mixedThreshold  ?? 20
 
   const totalTransactions = transactions.length
   const totalGallons = transactions.reduce((s, t) => s + t.gallons, 0)
@@ -703,11 +709,12 @@ export function analyzeTransactions(
 
   // Reuse segment logic for drivers (unitNumbers field holds driver names in driverSegments)
   const driverSegments = buildVehicleSegments(
-    driverBreakdown.map(d => ({ ...d, unitNumber: d.driverName }))
+    driverBreakdown.map(d => ({ ...d, unitNumber: d.driverName })),
+    loyalThreshold, mixedThreshold
   )
 
   // Map points + proximity breakdown + CK opportunity locations (requires geocoding)
-  const { mapPoints, proximityBreakdown, proximityBreakdownAll, topCKOpportunityLocations, proxCapturable } = buildMapData(transactions, geocodedCoords, ckStores, totalGallons, geocodedAddresses, ckStoresAll)
+  const { mapPoints, proximityBreakdown, proximityBreakdownAll, topCKOpportunityLocations, proxCapturable } = buildMapData(transactions, geocodedCoords, ckStores, totalGallons, geocodedAddresses, ckStoresAll, captureRadiusMi)
 
   // Use proximity-based capture when geocoding was done; fall back to ZIP-based otherwise
   let ckCaptureAnalysis: CKCaptureAnalysis
@@ -733,7 +740,7 @@ export function analyzeTransactions(
   const hasTimeData = transactions.some(t => !!t.transTime)
   const hourlyBreakdown = buildHourlyBreakdown(transactions)
   const dayOfWeekBreakdown = buildDayOfWeekBreakdown(transactions)
-  const vehicleSegments = buildVehicleSegments(vehicleBreakdown)
+  const vehicleSegments = buildVehicleSegments(vehicleBreakdown, loyalThreshold, mixedThreshold)
   const fraudFlags = detectFraudFlags(transactions)
 
   return {
@@ -808,7 +815,8 @@ function buildMapData(
   ckStores: CKStoreCoord[] | undefined,
   totalGallons: number,
   geocodedAddresses?: Map<string, GeocodedCoord>,
-  ckStoresAll?: CKStoreCoord[]
+  ckStoresAll?: CKStoreCoord[],
+  captureRadiusMi = 10
 ): { mapPoints: MapPoint[]; proximityBreakdown: ProximityBreakdown | null; proximityBreakdownAll: ProximityBreakdown | null; topCKOpportunityLocations: CKOpportunityLocation[]; proxCapturable: { gallons: number; transactions: number; spend: number } | null } {
   if (!geocodedCoords || geocodedCoords.size === 0) {
     return { mapPoints: [], proximityBreakdown: null, proximityBreakdownAll: null, topCKOpportunityLocations: [], proxCapturable: null }
@@ -938,8 +946,8 @@ function buildMapData(
     const nonCKSpend = agg.spend * (nonCKGallons / Math.max(agg.gallons, 1))
 
     if (!allCK) {
-      // Attribute competitor gallons (any fuel type) to the nearest truck CK within 5 mi
-      if (ckNearest && ckNearest.distanceMi <= 5) {
+      // Attribute competitor gallons to the nearest truck CK within the capture radius
+      if (ckNearest && ckNearest.distanceMi <= captureRadiusMi) {
         const k = `${ckNearest.store.lat.toFixed(6)},${ckNearest.store.lng.toFixed(6)}`
         const entry = ckOppMap.get(k) ?? {
           ckName: ckNearest.store.name ?? 'Circle K',
@@ -970,7 +978,7 @@ function buildMapData(
 
       if (diesel > 0) {
         const r = diesel / Math.max(agg.gallons, 1)
-        if (dist >= 0 && dist < 10) {
+        if (dist >= 0 && dist < captureRadiusMi) {
           proxCapt.gallons      += diesel
           proxCapt.transactions += Math.round(agg.transactions * r)
           proxCapt.spend        += agg.spend * r
@@ -978,7 +986,7 @@ function buildMapData(
       }
       if (gas > 0) {
         const r = gas / Math.max(agg.gallons, 1)
-        if (distAll >= 0 && distAll < 10) {
+        if (distAll >= 0 && distAll < captureRadiusMi) {
           proxCapt.gallons      += gas
           proxCapt.transactions += Math.round(agg.transactions * r)
           proxCapt.spend        += agg.spend * r
@@ -988,7 +996,7 @@ function buildMapData(
         // Unknown fuel type: use whichever distance is available (prefer smaller)
         const bestDist = dist >= 0 ? (distAll >= 0 ? Math.min(dist, distAll) : dist) : distAll
         const r = other / Math.max(agg.gallons, 1)
-        if (bestDist >= 0 && bestDist < 10) {
+        if (bestDist >= 0 && bestDist < captureRadiusMi) {
           proxCapt.gallons      += other
           proxCapt.transactions += Math.round(agg.transactions * r)
           proxCapt.spend        += agg.spend * r

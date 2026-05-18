@@ -3,24 +3,44 @@
 import { AlertCircle, CheckCircle } from 'lucide-react'
 import { fmtGallons, fmtPct, type TransactionSummary } from '@/lib/transaction-analysis'
 
+// Which fixed bands (upper-bound miles) are within the capture radius
+function capturableBands(radiusMi: number): Set<'w2' | 'w5' | 'w10'> {
+  const s = new Set<'w2' | 'w5' | 'w10'>()
+  if (radiusMi > 2)  s.add('w2')
+  if (radiusMi > 5)  s.add('w5')
+  if (radiusMi > 10) s.add('w10')
+  // within1mi+within2mi are always capturable when radius >= 2
+  // we treat the "within 2mi" band as capturable for any radius > 0
+  if (radiusMi > 0) s.add('w2')
+  return s
+}
+
 // ─── Proximity Panel (shown in Map tab) ───────────────────────────────────────
 
-export function ProximityPanel({ prox, totalGallons, isMobileFueling, heading, subheading }: {
+export function ProximityPanel({ prox, totalGallons, isMobileFueling, heading, subheading, captureRadiusMi = 10 }: {
   prox: NonNullable<TransactionSummary['proximityBreakdown']>
   totalGallons: number
   isMobileFueling: boolean
   heading?: string
   subheading?: string
+  captureRadiusMi?: number
 }) {
+  const cap = capturableBands(captureRadiusMi)
   const opportunityGallons =
     prox.within1mi.gallons + prox.within2mi.gallons +
-    prox.within5mi.gallons + prox.within10mi.gallons
+    (cap.has('w5')  ? prox.within5mi.gallons  : 0) +
+    (cap.has('w10') ? prox.within10mi.gallons : 0)
+  const outOfRangeGallons =
+    (!cap.has('w5')  ? prox.within5mi.gallons  : 0) +
+    (!cap.has('w10') ? prox.within10mi.gallons : 0) +
+    prox.beyond10mi.gallons
   const opportunityPct = totalGallons > 0 ? (opportunityGallons / totalGallons) * 100 : 0
+  const radiusLabel = `${captureRadiusMi} mi`
 
   const rows = [
-    { label: 'Fueled at Circle K',              gallons: prox.ckGallons,          color: '#16a34a', opportunity: false },
-    { label: 'Competitor — CK within 10 mi',    gallons: opportunityGallons,       color: '#3b82f6', opportunity: true  },
-    { label: 'Competitor — no CK within 10 mi', gallons: prox.beyond10mi.gallons, color: '#dc2626', opportunity: false },
+    { label: 'Fueled at Circle K',                        gallons: prox.ckGallons,       color: '#16a34a', opportunity: false },
+    { label: `Competitor — CK within ${radiusLabel}`,     gallons: opportunityGallons,    color: '#3b82f6', opportunity: true  },
+    { label: `Competitor — no CK within ${radiusLabel}`,  gallons: outOfRangeGallons,     color: '#dc2626', opportunity: false },
   ]
 
   return (
@@ -48,7 +68,7 @@ export function ProximityPanel({ prox, totalGallons, isMobileFueling, heading, s
           {opportunityGallons > 0 && (
             <div className="rounded-lg bg-zinc-50 border border-zinc-200 px-3 py-1.5 text-xs text-zinc-600 text-right shrink-0 ml-4">
               <span className="font-bold">{fmtGallons(opportunityGallons)} gal</span><br />
-              <span className="opacity-80">within 10 mi of CK ({fmtPct(opportunityPct)})</span>
+              <span className="opacity-80">within {radiusLabel} of CK ({fmtPct(opportunityPct)})</span>
             </div>
           )}
         </div>
@@ -73,18 +93,20 @@ export function ProximityPanel({ prox, totalGallons, isMobileFueling, heading, s
   )
 }
 
-// ─── Detailed Proximity Panel (OTR-style 5-band breakdown) ───────────────────
+// ─── Detailed Proximity Panel (5-band breakdown used as hero card) ─────────────
 
 export function DetailedProximityPanel({
   prox,
   title,
   subtitle,
   monthSpan,
+  captureRadiusMi = 10,
 }: {
   prox: NonNullable<TransactionSummary['proximityBreakdown']>
   title: string
   subtitle: string
   monthSpan: number
+  captureRadiusMi?: number
 }) {
   const ck  = prox.ckGallons
   const w2  = prox.within1mi.gallons + prox.within2mi.gallons
@@ -93,13 +115,17 @@ export function DetailedProximityPanel({
   const b10 = prox.beyond10mi.gallons
   const tot = Math.max(ck + w2 + w5 + w10 + b10, 1)
 
+  const cap = capturableBands(captureRadiusMi)
+
   const rows = [
-    { label: 'At Circle K',  gallons: ck,  color: 'bg-green-500',   text: 'text-green-700',   note: 'Already at CK' },
-    { label: 'Within 2 mi',  gallons: w2,  color: 'bg-emerald-400', text: 'text-emerald-700', note: 'Drove right past' },
-    { label: '2–5 mi',       gallons: w5,  color: 'bg-amber-400',   text: 'text-amber-700',   note: 'Strong opportunity' },
-    { label: '5–10 mi',      gallons: w10, color: 'bg-orange-400',  text: 'text-orange-700',  note: 'Moderate detour' },
-    { label: '10+ mi',       gallons: b10, color: 'bg-red-400',     text: 'text-red-700',     note: 'No nearby CK' },
+    { key: 'ck',  label: 'At Circle K',  gallons: ck,  color: 'bg-green-500',   text: 'text-green-700',   note: 'Already at CK',      capturable: true },
+    { key: 'w2',  label: 'Within 2 mi',  gallons: w2,  color: 'bg-emerald-400', text: 'text-emerald-700', note: 'Drove right past',    capturable: true },
+    { key: 'w5',  label: '2–5 mi',       gallons: w5,  color: 'bg-amber-400',   text: 'text-amber-700',   note: 'Strong opportunity',  capturable: cap.has('w5') },
+    { key: 'w10', label: '5–10 mi',      gallons: w10, color: 'bg-orange-400',  text: 'text-orange-700',  note: 'Moderate detour',     capturable: cap.has('w10') },
+    { key: 'b10', label: '10+ mi',       gallons: b10, color: 'bg-red-400',     text: 'text-red-700',     note: 'No nearby CK',        capturable: false },
   ]
+
+  const showRadiusNote = captureRadiusMi < 10
 
   return (
     <div>
@@ -113,12 +139,18 @@ export function DetailedProximityPanel({
           </p>
         </div>
       )}
+      {showRadiusNote && (
+        <div className="bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2 mb-3 text-xs text-zinc-500">
+          Capture radius set to <strong>{captureRadiusMi} mi</strong> — bands beyond this threshold are shown but not counted as capturable.
+        </div>
+      )}
       <div className="space-y-2">
-        {rows.map(({ label, gallons, color, text, note }) => {
+        {rows.map(({ key, label, gallons, color, text, note, capturable }) => {
           const pct = (gallons / tot) * 100
           const monthly = monthSpan > 0 ? gallons / monthSpan : gallons
+          const dimmed = !capturable && key !== 'ck'
           return (
-            <div key={label}>
+            <div key={key} className={dimmed ? 'opacity-40' : ''}>
               <div className="flex items-center justify-between mb-0.5">
                 <span className="text-xs text-gray-700">{label}</span>
                 <span className={`text-xs font-semibold ${text}`}>
@@ -129,7 +161,9 @@ export function DetailedProximityPanel({
               <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                 <div className={`h-1.5 ${color} rounded-full`} style={{ width: `${pct}%` }} />
               </div>
-              <p className="text-xs text-gray-400 mt-0.5 leading-none">{note}</p>
+              <p className="text-xs text-gray-400 mt-0.5 leading-none">
+                {dimmed ? `Outside ${captureRadiusMi} mi capture radius` : note}
+              </p>
             </div>
           )
         })}

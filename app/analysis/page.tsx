@@ -30,7 +30,7 @@ import {
 import { Navbar } from '@/components/Navbar'
 import { ShareModal } from '@/components/ShareModal'
 import { parseFleetCSV } from '@/lib/transaction-parser'
-import { createAnalysis, getAnalysis } from '@/lib/supabase/queries'
+import { createAnalysis, getAnalysis, getAppSettings } from '@/lib/supabase/queries'
 import {
   analyzeTransactions,
   buildCKZipSet,
@@ -452,14 +452,37 @@ function AnalysisPageInner() {
   const [periodInputVal, setPeriodInputVal] = useState('')
   const [summaryCopied, setSummaryCopied] = useState(false)
   const [rebateRate, setRebateRate] = useState(3)
+  const [captureRadius, setCaptureRadius] = useState(10)
+  const [adminLoyalThreshold, setAdminLoyalThreshold] = useState(70)
+  const [adminMixedThreshold, setAdminMixedThreshold] = useState(20)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const geocodingStartRef = useRef<number | null>(null)
-  // Always-current ref so processFile can read flags without stale closure
+  // Always-current refs so processFile can read values without stale closure
   const featureFlagsRef = useRef<FeatureFlags>(DEFAULT_FEATURES)
   useEffect(() => { featureFlagsRef.current = featureFlags }, [featureFlags])
+  const captureRadiusRef = useRef(10)
+  useEffect(() => { captureRadiusRef.current = captureRadius }, [captureRadius])
+  const adminLoyalThresholdRef = useRef(70)
+  useEffect(() => { adminLoyalThresholdRef.current = adminLoyalThreshold }, [adminLoyalThreshold])
+  const adminMixedThresholdRef = useRef(20)
+  useEffect(() => { adminMixedThresholdRef.current = adminMixedThreshold }, [adminMixedThreshold])
 
   const toggleFeature = useCallback((key: FeatureKey, val: boolean) => {
     setFeatureFlags(prev => ({ ...prev, [key]: val }))
+  }, [])
+
+  // Load admin-configured defaults on mount
+  useEffect(() => {
+    getAppSettings().then(settings => {
+      const get = (key: string, fallback: number) => {
+        const v = settings.find(s => s.key === key)?.value
+        return v !== undefined ? parseFloat(v) : fallback
+      }
+      setCaptureRadius(get('capture_radius', 10))
+      setRebateRate(get('default_rebate_cents', 3))
+      setAdminLoyalThreshold(get('loyal_threshold', 70))
+      setAdminMixedThreshold(get('mixed_threshold', 20))
+    }).catch(() => {})
   }, [])
 
   // Restore last analysis from localStorage on mount (skip if ?new=1 — user wants fresh upload)
@@ -753,6 +776,9 @@ function AnalysisPageInner() {
         geocodedAddresses: geocodedAddrs,
         ckStores: truckStoreCoords,
         ckStoresAll: ckStoreCoords,
+        captureRadiusMi: captureRadiusRef.current,
+        loyalThreshold: adminLoyalThresholdRef.current,
+        mixedThreshold: adminMixedThresholdRef.current,
       })
 
       // Run OTR corridor analysis automatically if geocoded points are available
@@ -1036,6 +1062,44 @@ function AnalysisPageInner() {
                     className="w-20 border border-zinc-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
                   />
                   <span className="text-xs text-gray-400">mo</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Capture radius */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                Capture Radius <span className="text-gray-400 font-normal text-xs">— how far from a CK counts as &ldquo;capturable&rdquo;</span>
+              </label>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                {[2, 5, 10, 15, 25].map(mi => (
+                  <button
+                    key={mi}
+                    type="button"
+                    onClick={() => setCaptureRadius(mi)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                      captureRadius === mi
+                        ? 'bg-accent text-white border-accent'
+                        : 'bg-white text-gray-600 border-zinc-200 hover:border-zinc-400'
+                    }`}
+                  >
+                    {mi} mi
+                  </button>
+                ))}
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    min={1}
+                    max={50}
+                    placeholder="Other"
+                    value={![2, 5, 10, 15, 25].includes(captureRadius) ? captureRadius : ''}
+                    onChange={e => {
+                      const v = parseInt(e.target.value)
+                      if (v > 0) setCaptureRadius(v)
+                    }}
+                    className="w-20 border border-zinc-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
+                  />
+                  <span className="text-xs text-gray-400">mi</span>
                 </div>
               </div>
             </div>
@@ -1368,6 +1432,7 @@ function AnalysisPageInner() {
                       title="Diesel — Truck CK"
                       subtitle="Non-CK diesel gallons vs. truck-accessible CK sites only"
                       monthSpan={monthSpan}
+                      captureRadiusMi={captureRadius}
                     />
                   )}
                   {summary.proximityBreakdownAll && (
@@ -1376,6 +1441,7 @@ function AnalysisPageInner() {
                       title={isDieselFleet ? 'Gas — Full CK Network' : 'Circle K Proximity'}
                       subtitle={isDieselFleet ? 'Non-CK gas gallons vs. all CK sites (incl. c-stores)' : 'Full CK network'}
                       monthSpan={monthSpan}
+                      captureRadiusMi={captureRadius}
                     />
                   )}
                 </div>
