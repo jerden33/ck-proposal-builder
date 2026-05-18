@@ -822,7 +822,7 @@ function buildMapData(
     city: string; state: string; stationAddress: string
     // Fuel-type-split gallons for fuel-appropriate proximity panels
     ckDieselGallons: number; ckGasGallons: number
-    nonCKDieselGallons: number; nonCKGasGallons: number
+    nonCKDieselGallons: number; nonCKGasGallons: number; nonCKOtherGallons: number
   }>()
 
   for (const t of transactions) {
@@ -835,7 +835,7 @@ function buildMapData(
       state: t.stationState,
       stationAddress: t.stationAddress,
       ckDieselGallons: 0, ckGasGallons: 0,
-      nonCKDieselGallons: 0, nonCKGasGallons: 0,
+      nonCKDieselGallons: 0, nonCKGasGallons: 0, nonCKOtherGallons: 0,
     }
     existing.gallons += t.gallons
     existing.transactions++
@@ -848,6 +848,7 @@ function buildMapData(
     } else {
       if (cat === 'diesel') existing.nonCKDieselGallons += t.gallons
       else if (cat === 'gas') existing.nonCKGasGallons += t.gallons
+      else existing.nonCKOtherGallons += t.gallons
     }
     if (t.stationBrand) existing.brands.add(t.stationBrand)
     stationMap.set(key, existing)
@@ -918,6 +919,16 @@ function buildMapData(
       const r = agg.nonCKGasGallons / Math.max(agg.gallons, 1)
       const bg = distAll < 1 ? proxAll.within1mi : distAll < 2 ? proxAll.within2mi : distAll < 5 ? proxAll.within5mi : distAll < 10 ? proxAll.within10mi : proxAll.beyond10mi
       bg.gallons += agg.nonCKGasGallons
+      bg.transactions += Math.round(agg.transactions * r)
+      bg.spend += agg.spend * r
+    }
+
+    // Bucket non-CK 'other'/unknown fuel type gallons against full CK network
+    // (covers files where fuel type column is missing or uses unrecognized codes)
+    if (agg.nonCKOtherGallons > 0 && distAll >= 0) {
+      const r = agg.nonCKOtherGallons / Math.max(agg.gallons, 1)
+      const bg = distAll < 1 ? proxAll.within1mi : distAll < 2 ? proxAll.within2mi : distAll < 5 ? proxAll.within5mi : distAll < 10 ? proxAll.within10mi : proxAll.beyond10mi
+      bg.gallons += agg.nonCKOtherGallons
       bg.transactions += Math.round(agg.transactions * r)
       bg.spend += agg.spend * r
     }

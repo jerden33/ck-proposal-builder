@@ -107,6 +107,8 @@ const FIELD_ALIASES: Record<string, string[]> = {
     // NACS product category code column (e.g. 001 = Unleaded, 019 = Diesel, 020 = Premium Diesel)
     // Listed last — use only when no descriptive column is available
     'nacs',
+    // Bare single-word column (e.g. "Type" with values "DSL", "GAS")
+    'type',
   ],
   stationName: [
     'station name', 'site name', 'location name', 'merchant name',
@@ -114,6 +116,8 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'truck stop name', 'service center',
     // CamelCase variants
     'stationname', 'sitename',
+    // Bare single-word column (e.g. "Merchant" with store name values)
+    'merchant',
   ],
   stationBrand: [
     'station brand name', 'brand', 'network', 'station brand',
