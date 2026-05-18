@@ -899,7 +899,7 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
   const [ckStorePins, setCKStorePins] = useState<CKStorePin[]>([])
 
   useEffect(() => {
-    fetch('/stores-data.json')
+    fetch('/api/stores-data')
       .then(r => r.json())
       .then((data) => {
         const pins: CKStorePin[] = (data.stores ?? [])

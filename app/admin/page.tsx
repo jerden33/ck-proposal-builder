@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { getUserProfile, getProductsConfig, updateProductConfig, getAppSettings, updateAppSetting, getImageSettings, updateProductImage, updateHeroImage } from '@/lib/supabase/queries'
 import type { UserProfile, ProductConfig, AppSetting, ImageSettings } from '@/lib/types'
-import { ArrowLeft, Save, Plus, X, Settings as SettingsIcon, ImageIcon } from 'lucide-react'
+import { ArrowLeft, Save, Plus, X, Settings as SettingsIcon, Upload, MapPin, RotateCcw, CheckCircle } from 'lucide-react'
 import { ImageUploader } from '@/components/ImageUploader'
 
 export default function AdminPage() {
@@ -20,7 +20,14 @@ export default function AdminPage() {
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState<'products' | 'images' | 'settings'>('products')
+  const [activeTab, setActiveTab] = useState<'products' | 'images' | 'settings' | 'stores'>('products')
+
+  // Store data upload state
+  const [storeInfo, setStoreInfo] = useState<{ hasCustomFile: boolean; updatedAt: string | null } | null>(null)
+  const [storeFile, setStoreFile] = useState<File | null>(null)
+  const [storePreview, setStorePreview] = useState<{ count: number; error: string | null } | null>(null)
+  const [storeUploading, setStoreUploading] = useState(false)
+  const [storeSuccess, setStoreSuccess] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -46,6 +53,14 @@ export default function AdminPage() {
     setProducts(productsData)
     setAppSettings(settingsData)
     setImageSettings(imagesData)
+
+    if (userProfile.is_super_admin) {
+      fetch('/api/stores-upload')
+        .then(r => r.json())
+        .then(d => setStoreInfo(d))
+        .catch(() => {})
+    }
+
     setLoading(false)
   }
 
@@ -163,6 +178,55 @@ export default function AdminPage() {
     }
   }
 
+  const handleStoreFileChange = async (file: File | null) => {
+    setStoreFile(file)
+    setStoreSuccess(false)
+    if (!file) { setStorePreview(null); return }
+
+    try {
+      const text = await file.text()
+      const isCSV = file.name.toLowerCase().endsWith('.csv')
+      if (isCSV) {
+        const lines = text.split(/\r?\n/).filter(l => l.trim())
+        setStorePreview({ count: Math.max(0, lines.length - 1), error: null })
+      } else {
+        const parsed = JSON.parse(text)
+        const stores = Array.isArray(parsed) ? parsed : parsed.stores
+        if (!Array.isArray(stores)) throw new Error('JSON must contain a "stores" array')
+        setStorePreview({ count: stores.length, error: null })
+      }
+    } catch (err) {
+      setStorePreview({ count: 0, error: err instanceof Error ? err.message : 'Failed to parse file' })
+    }
+  }
+
+  const handleStoreUpload = async () => {
+    if (!storeFile) return
+    setStoreUploading(true)
+    setStoreSuccess(false)
+    try {
+      const formData = new FormData()
+      formData.append('file', storeFile)
+      const res = await fetch('/api/stores-upload', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Upload failed')
+      setStoreSuccess(true)
+      setStoreFile(null)
+      setStorePreview(null)
+      setStoreInfo({ hasCustomFile: true, updatedAt: new Date().toISOString() })
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      setStoreUploading(false)
+    }
+  }
+
+  const handleStoreRevert = async () => {
+    if (!confirm('Remove the custom store file and revert to the bundled default?')) return
+    const res = await fetch('/api/stores-upload', { method: 'DELETE' })
+    if (res.ok) setStoreInfo({ hasCustomFile: false, updatedAt: null })
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-off-white to-white">
@@ -255,6 +319,22 @@ export default function AdminPage() {
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-orange"></div>
             )}
           </button>
+
+          {profile?.is_super_admin && (
+            <button
+              onClick={() => setActiveTab('stores')}
+              className={`pb-4 px-2 font-semibold transition-colors relative ${
+                activeTab === 'stores'
+                  ? 'text-brand-orange'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Store Locations
+              {activeTab === 'stores' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-orange"></div>
+              )}
+            </button>
+          )}
         </div>
 
         {/* Products Tab */}
@@ -420,6 +500,101 @@ export default function AdminPage() {
                 recommendedSize="1920×600px"
                 aspectRatio="16:5"
               />
+            </div>
+          </div>
+        )}
+
+        {/* Store Locations Tab — super admin only */}
+        {activeTab === 'stores' && profile?.is_super_admin && (
+          <div className="space-y-6">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-off-black mb-2">Circle K Store Locations</h2>
+              <p className="text-gray-600">
+                Upload an updated store list to replace the bundled default (5,238 locations). Used for all proximity analysis.
+              </p>
+            </div>
+
+            {/* Current status */}
+            <div className="card flex items-start gap-4">
+              <MapPin size={20} className="text-brand-orange shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-semibold text-off-black">
+                  {storeInfo?.hasCustomFile ? 'Custom store file active' : 'Using bundled default (5,238 stores)'}
+                </p>
+                {storeInfo?.updatedAt && (
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Last updated: {new Date(storeInfo.updatedAt).toLocaleString()}
+                  </p>
+                )}
+              </div>
+              {storeInfo?.hasCustomFile && (
+                <button
+                  onClick={handleStoreRevert}
+                  className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-red-600 transition-colors"
+                >
+                  <RotateCcw size={14} />
+                  Revert to default
+                </button>
+              )}
+            </div>
+
+            {/* Upload */}
+            <div className="card space-y-4">
+              <div>
+                <h3 className="font-semibold text-off-black mb-1">Upload new store list</h3>
+                <p className="text-sm text-gray-500">
+                  Accepts <strong>CSV</strong> or <strong>JSON</strong>. CSV required columns: <code className="bg-gray-100 px-1 rounded text-xs">Latitude</code>, <code className="bg-gray-100 px-1 rounded text-xs">Longitude</code>, <code className="bg-gray-100 px-1 rounded text-xs">City</code>, <code className="bg-gray-100 px-1 rounded text-xs">State</code>.
+                  Optional: <code className="bg-gray-100 px-1 rounded text-xs">Site Number</code>, <code className="bg-gray-100 px-1 rounded text-xs">Name</code>, <code className="bg-gray-100 px-1 rounded text-xs">Address</code>, <code className="bg-gray-100 px-1 rounded text-xs">Zip</code>, <code className="bg-gray-100 px-1 rounded text-xs">Truck Accessible</code>, <code className="bg-gray-100 px-1 rounded text-xs">Truck Lanes</code>, <code className="bg-gray-100 px-1 rounded text-xs">Status</code>.
+                </p>
+              </div>
+
+              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-brand-orange hover:bg-orange-50 transition-all">
+                <Upload size={20} className="text-gray-400 mb-2" />
+                <span className="text-sm text-gray-500">
+                  {storeFile ? storeFile.name : 'Click to select CSV or JSON file'}
+                </span>
+                <input
+                  type="file"
+                  accept=".csv,.json"
+                  className="hidden"
+                  onChange={e => handleStoreFileChange(e.target.files?.[0] ?? null)}
+                />
+              </label>
+
+              {storePreview && (
+                <div className={`flex items-center gap-2 text-sm rounded-lg px-3 py-2 ${storePreview.error ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+                  {storePreview.error
+                    ? <><X size={14} />{storePreview.error}</>
+                    : <><CheckCircle size={14} />{storePreview.count.toLocaleString()} stores detected — ready to upload</>}
+                </div>
+              )}
+
+              {storeSuccess && (
+                <div className="flex items-center gap-2 text-sm rounded-lg px-3 py-2 bg-green-50 text-green-700 border border-green-200">
+                  <CheckCircle size={14} />Store file uploaded successfully. New analyses will use the updated locations.
+                </div>
+              )}
+
+              <button
+                onClick={handleStoreUpload}
+                disabled={!storeFile || !!storePreview?.error || storeUploading}
+                className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {storeUploading ? (
+                  <><div className="loading-spinner w-4 h-4 border-2"></div>Uploading...</>
+                ) : (
+                  <><Upload size={16} />Upload Store File</>
+                )}
+              </button>
+            </div>
+
+            {/* Format reference */}
+            <div className="card bg-gray-50">
+              <h3 className="font-semibold text-off-black mb-3 text-sm">CSV Format Reference</h3>
+              <pre className="text-xs text-gray-600 overflow-x-auto bg-white border border-gray-200 rounded-lg p-3 leading-relaxed">{`Site Number,Name,Address,City,State,Zip,Latitude,Longitude,Truck Accessible,Truck Lanes,Status
+2746601,Circle K,1405 S Bragaw,Anchorage,AK,99508,61.208429,-149.807546,false,0,Open
+2746602,Circle K,10630 Old Seward Hwy,Anchorage,AK,99515,61.124596,-149.865242,true,2,Open`}</pre>
+              <p className="text-xs text-gray-400 mt-2">Column headers are flexible — the parser handles common variations (e.g. &quot;Lat&quot; / &quot;Latitude&quot;, &quot;Lng&quot; / &quot;Longitude&quot;).</p>
             </div>
           </div>
         )}

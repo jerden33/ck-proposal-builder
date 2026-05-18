@@ -470,7 +470,7 @@ function OTRPageInner() {
       setFileName(record.file_name)
       setSavedId(record.id)
       // Load truck stores for map
-      fetch('/stores-data.json').then(r => r.json()).then((data) => {
+      fetch('/api/stores-data').then(r => r.json()).then((data) => {
         const truckStores: OTRMapStore[] = (data.stores ?? [])
           .filter((s: StoreRecord) => s.truckAccessible && s.coordinates?.lat && s.coordinates?.lng)
           .map((s: StoreRecord) => ({ lat: s.coordinates.lat, lng: s.coordinates.lng, name: s.name, city: s.city, state: s.state }))
@@ -517,7 +517,7 @@ function OTRPageInner() {
       }
 
       // 3. Load CK stores — truck-accessible only for OTR
-      const resp = await fetch('/stores-data.json')
+      const resp = await fetch('/api/stores-data')
       const storeData = await resp.json()
       const storeRecords: StoreRecord[] = storeData.stores ?? []
       const truckRecords = storeRecords.filter(

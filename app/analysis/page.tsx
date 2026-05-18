@@ -483,7 +483,7 @@ function AnalysisPageInner() {
       if (saved.summary?.rebateRate) setRebateRate(saved.summary.rebateRate)
       setRestoredFromCache(true)
       // Re-load CK pins from static data
-      fetch('/stores-data.json')
+      fetch('/api/stores-data')
         .then(r => r.json())
         .then((data) => {
           const storeRecords: StoreRecord[] = data.stores ?? []
@@ -530,7 +530,7 @@ function AnalysisPageInner() {
       }
       setLoading(false)
       // Load CK pins for map
-      fetch('/stores-data.json')
+      fetch('/api/stores-data')
         .then(r => r.json())
         .then((data) => {
           const pins: CKStorePin[] = (data.stores ?? [])
@@ -638,7 +638,7 @@ function AnalysisPageInner() {
 
       // 3. Load Circle K stores
       setLoadingStep('Loading Circle K store locations…')
-      const resp = await fetch('/stores-data.json')
+      const resp = await fetch('/api/stores-data')
       const data = await resp.json()
       const storeRecords: StoreRecord[] = data.stores ?? []
 

@@ -27,7 +27,7 @@ export async function loadStoreData(): Promise<void> {
   if (dataLoaded) return
   
   try {
-    const response = await fetch('/stores-data.json')
+    const response = await fetch('/api/stores-data')
     const data = await response.json()
     storeData = data.stores || []
     dataLoaded = true
