@@ -453,8 +453,9 @@ function AnalysisPageInner() {
   const [summaryCopied, setSummaryCopied] = useState(false)
   const [rebateRate, setRebateRate] = useState(3)
   const [captureRadius, setCaptureRadius] = useState(10)
-  const [adminLoyalThreshold, setAdminLoyalThreshold] = useState(70)
-  const [adminMixedThreshold, setAdminMixedThreshold] = useState(20)
+  const [adminLoyalThreshold, setAdminLoyalThreshold]     = useState(70)
+  const [adminMixedThreshold, setAdminMixedThreshold]     = useState(20)
+  const [adminOTRDieselThreshold, setAdminOTRDieselThreshold] = useState(60)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const geocodingStartRef = useRef<number | null>(null)
   // Always-current refs so processFile can read values without stale closure
@@ -466,6 +467,8 @@ function AnalysisPageInner() {
   useEffect(() => { adminLoyalThresholdRef.current = adminLoyalThreshold }, [adminLoyalThreshold])
   const adminMixedThresholdRef = useRef(20)
   useEffect(() => { adminMixedThresholdRef.current = adminMixedThreshold }, [adminMixedThreshold])
+  const adminOTRDieselThresholdRef = useRef(60)
+  useEffect(() => { adminOTRDieselThresholdRef.current = adminOTRDieselThreshold }, [adminOTRDieselThreshold])
 
   const toggleFeature = useCallback((key: FeatureKey, val: boolean) => {
     setFeatureFlags(prev => ({ ...prev, [key]: val }))
@@ -482,6 +485,7 @@ function AnalysisPageInner() {
       setRebateRate(get('default_rebate_cents', 3))
       setAdminLoyalThreshold(get('loyal_threshold', 70))
       setAdminMixedThreshold(get('mixed_threshold', 20))
+      setAdminOTRDieselThreshold(get('otr_diesel_threshold', 60))
     }).catch(() => {})
   }, [])
 
@@ -781,8 +785,20 @@ function AnalysisPageInner() {
         mixedThreshold: adminMixedThresholdRef.current,
       })
 
-      // Run OTR corridor analysis automatically if geocoded points are available
-      if (truckStoreCoords.length > 0 && enrichedResult.mapPoints.some(p => p.lat != null && p.lng != null)) {
+      // Run OTR corridor analysis only for diesel-heavy fleets
+      const inlineDieselGal = enrichedResult.fuelTypeBreakdown
+        .filter(ft => {
+          const r = ft.type.toUpperCase().trim()
+          return r === 'DIESEL' || r === 'DEF' || r.includes('DIESEL') ||
+            r === 'DSL' || r === 'DSEL' || r === 'ULSD' || r === 'HSD' || r === 'LSD' ||
+            r.includes('REEFER') || r.includes('BIODIESEL')
+        })
+        .reduce((s, ft) => s + ft.gallons, 0)
+      const inlineDieselPct = enrichedResult.totalGallons > 0
+        ? (inlineDieselGal / enrichedResult.totalGallons) * 100 : 0
+      const isOTRFleet = inlineDieselPct >= adminOTRDieselThresholdRef.current
+
+      if (isOTRFleet && truckStoreCoords.length > 0 && enrichedResult.mapPoints.some(p => p.lat != null && p.lng != null)) {
         const otr = runOTRAnalysis(
           enrichedResult.mapPoints,
           truckStoreCoords.map(s => ({ lat: s.lat, lng: s.lng, truckAccessible: true }))

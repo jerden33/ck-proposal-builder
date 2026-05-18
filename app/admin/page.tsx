@@ -18,8 +18,9 @@ export default function AdminPage() {
   // Analysis Rules state
   const [captureRadius, setCaptureRadius]   = useState(10)
   const [loyalThreshold, setLoyalThreshold] = useState(70)
-  const [mixedThreshold, setMixedThreshold] = useState(20)
-  const [defaultRebate, setDefaultRebate]   = useState(3)
+  const [mixedThreshold, setMixedThreshold]       = useState(20)
+  const [defaultRebate, setDefaultRebate]         = useState(3)
+  const [otrDieselThreshold, setOtrDieselThreshold] = useState(60)
 
   // Store data upload state
   const [storeInfo, setStoreInfo]       = useState<{ hasCustomFile: boolean; updatedAt: string | null } | null>(null)
@@ -45,6 +46,7 @@ export default function AdminPage() {
     setLoyalThreshold(get('loyal_threshold', 70))
     setMixedThreshold(get('mixed_threshold', 20))
     setDefaultRebate(get('default_rebate_cents', 3))
+    setOtrDieselThreshold(get('otr_diesel_threshold', 60))
 
     if (userProfile.is_super_admin) {
       fetch('/api/stores-upload')
@@ -65,10 +67,11 @@ export default function AdminPage() {
     setSaveSuccess(false)
     try {
       await Promise.all([
-        updateAppSetting('capture_radius',      String(captureRadius)),
-        updateAppSetting('loyal_threshold',     String(loyalThreshold)),
-        updateAppSetting('mixed_threshold',     String(mixedThreshold)),
-        updateAppSetting('default_rebate_cents', String(defaultRebate)),
+        updateAppSetting('capture_radius',        String(captureRadius)),
+        updateAppSetting('loyal_threshold',       String(loyalThreshold)),
+        updateAppSetting('mixed_threshold',       String(mixedThreshold)),
+        updateAppSetting('default_rebate_cents',  String(defaultRebate)),
+        updateAppSetting('otr_diesel_threshold',  String(otrDieselThreshold)),
       ])
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
@@ -323,6 +326,37 @@ export default function AdminPage() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* OTR detection threshold */}
+            <div className="card space-y-2">
+              <div className="mb-4">
+                <h3 className="font-bold text-off-black">OTR Fleet Detection</h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Minimum diesel share to classify a fleet as OTR/long-haul. Only fleets meeting this threshold
+                  get the corridor analysis tab. Lower values catch mixed fleets; higher values target true semi/truck operations.
+                </p>
+              </div>
+              <SliderRow
+                label="OTR diesel threshold"
+                desc="min diesel % to trigger corridor analysis"
+                value={otrDieselThreshold} min={10} max={95} step={5} unit="%"
+                onChange={setOtrDieselThreshold}
+              />
+              <div className="flex gap-2 mt-3 flex-wrap">
+                {[40, 50, 60, 70, 80].map(v => (
+                  <button
+                    key={v}
+                    onClick={() => setOtrDieselThreshold(v)}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${otrDieselThreshold === v ? 'bg-brand-orange text-white border-brand-orange' : 'bg-white text-zinc-600 border-zinc-200 hover:border-brand-orange'}`}
+                  >
+                    {v}%
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 pt-1">
+                Current: a fleet must be <strong>{otrDieselThreshold}%+ diesel</strong> to receive OTR corridor analysis.
+              </p>
             </div>
           </div>
         )}
