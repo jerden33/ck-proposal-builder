@@ -5,11 +5,12 @@ import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getUserProfile } from '@/lib/supabase/queries'
 import type { UserProfile } from '@/lib/types'
-import { BarChart2, LayoutDashboard, Settings, LogOut, Zap } from 'lucide-react'
+import { BarChart2, LayoutDashboard, Settings, LogOut, Zap, Target } from 'lucide-react'
 
 const NAV_LINKS = [
   { label: 'Analysis',  href: '/analysis',   icon: BarChart2 },
   { label: 'Dashboard', href: '/dashboard',   icon: LayoutDashboard },
+  { label: 'Prospects', href: '/prospects',   icon: Target },
 ]
 
 export function Navbar() {
