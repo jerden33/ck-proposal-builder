@@ -180,7 +180,7 @@ export function parseFMCSAFile(text: string): ParseResult {
     })
   }
 
-  const statesCovered = [...new Set(carriers.map(c => c.state).filter(Boolean))].sort()
+  const statesCovered = Array.from(new Set(carriers.map(c => c.state).filter(Boolean))).sort()
   return { carriers, errors, statesCovered }
 }
 
