@@ -1,12 +1,24 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { getUserProfile, getProductsConfig, updateProductConfig, getAppSettings, updateAppSetting, getImageSettings, updateProductImage, updateHeroImage } from '@/lib/supabase/queries'
+import {
+  getUserProfile, getProductsConfig, updateProductConfig,
+  getAppSettings, updateAppSetting, getImageSettings,
+  updateProductImage, updateHeroImage,
+  getFMCSADatasetMeta, saveFMCSADataset,
+  type FMCSADatasetMeta,
+} from '@/lib/supabase/queries'
+import { parseFMCSAFile } from '@/lib/fmcsa-parser'
 import type { UserProfile, ProductConfig, AppSetting, ImageSettings } from '@/lib/types'
-import { ArrowLeft, Save, Plus, X, Settings as SettingsIcon, ImageIcon } from 'lucide-react'
+import {
+  ArrowLeft, Save, Plus, X, Settings as SettingsIcon,
+  Upload, Truck, CheckCircle2, AlertTriangle, RefreshCw, ExternalLink, Download,
+} from 'lucide-react'
 import { ImageUploader } from '@/components/ImageUploader'
+
+const FMCSA_DOWNLOAD_URL = 'https://ai.fmcsa.dot.gov/SMS/Tools/Downloads.aspx'
 
 export default function AdminPage() {
   const router = useRouter()
@@ -20,7 +32,14 @@ export default function AdminPage() {
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState<'products' | 'images' | 'settings'>('products')
+  const [activeTab, setActiveTab] = useState<'products' | 'images' | 'settings' | 'fmcsa'>('products')
+
+  // FMCSA dataset state
+  const [fmcsaMeta, setFmcsaMeta] = useState<FMCSADatasetMeta | null>(null)
+  const [fmcsaUploading, setFmcsaUploading] = useState(false)
+  const [fmcsaError, setFmcsaError] = useState<string | null>(null)
+  const [fmcsaSuccess, setFmcsaSuccess] = useState<string | null>(null)
+  const fmcsaFileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     loadData()
@@ -37,16 +56,42 @@ export default function AdminPage() {
 
     setProfile(userProfile)
 
-    const [productsData, settingsData, imagesData] = await Promise.all([
+    const [productsData, settingsData, imagesData, fmcsaMetaData] = await Promise.all([
       getProductsConfig(),
       getAppSettings(),
-      getImageSettings()
+      getImageSettings(),
+      getFMCSADatasetMeta(),
     ])
 
     setProducts(productsData)
     setAppSettings(settingsData)
     setImageSettings(imagesData)
+    setFmcsaMeta(fmcsaMetaData)
     setLoading(false)
+  }
+
+  const handleFMCSAUpload = async (file: File) => {
+    setFmcsaUploading(true)
+    setFmcsaError(null)
+    setFmcsaSuccess(null)
+    try {
+      const text = await file.text()
+      const { carriers, errors } = parseFMCSAFile(text)
+      if (errors.length > 0) { setFmcsaError(errors.join(' ')); return }
+      if (carriers.length === 0) { setFmcsaError('No records found in the file.'); return }
+
+      const ok = await saveFMCSADataset(carriers, profile?.email ?? 'admin')
+      if (!ok) { setFmcsaError('Failed to save dataset — check Supabase connection.'); return }
+
+      const meta = await getFMCSADatasetMeta()
+      setFmcsaMeta(meta)
+      setFmcsaSuccess(`Dataset saved — ${carriers.length.toLocaleString()} carriers loaded.`)
+    } catch (err) {
+      setFmcsaError('Parse error. Check that the file is a valid FMCSA CSV.')
+      console.error(err)
+    } finally {
+      setFmcsaUploading(false)
+    }
   }
 
   const handleUpdateProduct = (id: string, field: keyof ProductConfig, value: any) => {
@@ -255,6 +300,26 @@ export default function AdminPage() {
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-orange"></div>
             )}
           </button>
+
+          <button
+            onClick={() => setActiveTab('fmcsa')}
+            className={`pb-4 px-2 font-semibold transition-colors relative flex items-center gap-1.5 ${
+              activeTab === 'fmcsa'
+                ? 'text-brand-orange'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Truck size={15} />
+            FMCSA Dataset
+            {fmcsaMeta && (
+              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-bold">
+                {fmcsaMeta.recordCount.toLocaleString()}
+              </span>
+            )}
+            {activeTab === 'fmcsa' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-orange"></div>
+            )}
+          </button>
         </div>
 
         {/* Products Tab */}
@@ -420,6 +485,149 @@ export default function AdminPage() {
                 recommendedSize="1920×600px"
                 aspectRatio="16:5"
               />
+            </div>
+          </div>
+        )}
+
+        {/* FMCSA Dataset Tab */}
+        {activeTab === 'fmcsa' && (
+          <div className="space-y-6 max-w-2xl">
+            <div>
+              <h2 className="text-2xl font-bold text-off-black mb-1">FMCSA Carrier Dataset</h2>
+              <p className="text-gray-500 text-sm">
+                Upload the FMCSA SAFER Census CSV to populate the OTR Prospects tool for all users.
+                The dataset is shared globally — uploading replaces the existing data.
+              </p>
+            </div>
+
+            {/* Current dataset status */}
+            {fmcsaMeta ? (
+              <div className="card border-green-200 bg-green-50/40">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 size={20} className="text-green-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="font-semibold text-green-800">
+                      Dataset active — {fmcsaMeta.recordCount.toLocaleString()} carriers
+                    </p>
+                    <p className="text-sm text-green-700">
+                      Last updated {new Date(fmcsaMeta.lastUpdated).toLocaleString()} by {fmcsaMeta.uploadedBy}
+                    </p>
+                    <p className="text-sm text-green-600">
+                      States covered: {fmcsaMeta.statesCovered.join(', ')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="card border-amber-200 bg-amber-50/40">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle size={20} className="text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-amber-800">No dataset loaded</p>
+                    <p className="text-sm text-amber-600 mt-0.5">
+                      OTR Prospects is empty for all users until you upload a dataset below.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Success message */}
+            {fmcsaSuccess && (
+              <div className="flex items-center gap-2 px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm font-medium">
+                <CheckCircle2 size={15} /> {fmcsaSuccess}
+              </div>
+            )}
+
+            {/* Error message */}
+            {fmcsaError && (
+              <div className="flex items-start gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                <AlertTriangle size={15} className="shrink-0 mt-0.5" /> {fmcsaError}
+              </div>
+            )}
+
+            {/* Upload zone */}
+            <div className="card">
+              <h3 className="font-semibold text-off-black mb-1">Upload New Dataset</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Accepts FMCSA Census CSV (comma or pipe-delimited). Download the latest file from
+                the FMCSA website, then upload it here. No geocoding — uploading is instant.
+              </p>
+
+              <div
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => {
+                  e.preventDefault()
+                  const f = e.dataTransfer.files[0]
+                  if (f) handleFMCSAUpload(f)
+                }}
+                onClick={() => fmcsaFileRef.current?.click()}
+                className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all
+                  ${fmcsaUploading
+                    ? 'border-brand-orange bg-orange-50/30 cursor-not-allowed'
+                    : 'border-gray-200 hover:border-brand-orange hover:bg-orange-50/20'}`}
+              >
+                {fmcsaUploading ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-8 h-8 border-4 border-brand-orange border-t-transparent rounded-full animate-spin" />
+                    <p className="font-medium text-gray-600">Parsing and saving dataset…</p>
+                    <p className="text-xs text-gray-400">This may take a moment for large files</p>
+                  </div>
+                ) : (
+                  <>
+                    <Upload size={28} className="text-gray-300 mx-auto mb-3" />
+                    <p className="font-medium text-gray-600 mb-1">Drop CSV here or click to browse</p>
+                    <p className="text-xs text-gray-400">
+                      FMCSA Census CSV · comma or pipe-delimited · replaces existing dataset
+                    </p>
+                  </>
+                )}
+                <input
+                  ref={fmcsaFileRef}
+                  type="file"
+                  accept=".csv,.txt,.tsv"
+                  className="hidden"
+                  disabled={fmcsaUploading}
+                  onChange={e => {
+                    const f = e.target.files?.[0]
+                    if (f) handleFMCSAUpload(f)
+                    e.target.value = ''
+                  }}
+                />
+              </div>
+
+              {/* Expected columns */}
+              <div className="mt-4 bg-zinc-50 rounded-xl p-4 text-xs text-zinc-500 space-y-1.5">
+                <p className="font-semibold text-zinc-600">Expected columns (required):</p>
+                <p className="font-mono text-zinc-400 break-all">
+                  DOT_NUMBER · LEGAL_NAME
+                </p>
+                <p className="font-semibold text-zinc-600 mt-2">Optional columns (used when present):</p>
+                <p className="font-mono text-zinc-400 break-all">
+                  DBA_NAME · PHY_STREET · PHY_CITY · PHY_STATE · PHY_ZIP · TELEPHONE ·
+                  NBR_POWER_UNIT · DRIVER_TOTAL · CARRIER_OPERATION · CARGO_CARRIED ·
+                  RECORD_STATUS · MCS150_DATE · HM_FLAG · PC_FLAG
+                </p>
+              </div>
+            </div>
+
+            {/* Links */}
+            <div className="flex gap-4 text-sm">
+              <a
+                href={FMCSA_DOWNLOAD_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-accent hover:underline"
+              >
+                <RefreshCw size={13} /> Download latest from FMCSA
+              </a>
+              <a
+                href="/sample-fmcsa.csv"
+                download
+                className="flex items-center gap-1.5 text-zinc-400 hover:text-zinc-600"
+              >
+                <Download size={13} /> Sample CSV (10 records)
+              </a>
             </div>
           </div>
         )}

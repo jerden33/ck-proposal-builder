@@ -10,7 +10,7 @@ import { BarChart2, LayoutDashboard, Settings, LogOut, Zap, Target } from 'lucid
 const NAV_LINKS = [
   { label: 'Analysis',  href: '/analysis',   icon: BarChart2 },
   { label: 'Dashboard', href: '/dashboard',   icon: LayoutDashboard },
-  { label: 'Prospects', href: '/prospects',   icon: Target },
+  { label: 'OTR Prospects', href: '/prospects',   icon: Target },
 ]
 
 export function Navbar() {

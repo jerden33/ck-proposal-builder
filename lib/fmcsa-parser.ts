@@ -16,7 +16,9 @@ export interface FMCSACarrier {
   cargoCarried: string[]
   operatingStatus: string
   mcs150Date: string | null
-  // Enriched after geocoding + proximity analysis
+  hmFlag: boolean       // hazmat authority
+  pcFlag: boolean       // passenger carrier authority
+  // Enriched after geocoding + proximity analysis (optional)
   lat?: number
   lng?: number
   nearestCKTruckSite?: {
@@ -130,6 +132,8 @@ export function parseFMCSAFile(text: string): ParseResult {
   const iCargo  = col('CARGO_CARRIED', 'CARGO CARRIED', 'CARGO_TYPES', 'CARGO', 'CARGO TYPE')
   const iStatus = col('RECORD_STATUS', 'STATUS', 'OPERATING_STATUS', 'RECORD STATUS', 'ACTIVE_FLAG')
   const iMcs    = col('MCS150_DATE', 'MCS150 DATE', 'MCS_150_DATE', 'BIENNIAL_DATE', 'LAST_MCS150', 'MCS150DATE')
+  const iHm     = col('HM_FLAG', 'HM FLAG', 'HAZMAT_FLAG', 'HAZMAT', 'HM')
+  const iPc     = col('PC_FLAG', 'PC FLAG', 'PASSENGER_FLAG', 'PASSENGER_CARRIER', 'PC')
 
   if (iDot < 0 && iLegal < 0) {
     return {
@@ -177,6 +181,8 @@ export function parseFMCSAFile(text: string): ParseResult {
       cargoCarried: parseCargo(g(iCargo)),
       operatingStatus: opStatus,
       mcs150Date: parseDate(g(iMcs)),
+      hmFlag: g(iHm).toUpperCase() === 'Y',
+      pcFlag: g(iPc).toUpperCase() === 'Y',
     })
   }
 

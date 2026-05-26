@@ -1,5 +1,6 @@
 import { createClient } from './client'
 import type { UserProfile, ProductConfig, AppSetting, AnalysisRecord, AnalysisShare } from '@/lib/types'
+import type { FMCSACarrier } from '@/lib/fmcsa-parser'
 import { nanoid } from 'nanoid'
 
 // User Queries
@@ -418,4 +419,81 @@ export async function revokeAnalysisShare(token: string): Promise<boolean> {
     return false
   }
   return true
+}
+
+// ─── FMCSA Dataset (admin-managed, shared across all users) ──────────────────
+
+export interface FMCSADatasetMeta {
+  recordCount: number
+  lastUpdated: string
+  statesCovered: string[]
+  uploadedBy: string
+}
+
+// Upsert helper for app_settings (handles both insert and update)
+async function upsertAppSetting(key: string, value: string): Promise<boolean> {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('app_settings')
+    .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' })
+  if (error) {
+    console.error('Error upserting app setting:', error)
+    return false
+  }
+  return true
+}
+
+export async function getFMCSADatasetMeta(): Promise<FMCSADatasetMeta | null> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'fmcsa_dataset_meta')
+    .single()
+  if (error || !data) return null
+  try {
+    return JSON.parse(data.value) as FMCSADatasetMeta
+  } catch {
+    return null
+  }
+}
+
+export async function saveFMCSADataset(
+  carriers: FMCSACarrier[],
+  uploadedByEmail: string
+): Promise<boolean> {
+  const profile = await getUserProfile()
+  if (!profile?.is_admin) {
+    console.error('Only admins can update the FMCSA dataset')
+    return false
+  }
+
+  const meta: FMCSADatasetMeta = {
+    recordCount: carriers.length,
+    lastUpdated: new Date().toISOString(),
+    statesCovered: Array.from(new Set(carriers.map(c => c.state).filter(Boolean))).sort(),
+    uploadedBy: uploadedByEmail,
+  }
+
+  const [carriersOk, metaOk] = await Promise.all([
+    upsertAppSetting('fmcsa_carriers', JSON.stringify(carriers)),
+    upsertAppSetting('fmcsa_dataset_meta', JSON.stringify(meta)),
+  ])
+
+  return carriersOk && metaOk
+}
+
+export async function loadFMCSACarriers(): Promise<FMCSACarrier[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'fmcsa_carriers')
+    .single()
+  if (error || !data) return []
+  try {
+    return JSON.parse(data.value) as FMCSACarrier[]
+  } catch {
+    return []
+  }
 }
