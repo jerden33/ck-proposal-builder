@@ -7,7 +7,7 @@ import {
   getUserProfile, getProductsConfig, updateProductConfig,
   getAppSettings, updateAppSetting, getImageSettings,
   updateProductImage, updateHeroImage,
-  getFMCSADatasetMeta, saveFMCSADataset,
+  getFMCSADatasetMeta, uploadFMCSADataset,
   type FMCSADatasetMeta,
 } from '@/lib/supabase/queries'
 import { parseFMCSAFile } from '@/lib/fmcsa-parser'
@@ -37,6 +37,7 @@ export default function AdminPage() {
   // FMCSA dataset state
   const [fmcsaMeta, setFmcsaMeta] = useState<FMCSADatasetMeta | null>(null)
   const [fmcsaUploading, setFmcsaUploading] = useState(false)
+  const [fmcsaProgress, setFmcsaProgress] = useState<string | null>(null)
   const [fmcsaError, setFmcsaError] = useState<string | null>(null)
   const [fmcsaSuccess, setFmcsaSuccess] = useState<string | null>(null)
   const fmcsaFileRef = useRef<HTMLInputElement>(null)
@@ -74,13 +75,18 @@ export default function AdminPage() {
     setFmcsaUploading(true)
     setFmcsaError(null)
     setFmcsaSuccess(null)
+    setFmcsaProgress(null)
     try {
       const text = await file.text()
       const { carriers, errors } = parseFMCSAFile(text)
       if (errors.length > 0) { setFmcsaError(errors.join(' ')); return }
       if (carriers.length === 0) { setFmcsaError('No records found in the file.'); return }
 
-      const ok = await saveFMCSADataset(carriers, profile?.email ?? 'admin')
+      setFmcsaProgress(`Parsed ${carriers.length.toLocaleString()} carriers — saving to database…`)
+
+      const ok = await uploadFMCSADataset(carriers, profile?.email ?? 'admin', (saved, total) => {
+        setFmcsaProgress(`Saving ${saved.toLocaleString()} / ${total.toLocaleString()} carriers…`)
+      })
       if (!ok) { setFmcsaError('Failed to save dataset — check Supabase connection.'); return }
 
       const meta = await getFMCSADatasetMeta()
@@ -91,6 +97,7 @@ export default function AdminPage() {
       console.error(err)
     } finally {
       setFmcsaUploading(false)
+      setFmcsaProgress(null)
     }
   }
 
@@ -570,8 +577,10 @@ export default function AdminPage() {
                 {fmcsaUploading ? (
                   <div className="flex flex-col items-center gap-2">
                     <div className="w-8 h-8 border-4 border-brand-orange border-t-transparent rounded-full animate-spin" />
-                    <p className="font-medium text-gray-600">Parsing and saving dataset…</p>
-                    <p className="text-xs text-gray-400">This may take a moment for large files</p>
+                    <p className="font-medium text-gray-600">
+                      {fmcsaProgress ?? 'Parsing and saving dataset…'}
+                    </p>
+                    <p className="text-xs text-gray-400">This may take several minutes for large files</p>
                   </div>
                 ) : (
                   <>

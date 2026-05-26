@@ -1,19 +1,21 @@
 'use client'
 
 import {
-  useCallback, useEffect, useMemo, useState,
-  type ReactNode, type RefObject,
+  useCallback, useEffect, useState,
+  type ReactNode,
 } from 'react'
 import {
-  Download, Star, ExternalLink, X, ChevronUp, ChevronDown,
-  Phone, Truck, Zap, Search, AlertTriangle, CheckCircle2,
+  Download, Star, ExternalLink, X, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
+  Phone, Search, AlertTriangle, CheckCircle2,
   Filter, TableProperties, Database,
 } from 'lucide-react'
 import { Navbar } from '@/components/Navbar'
-import { getUserProfile } from '@/lib/supabase/queries'
-import { loadFMCSACarriers, getFMCSADatasetMeta, type FMCSADatasetMeta } from '@/lib/supabase/queries'
+import {
+  getUserProfile, getFMCSADatasetMeta, queryFMCSACarriers, exportAllFMCSACarriers,
+  type FMCSADatasetMeta, type FMCSAQueryFilters,
+} from '@/lib/supabase/queries'
 import type { UserProfile } from '@/lib/types'
-import { isStaleMCS150Date, computeOpportunityScore, type FMCSACarrier } from '@/lib/fmcsa-parser'
+import type { FMCSACarrier } from '@/lib/fmcsa-parser'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -30,6 +32,17 @@ const CARGO_OPTIONS = [
   'Hazardous Materials', 'Flatbed', 'Auto Carrier',
   'Household Goods', 'Dry Bulk', 'Grain', 'Other',
 ]
+
+const PAGE_SIZE = 100
+
+const SORT_COL_MAP: Record<SortKey, string> = {
+  legalName:        'legal_name',
+  city:             'city',
+  powerUnits:       'power_units',
+  drivers:          'drivers',
+  carrierOperation: 'carrier_operation',
+  opportunityScore: 'opportunity_score',
+}
 
 // ── Filter state ──────────────────────────────────────────────────────────────
 
@@ -61,6 +74,21 @@ const DEFAULT_FILTERS: ProspectFilters = {
   starredOnly: false,
 }
 
+function toQueryFilters(f: ProspectFilters): FMCSAQueryFilters {
+  return {
+    states:             f.states.length ? f.states : undefined,
+    citySearch:         f.citySearch || undefined,
+    minPowerUnits:      f.minPowerUnits || undefined,
+    maxPowerUnits:      f.maxPowerUnits < 500 ? f.maxPowerUnits : undefined,
+    carrierOperations:  f.carrierOperations.length ? f.carrierOperations : undefined,
+    cargoTypes:         f.cargoTypes.length ? f.cargoTypes : undefined,
+    hazmatOnly:         f.hazmatOnly || undefined,
+    passengerOnly:      f.passengerOnly || undefined,
+    statusFilter:       f.statusFilter,
+    includeStaleMCS150: f.includeStaleMCS150,
+  }
+}
+
 // ── Table sort ────────────────────────────────────────────────────────────────
 
 type SortKey =
@@ -70,55 +98,6 @@ type SortKey =
 interface SortConfig { key: SortKey; dir: 'asc' | 'desc' }
 
 type ViewMode = 'table' | 'quickdial'
-
-// ─── Filter logic ─────────────────────────────────────────────────────────────
-
-function applyFilters(
-  carriers: FMCSACarrier[],
-  f: ProspectFilters,
-  starred: Set<string>
-): FMCSACarrier[] {
-  const city = f.citySearch.trim().toLowerCase()
-  return carriers.filter(c => {
-    if (f.states.length > 0 && !f.states.includes(c.state)) return false
-    if (city && !c.city.toLowerCase().includes(city)) return false
-    if (c.powerUnits < f.minPowerUnits) return false
-    if (f.maxPowerUnits < 500 && c.powerUnits > f.maxPowerUnits) return false
-    if (f.carrierOperations.length > 0 && !f.carrierOperations.includes(c.carrierOperation)) return false
-    if (f.cargoTypes.length > 0) {
-      const match = c.cargoCarried.some(cargo =>
-        f.cargoTypes.some(ft => cargo.toLowerCase().includes(ft.toLowerCase()))
-      )
-      if (!match) return false
-    }
-    if (f.hazmatOnly && !c.hmFlag && !c.cargoCarried.some(x => /hazmat|hazardous/i.test(x))) return false
-    if (f.passengerOnly && !c.pcFlag && !/passenger/i.test(c.carrierOperation)) return false
-    if (f.statusFilter === 'active' && c.operatingStatus !== 'ACTIVE') return false
-    if (f.statusFilter === 'inactive' && c.operatingStatus !== 'INACTIVE') return false
-    if (!f.includeStaleMCS150 && c.isStaleMCS150) return false
-    if (f.starredOnly && !starred.has(c.dotNumber)) return false
-    return true
-  })
-}
-
-// ─── Sort ─────────────────────────────────────────────────────────────────────
-
-function sortCarriers(carriers: FMCSACarrier[], s: SortConfig): FMCSACarrier[] {
-  return [...carriers].sort((a, b) => {
-    let av: number | string = 0, bv: number | string = 0
-    switch (s.key) {
-      case 'legalName':        av = a.legalName.toLowerCase(); bv = b.legalName.toLowerCase(); break
-      case 'city':             av = `${a.city},${a.state}`.toLowerCase(); bv = `${b.city},${b.state}`.toLowerCase(); break
-      case 'powerUnits':       av = a.powerUnits; bv = b.powerUnits; break
-      case 'drivers':          av = a.drivers; bv = b.drivers; break
-      case 'carrierOperation': av = a.carrierOperation.toLowerCase(); bv = b.carrierOperation.toLowerCase(); break
-      case 'opportunityScore': av = a.opportunityScore ?? 0; bv = b.opportunityScore ?? 0; break
-    }
-    if (av < bv) return s.dir === 'asc' ? -1 : 1
-    if (av > bv) return s.dir === 'asc' ? 1 : -1
-    return 0
-  })
-}
 
 // ─── CSV export ───────────────────────────────────────────────────────────────
 
@@ -170,9 +149,14 @@ function saferUrl(dot: string) {
 
 export default function OTRProspectsPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [allCarriers, setAllCarriers] = useState<FMCSACarrier[]>([])
   const [datasetMeta, setDatasetMeta] = useState<FMCSADatasetMeta | null>(null)
+  const [carriers, setCarriers] = useState<FMCSACarrier[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [queryLoading, setQueryLoading] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [initialized, setInitialized] = useState(false)
   const [filters, setFilters] = useState<ProspectFilters>(DEFAULT_FILTERS)
   const [appliedFilters, setAppliedFilters] = useState<ProspectFilters>(DEFAULT_FILTERS)
   const [starred, setStarred] = useState<Set<string>>(new Set())
@@ -181,41 +165,43 @@ export default function OTRProspectsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('table')
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'opportunityScore', dir: 'desc' })
 
-  // Load carriers and metadata on mount
+  // Initial load: profile + meta
   useEffect(() => {
-    Promise.all([getUserProfile(), loadFMCSACarriers(), getFMCSADatasetMeta()])
-      .then(([prof, carriers, meta]) => {
+    Promise.all([getUserProfile(), getFMCSADatasetMeta()])
+      .then(([prof, meta]) => {
         setProfile(prof)
         setDatasetMeta(meta)
-
-        // Stamp isStaleMCS150 and opportunityScore on load
-        const enriched = carriers.map(c => ({
-          ...c,
-          isStaleMCS150: isStaleMCS150Date(c.mcs150Date),
-          opportunityScore: computeOpportunityScore(c),
-        }))
-        setAllCarriers(enriched)
-
-        // Auto-select states present in the dataset
         if (meta?.statesCovered?.length) {
           const autoStates = meta.statesCovered.slice(0, 8)
           setFilters(f => ({ ...f, states: autoStates }))
           setAppliedFilters(f => ({ ...f, states: autoStates }))
         }
+        setInitialized(true)
       })
       .finally(() => setLoading(false))
   }, [])
 
-  // Derived filtered + sorted list
-  const filteredCarriers = useMemo(
-    () => sortCarriers(applyFilters(allCarriers, appliedFilters, starred), sortConfig),
-    [allCarriers, appliedFilters, starred, sortConfig]
-  )
+  // Query whenever filters/sort/page change (after init)
+  useEffect(() => {
+    if (!initialized) return
+    setQueryLoading(true)
+    queryFMCSACarriers(
+      toQueryFilters(appliedFilters),
+      { column: SORT_COL_MAP[sortConfig.key], ascending: sortConfig.dir === 'asc' },
+      page,
+      PAGE_SIZE
+    ).then(result => {
+      setCarriers(result.carriers)
+      setTotalCount(result.totalCount)
+    }).finally(() => setQueryLoading(false))
+  }, [appliedFilters, sortConfig, page, initialized])
 
-  const hotZoneCount = useMemo(
-    () => filteredCarriers.filter(c => c.isHotZone).length,
-    [filteredCarriers]
-  )
+  // starredOnly is applied client-side on the current page
+  const displayCarriers = appliedFilters.starredOnly
+    ? carriers.filter(c => starred.has(c.dotNumber))
+    : carriers
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
   // ── Actions ─────────────────────────────────────────────────────────────────
 
@@ -229,9 +215,9 @@ export default function OTRProspectsPage() {
 
   const toggleAllRows = () => {
     setSelectedRows(prev =>
-      prev.size === filteredCarriers.length && filteredCarriers.length > 0
+      prev.size === displayCarriers.length && displayCarriers.length > 0
         ? new Set()
-        : new Set(filteredCarriers.map(c => c.dotNumber))
+        : new Set(displayCarriers.map(c => c.dotNumber))
     )
   }
 
@@ -241,13 +227,21 @@ export default function OTRProspectsPage() {
         ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
         : { key, dir: key === 'opportunityScore' || key === 'powerUnits' ? 'desc' : 'asc' }
     )
+    setPage(0)
   }
 
-  const handleExport = (onlySelected = false) => {
-    const toExport = onlySelected
-      ? filteredCarriers.filter(c => selectedRows.has(c.dotNumber))
-      : filteredCarriers
-    exportCSV(toExport, appliedFilters)
+  const handleExport = async (onlySelected = false) => {
+    if (onlySelected) {
+      exportCSV(displayCarriers.filter(c => selectedRows.has(c.dotNumber)), appliedFilters)
+      return
+    }
+    setExporting(true)
+    try {
+      const all = await exportAllFMCSACarriers(toQueryFilters(appliedFilters))
+      exportCSV(all, appliedFilters)
+    } finally {
+      setExporting(false)
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -268,11 +262,9 @@ export default function OTRProspectsPage() {
             <p className="text-sm text-zinc-500 mt-0.5">
               {loading
                 ? 'Loading carrier dataset…'
-                : allCarriers.length > 0
-                ? `${allCarriers.length.toLocaleString()} carriers · updated ${
-                    datasetMeta?.lastUpdated
-                      ? new Date(datasetMeta.lastUpdated).toLocaleDateString()
-                      : '—'
+                : datasetMeta
+                ? `${datasetMeta.recordCount.toLocaleString()} carriers · updated ${
+                    new Date(datasetMeta.lastUpdated).toLocaleDateString()
                   }`
                 : 'No dataset loaded — contact your admin'}
             </p>
@@ -280,20 +272,25 @@ export default function OTRProspectsPage() {
           <div className="flex items-center gap-2">
             {starred.size > 0 && (
               <button
-                onClick={() => exportCSV(allCarriers.filter(c => starred.has(c.dotNumber)), appliedFilters)}
+                onClick={() => exportCSV(carriers.filter(c => starred.has(c.dotNumber)), appliedFilters)}
                 className="btn-secondary flex items-center gap-1.5 text-amber-600 border-amber-200 hover:border-amber-300"
               >
                 <Star size={14} className="fill-amber-400 text-amber-400" />
                 Export starred ({starred.size})
               </button>
             )}
-            {filteredCarriers.length > 0 && (
+            {totalCount > 0 && (
               <button
                 onClick={() => handleExport(false)}
+                disabled={exporting}
                 className="btn-secondary flex items-center gap-1.5"
               >
-                <Download size={14} />
-                Export CSV
+                {exporting ? (
+                  <div className="w-3.5 h-3.5 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Download size={14} />
+                )}
+                {exporting ? 'Exporting…' : 'Export CSV'}
               </button>
             )}
           </div>
@@ -301,20 +298,28 @@ export default function OTRProspectsPage() {
       </div>
 
       {/* Summary bar */}
-      {!loading && allCarriers.length > 0 && (
+      {!loading && datasetMeta && (
         <div className="border-b border-zinc-100 bg-white/60">
           <div className="max-w-7xl mx-auto px-6 py-2 flex items-center gap-8">
-            <SummaryStat label="Showing" value={filteredCarriers.length.toLocaleString()} />
-            <SummaryStat label="Total power units" value={filteredCarriers.reduce((s, c) => s + c.powerUnits, 0).toLocaleString()} />
-            <SummaryStat label="Hazmat-auth" value={filteredCarriers.filter(c => c.hmFlag).length.toLocaleString()} color="orange" />
-            <SummaryStat label="In dataset" value={allCarriers.length.toLocaleString()} sub={datasetMeta?.statesCovered.join(', ')} />
+            <SummaryStat label="Filtered results" value={totalCount.toLocaleString()} />
+            <SummaryStat
+              label="In dataset"
+              value={datasetMeta.recordCount.toLocaleString()}
+              sub={datasetMeta.statesCovered.join(', ')}
+            />
             {selectedRows.size > 0 && (
               <div className="ml-auto flex items-center gap-2">
                 <span className="text-sm text-zinc-500">{selectedRows.size} selected</span>
-                <button onClick={() => handleExport(true)} className="btn-secondary py-1.5 text-xs flex items-center gap-1">
+                <button
+                  onClick={() => handleExport(true)}
+                  className="btn-secondary py-1.5 text-xs flex items-center gap-1"
+                >
                   <Download size={12} /> Export selected
                 </button>
-                <button onClick={() => setSelectedRows(new Set())} className="text-zinc-400 hover:text-zinc-600 p-1">
+                <button
+                  onClick={() => setSelectedRows(new Set())}
+                  className="text-zinc-400 hover:text-zinc-600 p-1"
+                >
                   <X size={14} />
                 </button>
               </div>
@@ -327,7 +332,7 @@ export default function OTRProspectsPage() {
       <div className="max-w-7xl mx-auto px-6 py-6">
         {loading ? (
           <LoadingState />
-        ) : allCarriers.length === 0 ? (
+        ) : !datasetMeta ? (
           <EmptyState isAdmin={profile?.is_admin ?? false} />
         ) : (
           <div className="flex gap-6">
@@ -336,9 +341,16 @@ export default function OTRProspectsPage() {
               <FilterPanel
                 filters={filters}
                 onChange={setFilters}
-                onApply={() => setAppliedFilters(filters)}
-                onReset={() => { setFilters(DEFAULT_FILTERS); setAppliedFilters(DEFAULT_FILTERS) }}
-                availableStates={datasetMeta?.statesCovered ?? US_STATES}
+                onApply={() => {
+                  setAppliedFilters(filters)
+                  setPage(0)
+                }}
+                onReset={() => {
+                  setFilters(DEFAULT_FILTERS)
+                  setAppliedFilters(DEFAULT_FILTERS)
+                  setPage(0)
+                }}
+                availableStates={datasetMeta.statesCovered ?? US_STATES}
               />
             </aside>
 
@@ -367,25 +379,60 @@ export default function OTRProspectsPage() {
                 ))}
               </div>
 
-              <CarrierTable
-                carriers={filteredCarriers}
-                starred={starred}
-                selectedRows={selectedRows}
-                sortConfig={sortConfig}
-                quickDial={viewMode === 'quickdial'}
-                onRowClick={dot => setSelectedCarrier(allCarriers.find(c => c.dotNumber === dot) ?? null)}
-                onToggleStar={toggleStar}
-                onToggleRow={toggleRow}
-                onToggleAll={toggleAllRows}
-                onSort={toggleSort}
-              />
-
-              {filteredCarriers.length === 0 && (
+              {queryLoading ? (
+                <div className="card py-12 text-center">
+                  <div className="w-6 h-6 border-2 border-brand-orange border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                  <p className="text-sm text-zinc-400">Loading carriers…</p>
+                </div>
+              ) : displayCarriers.length === 0 ? (
                 <div className="card text-center py-12">
                   <Search size={32} className="text-zinc-300 mx-auto mb-3" />
                   <p className="font-semibold text-zinc-600">No prospects match these filters</p>
                   <p className="text-sm text-zinc-400 mt-1">Try adjusting the state, city, or carrier type</p>
                 </div>
+              ) : (
+                <>
+                  <CarrierTable
+                    carriers={displayCarriers}
+                    starred={starred}
+                    selectedRows={selectedRows}
+                    sortConfig={sortConfig}
+                    quickDial={viewMode === 'quickdial'}
+                    onRowClick={dot => setSelectedCarrier(carriers.find(c => c.dotNumber === dot) ?? null)}
+                    onToggleStar={toggleStar}
+                    onToggleRow={toggleRow}
+                    onToggleAll={toggleAllRows}
+                    onSort={toggleSort}
+                  />
+
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-xs text-zinc-400">
+                        {(page * PAGE_SIZE + 1).toLocaleString()}–{Math.min((page + 1) * PAGE_SIZE, totalCount).toLocaleString()} of {totalCount.toLocaleString()} carriers
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setPage(p => Math.max(0, p - 1))}
+                          disabled={page === 0}
+                          className="p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-200 disabled:opacity-30 transition-colors"
+                        >
+                          <ChevronLeft size={14} />
+                        </button>
+                        <span className="text-xs text-zinc-600 px-2 font-medium">
+                          Page {(page + 1).toLocaleString()} of {totalPages.toLocaleString()}
+                        </span>
+                        <button
+                          onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                          disabled={page >= totalPages - 1}
+                          className="p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-200 disabled:opacity-30 transition-colors"
+                        >
+                          <ChevronRight size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -692,7 +739,7 @@ function CarrierTable({
             </tr>
           </thead>
           <tbody>
-            {carriers.slice(0, 500).map(c => {
+            {carriers.map(c => {
               const isStarred = starred.has(c.dotNumber)
               const isSelected = selectedRows.has(c.dotNumber)
               return (
@@ -759,11 +806,6 @@ function CarrierTable({
           </tbody>
         </table>
       </div>
-      {carriers.length > 500 && (
-        <div className="px-4 py-2.5 text-xs text-zinc-400 border-t border-zinc-100 bg-zinc-50">
-          Showing first 500 of {carriers.length.toLocaleString()} — export CSV for full list
-        </div>
-      )}
       {carriers.length === 0 && (
         <div className="py-12 text-center text-zinc-400 text-sm">No prospects to display</div>
       )}

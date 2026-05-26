@@ -1,6 +1,6 @@
 import { createClient } from './client'
 import type { UserProfile, ProductConfig, AppSetting, AnalysisRecord, AnalysisShare } from '@/lib/types'
-import type { FMCSACarrier } from '@/lib/fmcsa-parser'
+import { isStaleMCS150Date, computeOpportunityScore, type FMCSACarrier } from '@/lib/fmcsa-parser'
 import { nanoid } from 'nanoid'
 
 // User Queries
@@ -430,6 +430,24 @@ export interface FMCSADatasetMeta {
   uploadedBy: string
 }
 
+export interface FMCSAQueryFilters {
+  states?: string[]
+  citySearch?: string
+  minPowerUnits?: number
+  maxPowerUnits?: number
+  carrierOperations?: string[]
+  cargoTypes?: string[]
+  hazmatOnly?: boolean
+  passengerOnly?: boolean
+  statusFilter?: 'active' | 'inactive' | 'all'
+  includeStaleMCS150?: boolean
+}
+
+export interface FMCSAQueryResult {
+  carriers: FMCSACarrier[]
+  totalCount: number
+}
+
 // Upsert helper for app_settings (handles both insert and update)
 async function upsertAppSetting(key: string, value: string): Promise<boolean> {
   const supabase = createClient()
@@ -458,14 +476,155 @@ export async function getFMCSADatasetMeta(): Promise<FMCSADatasetMeta | null> {
   }
 }
 
-export async function saveFMCSADataset(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToCarrier(row: Record<string, any>): FMCSACarrier {
+  return {
+    dotNumber:        String(row.dot_number ?? ''),
+    legalName:        String(row.legal_name ?? ''),
+    dbaName:          String(row.dba_name ?? ''),
+    address:          String(row.address ?? ''),
+    city:             String(row.city ?? ''),
+    state:            String(row.state ?? ''),
+    zip:              String(row.zip ?? ''),
+    phone:            String(row.phone ?? ''),
+    powerUnits:       Number(row.power_units) || 0,
+    drivers:          Number(row.drivers) || 0,
+    carrierOperation: String(row.carrier_operation ?? ''),
+    cargoCarried:     row.cargo_carried
+      ? String(row.cargo_carried).split('|').map((s: string) => s.trim()).filter(Boolean)
+      : [],
+    operatingStatus:  String(row.operating_status ?? 'ACTIVE'),
+    mcs150Date:       row.mcs150_date ? String(row.mcs150_date) : null,
+    hmFlag:           Boolean(row.hm_flag),
+    pcFlag:           Boolean(row.pc_flag),
+    isStaleMCS150:    Boolean(row.is_stale_mcs150),
+    opportunityScore: Number(row.opportunity_score) || 0,
+  }
+}
+
+export async function queryFMCSACarriers(
+  filters: FMCSAQueryFilters,
+  sort: { column: string; ascending: boolean },
+  page: number,
+  pageSize: number
+): Promise<FMCSAQueryResult> {
+  const supabase = createClient()
+  const from = page * pageSize
+  const to   = from + pageSize - 1
+
+  let q = supabase.from('fmcsa_carriers').select('*', { count: 'exact' })
+
+  if (filters.states?.length)            q = q.in('state', filters.states)
+  if (filters.citySearch?.trim())         q = q.ilike('city', `%${filters.citySearch.trim()}%`)
+  if (filters.minPowerUnits)              q = q.gte('power_units', filters.minPowerUnits)
+  if (filters.maxPowerUnits != null && filters.maxPowerUnits < 500)
+                                          q = q.lte('power_units', filters.maxPowerUnits)
+  if (filters.carrierOperations?.length)  q = q.in('carrier_operation', filters.carrierOperations)
+  if (filters.hazmatOnly)                 q = q.eq('hm_flag', true)
+  if (filters.passengerOnly)              q = q.eq('pc_flag', true)
+  if (filters.statusFilter === 'active')   q = q.eq('operating_status', 'ACTIVE')
+  if (filters.statusFilter === 'inactive') q = q.eq('operating_status', 'INACTIVE')
+  if (!filters.includeStaleMCS150)        q = q.eq('is_stale_mcs150', false)
+  if (filters.cargoTypes?.length) {
+    const orClauses = filters.cargoTypes.map(t => `cargo_carried.ilike.%${t}%`).join(',')
+    q = q.or(orClauses)
+  }
+
+  const { data, count, error } = await q
+    .order(sort.column, { ascending: sort.ascending })
+    .range(from, to)
+
+  if (error) {
+    console.error('Error querying FMCSA carriers:', error)
+    return { carriers: [], totalCount: 0 }
+  }
+
+  return {
+    carriers: (data ?? []).map(rowToCarrier),
+    totalCount: count ?? 0,
+  }
+}
+
+export async function exportAllFMCSACarriers(filters: FMCSAQueryFilters): Promise<FMCSACarrier[]> {
+  const supabase = createClient()
+
+  let q = supabase.from('fmcsa_carriers').select('*')
+
+  if (filters.states?.length)            q = q.in('state', filters.states)
+  if (filters.citySearch?.trim())         q = q.ilike('city', `%${filters.citySearch.trim()}%`)
+  if (filters.minPowerUnits)              q = q.gte('power_units', filters.minPowerUnits)
+  if (filters.maxPowerUnits != null && filters.maxPowerUnits < 500)
+                                          q = q.lte('power_units', filters.maxPowerUnits)
+  if (filters.carrierOperations?.length)  q = q.in('carrier_operation', filters.carrierOperations)
+  if (filters.hazmatOnly)                 q = q.eq('hm_flag', true)
+  if (filters.passengerOnly)              q = q.eq('pc_flag', true)
+  if (filters.statusFilter === 'active')   q = q.eq('operating_status', 'ACTIVE')
+  if (filters.statusFilter === 'inactive') q = q.eq('operating_status', 'INACTIVE')
+  if (!filters.includeStaleMCS150)        q = q.eq('is_stale_mcs150', false)
+  if (filters.cargoTypes?.length) {
+    const orClauses = filters.cargoTypes.map(t => `cargo_carried.ilike.%${t}%`).join(',')
+    q = q.or(orClauses)
+  }
+
+  const { data, error } = await q
+    .order('opportunity_score', { ascending: false })
+    .limit(50000)
+
+  if (error) {
+    console.error('Error exporting FMCSA carriers:', error)
+    return []
+  }
+  return (data ?? []).map(rowToCarrier)
+}
+
+export async function uploadFMCSADataset(
   carriers: FMCSACarrier[],
-  uploadedByEmail: string
+  uploadedByEmail: string,
+  onProgress?: (saved: number, total: number) => void
 ): Promise<boolean> {
   const profile = await getUserProfile()
   if (!profile?.is_admin) {
     console.error('Only admins can update the FMCSA dataset')
     return false
+  }
+
+  const supabase = createClient()
+
+  const { error: truncErr } = await supabase.rpc('truncate_fmcsa_carriers')
+  if (truncErr) {
+    console.error('Error truncating FMCSA carriers:', truncErr)
+    return false
+  }
+
+  const CHUNK = 1000
+  for (let i = 0; i < carriers.length; i += CHUNK) {
+    const rows = carriers.slice(i, i + CHUNK).map(c => ({
+      dot_number:        c.dotNumber || null,
+      legal_name:        c.legalName,
+      dba_name:          c.dbaName || null,
+      address:           c.address || null,
+      city:              c.city || null,
+      state:             c.state || null,
+      zip:               c.zip || null,
+      phone:             c.phone || null,
+      power_units:       c.powerUnits,
+      drivers:           c.drivers,
+      carrier_operation: c.carrierOperation || null,
+      cargo_carried:     c.cargoCarried.length ? c.cargoCarried.join('|') : null,
+      operating_status:  c.operatingStatus,
+      mcs150_date:       c.mcs150Date || null,
+      hm_flag:           c.hmFlag,
+      pc_flag:           c.pcFlag,
+      is_stale_mcs150:   isStaleMCS150Date(c.mcs150Date),
+      opportunity_score: computeOpportunityScore(c),
+    }))
+
+    const { error } = await supabase.from('fmcsa_carriers').insert(rows)
+    if (error) {
+      console.error(`Error inserting FMCSA chunk at offset ${i}:`, error)
+      return false
+    }
+    onProgress?.(Math.min(i + CHUNK, carriers.length), carriers.length)
   }
 
   const meta: FMCSADatasetMeta = {
@@ -474,26 +633,7 @@ export async function saveFMCSADataset(
     statesCovered: Array.from(new Set(carriers.map(c => c.state).filter(Boolean))).sort(),
     uploadedBy: uploadedByEmail,
   }
+  await upsertAppSetting('fmcsa_dataset_meta', JSON.stringify(meta))
 
-  const [carriersOk, metaOk] = await Promise.all([
-    upsertAppSetting('fmcsa_carriers', JSON.stringify(carriers)),
-    upsertAppSetting('fmcsa_dataset_meta', JSON.stringify(meta)),
-  ])
-
-  return carriersOk && metaOk
-}
-
-export async function loadFMCSACarriers(): Promise<FMCSACarrier[]> {
-  const supabase = createClient()
-  const { data, error } = await supabase
-    .from('app_settings')
-    .select('value')
-    .eq('key', 'fmcsa_carriers')
-    .single()
-  if (error || !data) return []
-  try {
-    return JSON.parse(data.value) as FMCSACarrier[]
-  } catch {
-    return []
-  }
+  return true
 }
