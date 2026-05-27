@@ -457,6 +457,19 @@ export function parseFleetCSV(content: string): ParseResult {
   else if (headerJoined.includes('truck stop name') || headerJoined.includes('truck stop city')) detectedFormat = 'OTR Fuel Card'
   else if (headerJoined.includes('qtypurchased') || (headerJoined.includes('nacs') && headerJoined.includes('sitecity'))) detectedFormat = 'WEX Site-Level'
 
+  // Infer default fuel type from the gallons column name when no fuel type column exists.
+  // "Number of Tractor Gallons" / "Diesel Gallons" → DIESEL; "Gas Gallons" → GASOLINE.
+  // Used only as a fallback when neither fuelType nor productName columns are present.
+  let gallonsImpliedFuelType = ''
+  if (colIdx['gallons'] !== undefined && !('fuelType' in colIdx) && !('productName' in colIdx)) {
+    const gallonsHeader = normalizeKey(headers[colIdx['gallons']])
+    if (gallonsHeader.includes('tractor') || gallonsHeader.includes('diesel') || gallonsHeader === '2 diesel gallons') {
+      gallonsImpliedFuelType = 'DIESEL'
+    } else if (gallonsHeader.includes('gasoline') || gallonsHeader.includes('gas') || gallonsHeader.includes('unlead')) {
+      gallonsImpliedFuelType = 'GASOLINE'
+    }
+  }
+
   for (let i = headerIdx + 1; i < rawLines.length; i++) {
     const line = rawLines[i].trim()
     if (!line) continue
@@ -508,10 +521,11 @@ export function parseFleetCSV(content: string): ParseResult {
       stationName.toUpperCase().includes('CIRCLE K') ||
       stationAddressRaw.toUpperCase().includes('CIRCLE K')
 
-    // fuelType: prefer dedicated field, fall back to productName; always normalise
+    // fuelType: prefer dedicated field → productName → gallons-column-implied type
     const fuelType = normalizeFuelType(
       col(cols, colIdx['fuelType']) ||
-      col(cols, colIdx['productName'])
+      col(cols, colIdx['productName']) ||
+      gallonsImpliedFuelType
     )
 
     // Driver name: prefer combined column; fall back to first + last
