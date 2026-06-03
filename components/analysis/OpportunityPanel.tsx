@@ -3,10 +3,11 @@
 import { CheckCircle, TrendingUp, XCircle, Truck, Info } from 'lucide-react'
 import { fmtGallons, fmtDollars, fmtPct, type TransactionSummary } from '@/lib/transaction-analysis'
 
-export function OpportunityPanel({ analysis, totalGallons, truckMode = false }: {
+export function OpportunityPanel({ analysis, totalGallons, truckMode = false, captureRadiusMi = 10 }: {
   analysis: TransactionSummary['ckCaptureAnalysis']
   totalGallons: number
   truckMode?: boolean
+  captureRadiusMi?: number
 }) {
   const { captured, capturable, gap, captureRate, potentialRate, methodology } = analysis
   const uplift = potentialRate - captureRate
@@ -58,7 +59,7 @@ export function OpportunityPanel({ analysis, totalGallons, truckMode = false }: 
           <Info size={12} className="shrink-0 mt-0.5 text-zinc-400" />
           {isProximity ? (
             <span>
-              <strong className="text-zinc-600">Proximity-based</strong> — competitor gallons are capturable when a{truckMode ? ' truck-accessible' : ''} Circle K is within 10 miles of the fueling location.
+              <strong className="text-zinc-600">Proximity-based</strong> — competitor gallons are capturable when a{truckMode ? ' truck-accessible' : ''} Circle K is within {captureRadiusMi} miles of the fueling location.
               Distance-to-nearest-CK is calculated from geocoded coordinates.
             </span>
           ) : (
@@ -107,12 +108,12 @@ export function OpportunityPanel({ analysis, totalGallons, truckMode = false }: 
               <div className="flex items-center gap-2 mb-1">
                 <TrendingUp size={14} className="text-brand-orange shrink-0" />
                 <span className="text-xs font-semibold text-zinc-600">
-                  {isProximity ? 'Competitor — CK within 10 mi' : 'Competitor — CK in Same ZIP'}
+                  {isProximity ? `Competitor — CK within ${captureRadiusMi} mi` : 'Competitor — CK in Same ZIP'}
                 </span>
               </div>
               <p className="text-[10px] text-zinc-400 mb-3 pl-5">
                 {isProximity
-                  ? `A${truckMode ? ' truck-accessible' : ''} Circle K is within 10 miles`
+                  ? `A${truckMode ? ' truck-accessible' : ''} Circle K is within ${captureRadiusMi} miles`
                   : (truckMode ? 'Truck-accessible CK exists in the same ZIP code' : 'A Circle K exists in the same ZIP code')}
               </p>
               <p className="text-2xl font-bold text-zinc-900">{fmtGallons(capturable.gallons)}</p>
@@ -123,12 +124,12 @@ export function OpportunityPanel({ analysis, totalGallons, truckMode = false }: 
               <div className="flex items-center gap-2 mb-1">
                 <XCircle size={14} className="text-zinc-300 shrink-0" />
                 <span className="text-xs font-semibold text-zinc-500">
-                  {isProximity ? 'No CK within 10 mi' : 'No CK in Same ZIP Code'}
+                  {isProximity ? `No CK within ${captureRadiusMi} mi` : 'No CK in Same ZIP Code'}
                 </span>
               </div>
               <p className="text-[10px] text-zinc-400 mb-3 pl-5">
                 {isProximity
-                  ? `No ${truckMode ? 'truck-accessible ' : ''}CK within 10 miles`
+                  ? `No ${truckMode ? 'truck-accessible ' : ''}CK within ${captureRadiusMi} miles`
                   : `No ${truckMode ? 'truck-accessible ' : ''}CK in the transaction ZIP code`}
               </p>
               <p className="text-2xl font-bold text-zinc-900">{fmtGallons(gap.gallons)}</p>
@@ -142,7 +143,7 @@ export function OpportunityPanel({ analysis, totalGallons, truckMode = false }: 
           <p className="mt-4 text-sm text-zinc-500">
             <span className="font-semibold text-zinc-800">{fmtGallons(capturable.gallons)} gallons ({fmtPct((capturable.gallons / totalGallons) * 100)})</span>{' '}
             {isProximity
-              ? `are going to competitors within 10 miles of a ${truckMode ? 'truck-accessible Circle K' : 'Circle K'}.`
+              ? `are going to competitors within ${captureRadiusMi} miles of a ${truckMode ? 'truck-accessible Circle K' : 'Circle K'}.`
               : `are going to competitors in ZIP codes where a ${truckMode ? 'truck-accessible Circle K' : 'Circle K'} already exists.`}
           </p>
         )}

@@ -1481,7 +1481,7 @@ function AnalysisPageInner() {
             )}
 
             {/* CK Opportunity Panel */}
-            <div className="fade-in"><OpportunityPanel analysis={summary.ckCaptureAnalysis} totalGallons={summary.totalGallons} /></div>
+            <div className="fade-in"><OpportunityPanel analysis={summary.ckCaptureAnalysis} totalGallons={summary.totalGallons} captureRadiusMi={captureRadius} /></div>
 
             {/* Top CK Opportunity Locations — standalone card */}
             {summary.topCKOpportunityLocations.length > 0 && (

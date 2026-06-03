@@ -942,12 +942,17 @@ function buildMapData(
     }
 
     const nonCKGallons = agg.gallons - agg.ckGallons
-    const nonCKTrans = Math.round(agg.transactions * (nonCKGallons / Math.max(agg.gallons, 1)))
-    const nonCKSpend = agg.spend * (nonCKGallons / Math.max(agg.gallons, 1))
 
     if (!allCK) {
-      // Attribute competitor gallons to the nearest truck CK within the capture radius
-      if (ckNearest && ckNearest.distanceMi <= captureRadiusMi) {
+      // Proximity-based opportunity capture: classify non-CK gallons by distance to CK
+      // Diesel uses truck-accessible CK distance; gas uses full-network CK distance;
+      // unknown fuel type uses the best available distance.
+      const diesel = agg.nonCKDieselGallons
+      const gas    = agg.nonCKGasGallons
+      const other  = nonCKGallons - diesel - gas
+
+      // Attribute diesel competitor gallons → nearest truck-accessible CK
+      if (diesel > 0 && ckNearest && ckNearest.distanceMi <= captureRadiusMi) {
         const k = `${ckNearest.store.lat.toFixed(6)},${ckNearest.store.lng.toFixed(6)}`
         const entry = ckOppMap.get(k) ?? {
           ckName: ckNearest.store.name ?? 'Circle K',
@@ -960,21 +965,38 @@ function buildMapData(
           competitorGallons: 0, competitorTransactions: 0, competitorSpend: 0, nearbyStationCount: 0,
           dieselGallons: 0, gasGallons: 0,
         }
-        entry.competitorGallons += nonCKGallons
-        entry.competitorTransactions += nonCKTrans
-        entry.competitorSpend += nonCKSpend
-        entry.dieselGallons += agg.nonCKDieselGallons
-        entry.gasGallons += agg.nonCKGasGallons
+        const r = diesel / Math.max(agg.gallons, 1)
+        entry.competitorGallons += diesel
+        entry.competitorTransactions += Math.round(agg.transactions * r)
+        entry.competitorSpend += agg.spend * r
+        entry.dieselGallons += diesel
         entry.nearbyStationCount++
         ckOppMap.set(k, entry)
       }
 
-      // Proximity-based opportunity capture: classify non-CK gallons by distance to CK
-      // Diesel uses truck-accessible CK distance; gas uses full-network CK distance;
-      // unknown fuel type uses the best available distance.
-      const diesel = agg.nonCKDieselGallons
-      const gas    = agg.nonCKGasGallons
-      const other  = nonCKGallons - diesel - gas
+      // Attribute gas + unknown fuel competitor gallons → nearest full-network CK
+      const gasOther = gas + other
+      if (gasOther > 0 && ckNearestAll && ckNearestAll.distanceMi <= captureRadiusMi) {
+        const k = `${ckNearestAll.store.lat.toFixed(6)},${ckNearestAll.store.lng.toFixed(6)}`
+        const entry = ckOppMap.get(k) ?? {
+          ckName: ckNearestAll.store.name ?? 'Circle K',
+          city: ckNearestAll.store.city ?? '',
+          state: ckNearestAll.store.state ?? '',
+          lat: ckNearestAll.store.lat,
+          lng: ckNearestAll.store.lng,
+          truckAccessible: ckNearestAll.store.truckAccessible ?? false,
+          siteNumber: ckNearestAll.store.siteNumber,
+          competitorGallons: 0, competitorTransactions: 0, competitorSpend: 0, nearbyStationCount: 0,
+          dieselGallons: 0, gasGallons: 0,
+        }
+        const r = gasOther / Math.max(agg.gallons, 1)
+        entry.competitorGallons += gasOther
+        entry.competitorTransactions += Math.round(agg.transactions * r)
+        entry.competitorSpend += agg.spend * r
+        entry.gasGallons += gas
+        entry.nearbyStationCount++
+        ckOppMap.set(k, entry)
+      }
 
       if (diesel > 0) {
         const r = diesel / Math.max(agg.gallons, 1)
