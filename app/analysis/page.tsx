@@ -132,7 +132,7 @@ const FEATURE_DEFS: FeatureDef[] = [
   { key: 'annualized',          label: 'Annualized View',        desc: 'Monthly & yearly projections from data window' },
   { key: 'behavioralInsights',  label: 'Behavioral Insights',    desc: 'Vehicle segments, top opportunity units & fill frequency' },
   { key: 'timeOfDay',           label: 'Time Patterns',          desc: 'Hourly & day-of-week fueling (needs timestamp data)' },
-  { key: 'fraudFlags',          label: 'Fraud Flags',            desc: 'High-gallon fills, multi-fill days, PPG outliers & state hops' },
+  { key: 'fraudFlags',          label: 'Transaction Flags',      desc: 'High-gallon fills, multi-fill days, PPG outliers & state hops' },
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -419,7 +419,7 @@ const ALL_TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'locations', label: 'Top Competitor Locations', icon: <Fuel size={16} /> },
   { id: 'insights',  label: 'Behavioral Insights',      icon: <Users size={16} /> },
   { id: 'timing',    label: 'Time Patterns',            icon: <Clock size={16} /> },
-  { id: 'fraud',     label: 'Fraud Flags',              icon: <ShieldAlert size={16} /> },
+  { id: 'fraud',     label: 'Transaction Flags',        icon: <ShieldAlert size={16} /> },
   { id: 'otr',       label: 'OTR Corridors',            icon: <Truck size={16} /> },
 ]
 
@@ -1674,13 +1674,12 @@ function AnalysisPageInner() {
             {/* Fuel Type Split (if enabled) */}
             {featureFlags.fuelTypeSplit && summary.fuelTypeBreakdown.length > 1 && (
               <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-                <h3 className="font-bold text-off-black mb-3 text-sm">Fuel Type Breakdown</h3>
+                <h3 className="font-bold text-off-black mb-3 text-sm">Transaction Breakdown</h3>
                 <div className="flex flex-wrap gap-3">
                   {summary.fuelTypeBreakdown.map(ft => (
                     <div key={ft.type} className="bg-gray-50 rounded-lg px-4 py-3 text-center min-w-[120px]">
                       <p className="text-xs font-semibold text-gray-500 mb-1">{ft.type}</p>
                       <p className="text-lg font-bold text-off-black">{fmtGallons(ft.gallons)}</p>
-                      <p className="text-xs text-gray-400">gallons</p>
                       <p className="text-xs text-gray-500 mt-1">{ft.transactions.toLocaleString()} trans</p>
                     </div>
                   ))}
