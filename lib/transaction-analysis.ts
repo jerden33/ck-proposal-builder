@@ -188,6 +188,8 @@ export interface TransactionSummary {
   topCKOpportunityLocations: CKOpportunityLocation[]  // CK stores with most nearby competitor gallons
   // Rep-configured rebate rate (¢/gal), saved with analysis
   rebateRate?: number
+  // Capture radius (miles) used when this analysis was run — needed for correct display after restore
+  captureRadiusMi?: number
   // Whether OTR/truck mode was active when analysis was saved
   truckMode?: boolean
   // Corridor-based OTR opportunity analysis (populated after geocoding)
@@ -764,6 +766,7 @@ export function analyzeTransactions(
     proximityBreakdown,
     proximityBreakdownAll,
     topCKOpportunityLocations,
+    captureRadiusMi,
   }
 }
 
@@ -1083,6 +1086,7 @@ function createEmptySummary(): TransactionSummary {
     proximityBreakdown: null,
     proximityBreakdownAll: null,
     topCKOpportunityLocations: [],
+    captureRadiusMi: 10,
   }
 }
 

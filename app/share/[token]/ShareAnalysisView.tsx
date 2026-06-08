@@ -124,10 +124,12 @@ function OpportunityPanel({
   analysis,
   totalGallons,
   isCustomer,
+  captureRadiusMi = 10,
 }: {
   analysis: TransactionSummary['ckCaptureAnalysis']
   totalGallons: number
   isCustomer: boolean
+  captureRadiusMi?: number
 }) {
   const { captured, capturable, gap, captureRate, potentialRate, methodology } = analysis
   const isProximity = methodology === 'proximity'
@@ -218,8 +220,8 @@ function OpportunityPanel({
           <p className="mt-4 text-sm text-zinc-500">
             <span className="font-semibold text-zinc-800">{fmtGallons(capturable.gallons)} gallons ({fmtPct((capturable.gallons / totalGallons) * 100)})</span>{' '}
             {isCustomer
-              ? `are going to other stations where a Circle K already exists ${isProximity ? 'within 10 miles' : 'nearby'} — a direct savings opportunity.`
-              : `are going to competitors where a Circle K already exists ${isProximity ? 'within 10 miles' : 'in the same area'}.`}
+              ? `are going to other stations where a Circle K already exists ${isProximity ? `within ${captureRadiusMi} miles` : 'nearby'} — a direct savings opportunity.`
+              : `are going to competitors where a Circle K already exists ${isProximity ? `within ${captureRadiusMi} miles` : 'in the same area'}.`}
           </p>
         )}
       </div>
@@ -376,14 +378,22 @@ function ProximityPanel({
   prox,
   totalGallons,
   isCustomer,
+  captureRadiusMi = 10,
 }: {
   prox: NonNullable<TransactionSummary['proximityBreakdown']>
   totalGallons: number
   isCustomer: boolean
+  captureRadiusMi?: number
 }) {
-  const within2mi       = prox.within1mi.gallons + prox.within2mi.gallons
+  const within2mi = prox.within1mi.gallons + prox.within2mi.gallons
   const opportunityGallons =
-    within2mi + prox.within5mi.gallons + prox.within10mi.gallons
+    within2mi +
+    (captureRadiusMi > 2  ? prox.within5mi.gallons  : 0) +
+    (captureRadiusMi > 5  ? prox.within10mi.gallons : 0)
+  const outOfRangeGallons =
+    (captureRadiusMi <= 2 ? prox.within5mi.gallons  : 0) +
+    (captureRadiusMi <= 5 ? prox.within10mi.gallons : 0) +
+    prox.beyond10mi.gallons
   const opportunityPct = totalGallons > 0 ? (opportunityGallons / totalGallons) * 100 : 0
 
   const rows = [
@@ -395,16 +405,16 @@ function ProximityPanel({
       badge: null,
     },
     {
-      label: 'Competitor — CK within 10 mi',
+      label: `Competitor — CK within ${captureRadiusMi} mi`,
       customerLabel: 'Near a Circle K location',
       gallons: opportunityGallons,
       color: '#3b82f6',
       badge: 'Opportunity',
     },
     {
-      label: 'Competitor — no CK within 10 mi',
-      customerLabel: 'No CK within 10 miles',
-      gallons: prox.beyond10mi.gallons,
+      label: `Competitor — no CK within ${captureRadiusMi} mi`,
+      customerLabel: `No CK within ${captureRadiusMi} miles`,
+      gallons: outOfRangeGallons,
       color: '#dc2626',
       badge: null,
     },
@@ -424,7 +434,7 @@ function ProximityPanel({
         {opportunityGallons > 0 && (
           <div className="rounded-lg bg-zinc-50 border border-zinc-200 px-3 py-1.5 text-xs text-zinc-600 text-right shrink-0 ml-4">
             <span className="font-bold">{fmtGallons(opportunityGallons)} gal</span><br />
-            <span className="opacity-80">within 10 mi of CK ({fmtPct(opportunityPct)})</span>
+            <span className="opacity-80">within {captureRadiusMi} mi of CK ({fmtPct(opportunityPct)})</span>
           </div>
         )}
       </div>
@@ -991,6 +1001,7 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
           analysis={summary.ckCaptureAnalysis}
           totalGallons={summary.totalGallons}
           isCustomer={isCustomer}
+          captureRadiusMi={summary.captureRadiusMi ?? 10}
         />
 
         {/* Proximity (only when geocoded data is available) */}
@@ -999,6 +1010,7 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
             prox={summary.proximityBreakdown}
             totalGallons={summary.totalGallons}
             isCustomer={isCustomer}
+            captureRadiusMi={summary.captureRadiusMi ?? 10}
           />
         )}
 

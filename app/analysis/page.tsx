@@ -1448,7 +1448,7 @@ function AnalysisPageInner() {
                       title="Diesel — Truck CK"
                       subtitle="Non-CK diesel gallons vs. truck-accessible CK sites only"
                       monthSpan={monthSpan}
-                      captureRadiusMi={captureRadius}
+                      captureRadiusMi={summary.captureRadiusMi ?? 10}
                     />
                   )}
                   {summary.proximityBreakdownAll && (
@@ -1457,7 +1457,7 @@ function AnalysisPageInner() {
                       title={isDieselFleet ? 'Gas — Full CK Network' : 'Circle K Proximity'}
                       subtitle={isDieselFleet ? 'Non-CK gas gallons vs. all CK sites (incl. c-stores)' : 'Full CK network'}
                       monthSpan={monthSpan}
-                      captureRadiusMi={captureRadius}
+                      captureRadiusMi={summary.captureRadiusMi ?? 10}
                     />
                   )}
                 </div>
@@ -1481,7 +1481,7 @@ function AnalysisPageInner() {
             )}
 
             {/* CK Opportunity Panel */}
-            <div className="fade-in"><OpportunityPanel analysis={summary.ckCaptureAnalysis} totalGallons={summary.totalGallons} captureRadiusMi={captureRadius} /></div>
+            <div className="fade-in"><OpportunityPanel analysis={summary.ckCaptureAnalysis} totalGallons={summary.totalGallons} captureRadiusMi={summary.captureRadiusMi ?? 10} /></div>
 
             {/* Top CK Opportunity Locations — standalone card */}
             {summary.topCKOpportunityLocations.length > 0 && (
