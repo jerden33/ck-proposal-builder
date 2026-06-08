@@ -27,6 +27,17 @@ export interface StateSummary {
   capturableGallons: number  // non-CK gallons where a CK exists in the same ZIP
 }
 
+export interface CitySummary {
+  city: string
+  state: string
+  transactions: number
+  gallons: number
+  spend: number
+  ckGallons: number
+  ckSharePct: number
+  capturableGallons: number
+}
+
 export interface LocationSummary {
   stationName: string
   stationBrand: string
@@ -168,6 +179,7 @@ export interface TransactionSummary {
   brandBreakdown: BrandSummary[]
   ckCaptureAnalysis: CKCaptureAnalysis
   stateBreakdown: StateSummary[]
+  cityBreakdown: CitySummary[]
   topCompetitorLocations: LocationSummary[]
   fuelTypeBreakdown: FuelTypeSummary[]
   vehicleBreakdown: VehicleSummary[]
@@ -547,6 +559,22 @@ export function analyzeTransactions(
     .map(s => ({ ...s, ckSharePct: s.gallons > 0 ? (s.ckGallons / s.gallons) * 100 : 0 }))
     .sort((a, b) => b.gallons - a.gallons)
 
+  // City breakdown
+  const cityMap = new Map<string, CitySummary>()
+  for (const t of transactions) {
+    const city  = t.stationCity  || 'Unknown'
+    const state = t.stationState || 'Unknown'
+    const key   = `${city}||${state}`
+    const existing = cityMap.get(key) ?? { city, state, transactions: 0, gallons: 0, spend: 0, ckGallons: 0, ckSharePct: 0, capturableGallons: 0 }
+    existing.transactions++; existing.gallons += t.gallons; existing.spend += t.amount
+    if (t.isCircleK) existing.ckGallons += t.gallons
+    else if (ckZipSet.has(t.zipCode)) existing.capturableGallons += t.gallons
+    cityMap.set(key, existing)
+  }
+  const cityBreakdown = Array.from(cityMap.values())
+    .map(c => ({ ...c, ckSharePct: c.gallons > 0 ? (c.ckGallons / c.gallons) * 100 : 0 }))
+    .sort((a, b) => b.gallons - a.gallons)
+
   // Top competitor locations
   const locMap = new Map<string, LocationSummary>()
   for (const t of transactions) {
@@ -751,6 +779,7 @@ export function analyzeTransactions(
     brandBreakdown,
     ckCaptureAnalysis,
     stateBreakdown,
+    cityBreakdown,
     topCompetitorLocations,
     fuelTypeBreakdown,
     vehicleBreakdown,
@@ -1071,6 +1100,7 @@ function createEmptySummary(): TransactionSummary {
       methodology: 'zip' as const,
     },
     stateBreakdown: [],
+    cityBreakdown: [],
     topCompetitorLocations: [],
     fuelTypeBreakdown: [],
     vehicleBreakdown: [],

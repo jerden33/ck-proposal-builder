@@ -41,6 +41,7 @@ import {
   fmtMiles,
   type TransactionSummary,
   type BrandSummary,
+  type CitySummary,
   type CKStoreCoord,
 } from '@/lib/transaction-analysis'
 import { geocodeLocations, geocodeAddresses, geoKey, addrGeoKey } from '@/lib/geocoding'
@@ -452,6 +453,8 @@ function AnalysisPageInner() {
   const [periodInputVal, setPeriodInputVal] = useState('')
   const [summaryCopied, setSummaryCopied] = useState(false)
   const [rebateRate, setRebateRate] = useState(3)
+  const [geoView, setGeoView] = useState<'state' | 'city'>('state')
+  const [geoStateFilter, setGeoStateFilter] = useState('all')
   const [captureRadius, setCaptureRadius] = useState(10)
   const [adminLoyalThreshold, setAdminLoyalThreshold]     = useState(70)
   const [adminMixedThreshold, setAdminMixedThreshold]     = useState(20)
@@ -1536,41 +1539,117 @@ function AnalysisPageInner() {
                   )}
 
                   {/* ── Geographic Tab ──────────────────────────────────── */}
-                  {activeTab === 'geographic' && featureFlags.geographic && (
-                    <div>
-                      <h3 className="font-bold text-off-black mb-4">Fueling Activity by State</h3>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b border-gray-200">
-                              {['State', 'Transactions', 'Gallons', 'Spend', 'CK Gallons', 'Opp. Gallons', 'CK Share'].map(h => (
-                                <th key={h} className={`py-2 ${h === 'State' ? 'text-left pr-4' : 'text-right px-4'} text-xs font-semibold uppercase tracking-wider text-gray-500`}>{h}</th>
+                  {activeTab === 'geographic' && featureFlags.geographic && (() => {
+                    const cityRows = geoView === 'city'
+                      ? (geoStateFilter === 'all' ? summary.cityBreakdown : summary.cityBreakdown.filter((c: CitySummary) => c.state === geoStateFilter))
+                      : []
+                    const cityStates = Array.from(new Set(summary.cityBreakdown.map((c: CitySummary) => c.state))).sort() as string[]
+                    return (
+                      <div>
+                        {/* Header + toggle */}
+                        <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                          <h3 className="font-bold text-off-black">
+                            {geoView === 'state' ? 'Fueling Activity by State' : 'Fueling Activity by City'}
+                          </h3>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {geoView === 'city' && cityStates.length > 1 && (
+                              <select
+                                value={geoStateFilter}
+                                onChange={e => setGeoStateFilter(e.target.value)}
+                                className="text-xs border border-zinc-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                              >
+                                <option value="all">All states</option>
+                                {cityStates.map(s => <option key={s} value={s}>{s}</option>)}
+                              </select>
+                            )}
+                            <div className="flex rounded-lg border border-zinc-200 overflow-hidden text-xs font-medium">
+                              {(['state', 'city'] as const).map(v => (
+                                <button
+                                  key={v}
+                                  onClick={() => { setGeoView(v); setGeoStateFilter('all') }}
+                                  className={`px-3 py-1.5 transition-colors ${geoView === v ? 'bg-zinc-800 text-white' : 'bg-white text-zinc-500 hover:bg-zinc-50'}`}
+                                >
+                                  {v === 'state' ? 'By State' : 'By City'}
+                                </button>
                               ))}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100">
-                            {summary.stateBreakdown.map(row => (
-                              <tr key={row.state} className="hover:bg-gray-50">
-                                <td className="py-2.5 pr-4 font-semibold text-off-black">{row.state}</td>
-                                <td className="py-2.5 px-4 text-right text-gray-600">{row.transactions.toLocaleString()}</td>
-                                <td className="py-2.5 px-4 text-right font-medium">{fmtGallons(row.gallons)}</td>
-                                <td className="py-2.5 px-4 text-right text-gray-600">{row.spend > 0 ? fmtDollars(row.spend) : <span className="text-gray-300">—</span>}</td>
-                                <td className="py-2.5 px-4 text-right text-accent font-medium">{fmtGallons(row.ckGallons)}</td>
-                                <td className="py-2.5 px-4 text-right text-green-600 font-medium">
-                                  {row.capturableGallons > 0 ? fmtGallons(row.capturableGallons) : <span className="text-gray-300">—</span>}
-                                </td>
-                                <td className="py-2.5 pl-4 text-right">
-                                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${row.ckSharePct >= 20 ? 'bg-green-100 text-green-700' : row.ckSharePct > 0 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
-                                    {fmtPct(row.ckSharePct)}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* State table */}
+                        {geoView === 'state' && (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b border-gray-200">
+                                  {['State', 'Transactions', 'Gallons', 'Spend', 'CK Gallons', 'Opp. Gallons', 'CK Share'].map(h => (
+                                    <th key={h} className={`py-2 ${h === 'State' ? 'text-left pr-4' : 'text-right px-4'} text-xs font-semibold uppercase tracking-wider text-gray-500`}>{h}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-100">
+                                {summary.stateBreakdown.map(row => (
+                                  <tr key={row.state} className="hover:bg-gray-50">
+                                    <td className="py-2.5 pr-4 font-semibold text-off-black">{row.state}</td>
+                                    <td className="py-2.5 px-4 text-right text-gray-600">{row.transactions.toLocaleString()}</td>
+                                    <td className="py-2.5 px-4 text-right font-medium">{fmtGallons(row.gallons)}</td>
+                                    <td className="py-2.5 px-4 text-right text-gray-600">{row.spend > 0 ? fmtDollars(row.spend) : <span className="text-gray-300">—</span>}</td>
+                                    <td className="py-2.5 px-4 text-right text-accent font-medium">{fmtGallons(row.ckGallons)}</td>
+                                    <td className="py-2.5 px-4 text-right text-green-600 font-medium">
+                                      {row.capturableGallons > 0 ? fmtGallons(row.capturableGallons) : <span className="text-gray-300">—</span>}
+                                    </td>
+                                    <td className="py-2.5 pl-4 text-right">
+                                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${row.ckSharePct >= 20 ? 'bg-green-100 text-green-700' : row.ckSharePct > 0 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
+                                        {fmtPct(row.ckSharePct)}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+
+                        {/* City table */}
+                        {geoView === 'city' && (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b border-gray-200">
+                                  {['City', 'State', 'Transactions', 'Gallons', 'Spend', 'CK Gallons', 'Opp. Gallons', 'CK Share'].map(h => (
+                                    <th key={h} className={`py-2 ${['City', 'State'].includes(h) ? 'text-left pr-4' : 'text-right px-4'} text-xs font-semibold uppercase tracking-wider text-gray-500`}>{h}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-100">
+                                {cityRows.map((row: CitySummary) => (
+                                  <tr key={`${row.city}||${row.state}`} className="hover:bg-gray-50">
+                                    <td className="py-2.5 pr-4 font-semibold text-off-black">{row.city}</td>
+                                    <td className="py-2.5 pr-4 text-gray-500 text-xs">{row.state}</td>
+                                    <td className="py-2.5 px-4 text-right text-gray-600">{row.transactions.toLocaleString()}</td>
+                                    <td className="py-2.5 px-4 text-right font-medium">{fmtGallons(row.gallons)}</td>
+                                    <td className="py-2.5 px-4 text-right text-gray-600">{row.spend > 0 ? fmtDollars(row.spend) : <span className="text-gray-300">—</span>}</td>
+                                    <td className="py-2.5 px-4 text-right text-accent font-medium">{fmtGallons(row.ckGallons)}</td>
+                                    <td className="py-2.5 px-4 text-right text-green-600 font-medium">
+                                      {row.capturableGallons > 0 ? fmtGallons(row.capturableGallons) : <span className="text-gray-300">—</span>}
+                                    </td>
+                                    <td className="py-2.5 pl-4 text-right">
+                                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${row.ckSharePct >= 20 ? 'bg-green-100 text-green-700' : row.ckSharePct > 0 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
+                                        {fmtPct(row.ckSharePct)}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                                {cityRows.length === 0 && (
+                                  <tr><td colSpan={8} className="py-8 text-center text-sm text-zinc-400">No cities match the selected filter.</td></tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  )}
+                    )
+                  })()}
 
                   {/* ── Competitor Locations Tab ─────────────────────────── */}
                   {activeTab === 'locations' && featureFlags.competitorLocations && (
