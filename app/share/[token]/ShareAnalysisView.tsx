@@ -1004,10 +1004,10 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
           captureRadiusMi={summary.captureRadiusMi ?? 10}
         />
 
-        {/* Proximity (only when geocoded data is available) */}
-        {summary.proximityBreakdown && (
+        {/* Proximity — prefer full-network (gas+all) panel; fall back to truck/diesel panel */}
+        {(summary.proximityBreakdownAll ?? summary.proximityBreakdown) && (
           <ProximityPanel
-            prox={summary.proximityBreakdown}
+            prox={(summary.proximityBreakdownAll ?? summary.proximityBreakdown)!}
             totalGallons={summary.totalGallons}
             isCustomer={isCustomer}
             captureRadiusMi={summary.captureRadiusMi ?? 10}
