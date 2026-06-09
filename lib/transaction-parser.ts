@@ -327,6 +327,7 @@ export function normalizeFuelType(raw: string): string {
   // ── Gasoline variants ──────────────────────────────────────────────────────
   if (
     r.includes('UNL') || r.includes('UNLEAD') ||   // catches UNL*, ETUNL*, MEUNL*, etc.
+    r === 'UNRG' || r === 'UNPR' || r === 'UNMD' || r === 'UNMID' || // Comdata UN* product codes
     r === 'REG' || r === 'REGULAR' || r === 'GASOLINE' || r === 'GAS' ||
     r.includes('PREMIUM') || r.includes('MIDGRADE') || r.includes('MID-GRADE') ||
     r === 'PRM' || r === 'PRML' || r === 'MID' || r === 'SUPER' || r === 'PLUS' ||
