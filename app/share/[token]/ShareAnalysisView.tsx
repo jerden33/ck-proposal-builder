@@ -379,11 +379,13 @@ function ProximityPanel({
   totalGallons,
   isCustomer,
   captureRadiusMi = 10,
+  capturedGallons,
 }: {
   prox: NonNullable<TransactionSummary['proximityBreakdown']>
   totalGallons: number
   isCustomer: boolean
   captureRadiusMi?: number
+  capturedGallons?: number  // total CK gallons (all fuel types) from ckCaptureAnalysis
 }) {
   const within2mi = prox.within1mi.gallons + prox.within2mi.gallons
   const opportunityGallons =
@@ -400,7 +402,7 @@ function ProximityPanel({
     {
       label: 'Fueled at Circle K',
       customerLabel: 'Fueled at Circle K',
-      gallons: prox.ckGallons,
+      gallons: capturedGallons ?? prox.ckGallons,
       color: '#16a34a',
       badge: null,
     },
@@ -1011,6 +1013,7 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
             totalGallons={summary.totalGallons}
             isCustomer={isCustomer}
             captureRadiusMi={summary.captureRadiusMi ?? 10}
+            capturedGallons={summary.ckCaptureAnalysis.captured.gallons}
           />
         )}
 

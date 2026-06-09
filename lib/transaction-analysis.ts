@@ -941,9 +941,10 @@ function buildMapData(
 
     prox.geocodedGallons    += agg.gallons
     proxAll.geocodedGallons += agg.gallons
-    // Truck panel: diesel gallons at CK; Full-network panel: ALL CK gallons (all fuel types)
+    // Truck panel: diesel gallons at CK; Full-network panel: gas gallons at CK
+    // (share view uses ckCaptureAnalysis.captured.gallons for the total CK row)
     prox.ckGallons    += agg.ckDieselGallons
-    proxAll.ckGallons += agg.ckGallons
+    proxAll.ckGallons += agg.ckGasGallons
 
     // Bucket non-CK diesel gallons against truck-accessible CK
     if (agg.nonCKDieselGallons > 0 && dist >= 0) {

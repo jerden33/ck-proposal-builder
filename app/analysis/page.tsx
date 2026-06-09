@@ -1444,25 +1444,37 @@ function AnalysisPageInner() {
                   </div>
                   <MapPin className="text-zinc-400 shrink-0" size={22} />
                 </div>
-                <div className={`p-6 grid gap-6 ${isDieselFleet && summary.proximityBreakdown ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
-                  {isDieselFleet && summary.proximityBreakdown && (
-                    <DetailedProximityPanel
-                      prox={summary.proximityBreakdown}
-                      title="Diesel — Truck CK"
-                      subtitle="Non-CK diesel gallons vs. truck-accessible CK sites only"
-                      monthSpan={monthSpan}
-                      captureRadiusMi={summary.captureRadiusMi ?? 10}
-                    />
-                  )}
-                  {summary.proximityBreakdownAll && (
-                    <DetailedProximityPanel
-                      prox={summary.proximityBreakdownAll}
-                      title={isDieselFleet ? 'Gas — Full CK Network' : 'Circle K Proximity'}
-                      subtitle={isDieselFleet ? 'Non-CK gas gallons vs. all CK sites (incl. c-stores)' : 'Full CK network'}
-                      monthSpan={monthSpan}
-                      captureRadiusMi={summary.captureRadiusMi ?? 10}
-                    />
-                  )}
+                {(() => {
+                    const proxAll = summary.proximityBreakdownAll
+                    // For diesel fleets: only show the gas panel when there are actual non-CK gas gallons
+                    const gasNonCKGallons = proxAll
+                      ? proxAll.within1mi.gallons + proxAll.within2mi.gallons + proxAll.within5mi.gallons + proxAll.within10mi.gallons + proxAll.beyond10mi.gallons
+                      : 0
+                    const showGasPanel = !!proxAll && (!isDieselFleet || gasNonCKGallons > 0)
+                    const showBothPanels = isDieselFleet && !!summary.proximityBreakdown && showGasPanel
+                    return (
+                      <div className={`p-6 grid gap-6 ${showBothPanels ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+                        {isDieselFleet && summary.proximityBreakdown && (
+                          <DetailedProximityPanel
+                            prox={summary.proximityBreakdown}
+                            title="Diesel — Truck CK"
+                            subtitle="Non-CK diesel gallons vs. truck-accessible CK sites only"
+                            monthSpan={monthSpan}
+                            captureRadiusMi={summary.captureRadiusMi ?? 10}
+                          />
+                        )}
+                        {showGasPanel && proxAll && (
+                          <DetailedProximityPanel
+                            prox={proxAll}
+                            title={isDieselFleet ? 'Gas — Full CK Network' : 'Circle K Proximity'}
+                            subtitle={isDieselFleet ? 'Non-CK gas gallons vs. all CK sites (incl. c-stores)' : 'Full CK network'}
+                            monthSpan={monthSpan}
+                            captureRadiusMi={summary.captureRadiusMi ?? 10}
+                          />
+                        )}
+                      </div>
+                    )
+                  })()}
                 </div>
               </div>
             )}
