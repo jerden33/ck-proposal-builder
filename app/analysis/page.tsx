@@ -1475,7 +1475,6 @@ function AnalysisPageInner() {
                       </div>
                     )
                   })()}
-                </div>
               </div>
             )}
 
