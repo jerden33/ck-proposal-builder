@@ -153,10 +153,18 @@ export function DetailedProximityPanel({
             <div key={key} className={dimmed ? 'opacity-40' : ''}>
               <div className="flex items-center justify-between mb-0.5">
                 <span className="text-xs text-gray-700">{label}</span>
-                <span className={`text-xs font-semibold ${text}`}>
-                  {fmtGallons(monthly)}<span className="text-gray-400 font-normal text-[11px]">/mo</span>
-                  <span className="text-gray-400 font-normal"> ({fmtPct(pct)})</span>
-                </span>
+                {key === 'ck' ? (
+                  <span className={`text-xs font-semibold ${text}`}>
+                    {fmtGallons(gallons)}<span className="text-gray-400 font-normal text-[11px]"> total</span>
+                    <span className="text-gray-400 font-normal"> · {fmtGallons(monthly)}/mo</span>
+                    <span className="text-gray-400 font-normal"> ({fmtPct(pct)})</span>
+                  </span>
+                ) : (
+                  <span className={`text-xs font-semibold ${text}`}>
+                    {fmtGallons(monthly)}<span className="text-gray-400 font-normal text-[11px]">/mo</span>
+                    <span className="text-gray-400 font-normal"> ({fmtPct(pct)})</span>
+                  </span>
+                )}
               </div>
               <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                 <div className={`h-1.5 ${color} rounded-full`} style={{ width: `${pct}%` }} />
