@@ -47,14 +47,14 @@ const FIELD_ALIASES: Record<string, string[]> = {
     // Combined datetime fields first — avoids grabbing a date-only column when
     // a richer combined column (e.g. "Trans DateTime") is present in the same file
     'trans datetime', 'transaction datetime',
-    'trans date', 'date', 'transaction date', 'posting date', 'post date',
+    'trans date', 'date', 'transaction date', 'posting date', 'posted date', 'post date',
     'tran date', 'service date', 'fill date', 'invoice date', 'sale date',
     'transactionposdate', 'pos date', 'transdate',
   ],
   // Separate time column — used as fallback when the date column has no time
   time: [
     'transaction time', 'trans time', 'tran time',
-    'service time', 'fill time', 'time',
+    'service time', 'fill time', 'time', 'local time',
   ],
   city: [
     'station city', 'city', 'site city', 'location city', 'trans city',
@@ -141,7 +141,7 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'service center zip code',
   ],
   unitNumber: [
-    'unit #', 'unit number', 'vehicle', 'card #', 'card number',
+    'unit #', 'unit number', 'vehicle unit number', 'vehicle', 'card #', 'card number',
     'vehicle id', 'asset', 'unit', 'vehicle #', 'asset id', 'asset number',
     'equipment', 'truck #', 'truck number', 'unit id',
   ],
