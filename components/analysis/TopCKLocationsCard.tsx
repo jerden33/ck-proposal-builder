@@ -6,15 +6,17 @@ import { fmtGallons, fmtDollars, type CKOpportunityLocation } from '@/lib/transa
 
 type SortKey = 'competitorGallons' | 'nearbyStationCount' | 'competitorSpend'
 
-export function TopCKLocationsCard({ locations }: { locations: CKOpportunityLocation[] }) {
+export function TopCKLocationsCard({ locations, truckMode = false }: { locations: CKOpportunityLocation[], truckMode?: boolean }) {
   const [sortKey, setSortKey] = useState<SortKey>('competitorGallons')
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc')
   const [stateFilter, setStateFilter] = useState<string>('all')
 
-  const allStates = Array.from(new Set(locations.map(l => l.state))).sort()
-  const hasSpend   = locations.some(l => l.competitorSpend > 0)
+  const displayLocations = truckMode ? locations.filter(l => l.truckAccessible) : locations
 
-  const sorted = [...locations]
+  const allStates = Array.from(new Set(displayLocations.map(l => l.state))).sort()
+  const hasSpend   = displayLocations.some(l => l.competitorSpend > 0)
+
+  const sorted = [...displayLocations]
     .filter(l => stateFilter === 'all' || l.state === stateFilter)
     .sort((a, b) => {
       const diff = a[sortKey] - b[sortKey]
@@ -35,9 +37,18 @@ export function TopCKLocationsCard({ locations }: { locations: CKOpportunityLoca
     <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden fade-in">
       <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-zinc-900 font-bold text-lg">Top Circle K Opportunity Locations</h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-zinc-900 font-bold text-lg">Top Circle K Opportunity Locations</h2>
+            {truckMode && (
+              <span className="text-xs font-semibold bg-zinc-200 text-zinc-600 rounded-md px-2 py-0.5 flex items-center gap-1">
+                <Truck size={11} /> Truck sites only
+              </span>
+            )}
+          </div>
           <p className="text-zinc-500 text-sm mt-0.5">
-            CK stores closest to the highest competitor activity — your best immediate conversion targets
+            {truckMode
+              ? 'Truck-accessible CK locations closest to highest competitor diesel activity'
+              : 'CK stores closest to the highest competitor activity — your best immediate conversion targets'}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">

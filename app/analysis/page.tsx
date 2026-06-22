@@ -456,6 +456,7 @@ function AnalysisPageInner() {
   const [geoView, setGeoView] = useState<'state' | 'city'>('state')
   const [geoStateFilter, setGeoStateFilter] = useState('all')
   const [captureRadius, setCaptureRadius] = useState(10)
+  const [fleetType, setFleetType] = useState<'auto' | 'truck' | 'mixed'>('auto')
   const [adminLoyalThreshold, setAdminLoyalThreshold]     = useState(70)
   const [adminMixedThreshold, setAdminMixedThreshold]     = useState(20)
   const [adminOTRDieselThreshold, setAdminOTRDieselThreshold] = useState(60)
@@ -466,6 +467,8 @@ function AnalysisPageInner() {
   useEffect(() => { featureFlagsRef.current = featureFlags }, [featureFlags])
   const captureRadiusRef = useRef(10)
   useEffect(() => { captureRadiusRef.current = captureRadius }, [captureRadius])
+  const fleetTypeRef = useRef<'auto' | 'truck' | 'mixed'>('auto')
+  useEffect(() => { fleetTypeRef.current = fleetType }, [fleetType])
   const adminLoyalThresholdRef = useRef(70)
   useEffect(() => { adminLoyalThresholdRef.current = adminLoyalThreshold }, [adminLoyalThreshold])
   const adminMixedThresholdRef = useRef(20)
@@ -786,6 +789,7 @@ function AnalysisPageInner() {
         captureRadiusMi: captureRadiusRef.current,
         loyalThreshold: adminLoyalThresholdRef.current,
         mixedThreshold: adminMixedThresholdRef.current,
+        explicitTruckMode: fleetTypeRef.current === 'auto' ? undefined : fleetTypeRef.current === 'truck',
       })
 
       // Run OTR corridor analysis only for diesel-heavy fleets
@@ -926,9 +930,9 @@ function AnalysisPageInner() {
     : 0
   // Show a warning when unclassified gallons exceed 5% — likely a column-mapping gap
   const showFuelTypeWarning = unknownFuelPct >= 5
-  const DIESEL_FLEET_THRESHOLD = 0.10
   const dieselPct = summary && summary.totalGallons > 0 ? dieselGallons / summary.totalGallons : 0
-  const isDieselFleet = dieselPct >= DIESEL_FLEET_THRESHOLD
+  // Use explicit truckMode from summary (set at upload) if present; fall back to diesel % auto-detect
+  const isDieselFleet = summary?.truckMode !== undefined ? summary.truckMode : dieselPct >= 0.10
 
   // Tiered proximity opportunity for OTR banner
   const proxTruck = summary?.proximityBreakdown ?? null
@@ -1082,6 +1086,34 @@ function AnalysisPageInner() {
                   />
                   <span className="text-xs text-gray-400">mo</span>
                 </div>
+              </div>
+            </div>
+
+            {/* Fleet Type */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-0.5">
+                Fleet Type <span className="text-gray-400 font-normal text-xs">— controls which CK sites are used for opportunity analysis</span>
+              </label>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {([
+                  { value: 'auto',  label: 'Auto-detect',     desc: 'Engine decides based on fuel mix' },
+                  { value: 'truck', label: 'OTR / Truck',     desc: 'Truck-accessible CK sites only' },
+                  { value: 'mixed', label: 'Mixed / General', desc: 'Full CK network (incl. c-stores)' },
+                ] as const).map(({ value, label, desc }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setFleetType(value)}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors text-left ${
+                      fleetType === value
+                        ? 'bg-accent text-white border-accent'
+                        : 'bg-white text-gray-600 border-zinc-200 hover:border-zinc-400'
+                    }`}
+                  >
+                    {label}
+                    <span className={`block text-xs mt-0.5 font-normal ${fleetType === value ? 'text-white/80' : 'text-gray-400'}`}>{desc}</span>
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -1499,7 +1531,7 @@ function AnalysisPageInner() {
 
             {/* Top CK Opportunity Locations — standalone card */}
             {summary.topCKOpportunityLocations.length > 0 && (
-              <TopCKLocationsCard locations={summary.topCKOpportunityLocations} />
+              <TopCKLocationsCard locations={summary.topCKOpportunityLocations} truckMode={isDieselFleet} />
             )}
 
             {/* Tabbed detail sections — only shown if at least one tab is visible */}

@@ -482,6 +482,7 @@ export function analyzeTransactions(
     captureRadiusMi?: number      // miles threshold for "capturable" gallons (default 10)
     loyalThreshold?: number       // min CK share % for "CK Loyal" segment (default 70)
     mixedThreshold?: number       // min CK share % for "Mixed" segment (default 20)
+    explicitTruckMode?: boolean   // true = OTR/truck only, false = full network, undefined = auto-detect
   }
 ): TransactionSummary {
   if (transactions.length === 0) return createEmptySummary()
@@ -490,6 +491,7 @@ export function analyzeTransactions(
   const captureRadiusMi = options?.captureRadiusMi ?? 10
   const loyalThreshold  = options?.loyalThreshold  ?? 70
   const mixedThreshold  = options?.mixedThreshold  ?? 20
+  const explicitTruckMode = options?.explicitTruckMode
 
   const totalTransactions = transactions.length
   const totalGallons = transactions.reduce((s, t) => s + t.gallons, 0)
@@ -497,6 +499,12 @@ export function analyzeTransactions(
   const uniqueVehicles = new Set(transactions.map(t => t.unitNumber || '?')).size
   const uniqueStations = new Set(transactions.map(t => `${t.stationName}||${t.zipCode}`)).size
   const uniqueStates = Array.from(new Set(transactions.map(t => t.stationState).filter(Boolean))).sort()
+
+  // Auto-detect truck mode: ≥10% diesel gallons → treat as truck/OTR fleet
+  const autoDieselGallons = transactions.reduce((s, t) => s + (t.fuelType === 'DIESEL' ? t.gallons : 0), 0)
+  const truckMode = explicitTruckMode !== undefined
+    ? explicitTruckMode
+    : (totalGallons > 0 && autoDieselGallons / totalGallons >= 0.10)
 
   // Date range
   const dates = transactions.map(t => parseDate(t.transDate)).filter((d): d is Date => d !== null)
@@ -598,11 +606,13 @@ export function analyzeTransactions(
   }
 
   // Enrich with geocoded distance; update hasCKNearby to distance-based (≤2mi)
-  if (geocodedCoords && ckStores) {
+  // Use truck-only stores in truck mode so "Nearest CK" means nearest CK with diesel lanes
+  const competitorDistStores = truckMode ? ckStores : (ckStoresAll ?? ckStores)
+  if (geocodedCoords && competitorDistStores) {
     for (const loc of Array.from(locMap.values())) {
       const coord = geocodedCoords.get(geoKey(loc.city, loc.state))
       if (coord) {
-        loc.nearestCKDistanceMi = nearestCKDistance(coord.lat, coord.lng, ckStores)
+        loc.nearestCKDistanceMi = nearestCKDistance(coord.lat, coord.lng, competitorDistStores)
         loc.hasCKNearby = loc.nearestCKDistanceMi >= 0 && loc.nearestCKDistanceMi <= 2
       }
     }
@@ -796,6 +806,7 @@ export function analyzeTransactions(
     proximityBreakdownAll,
     topCKOpportunityLocations,
     captureRadiusMi,
+    truckMode,
   }
 }
 
