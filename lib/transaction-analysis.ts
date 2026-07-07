@@ -167,6 +167,17 @@ export interface ProximityBreakdown {
   geocodedPct:   number            // % of total gallons that were geocoded
 }
 
+/** A customer-supplied facility location (depot, yard, corporate office) shown on the map */
+export interface CustomerLocation {
+  name: string
+  address: string
+  city: string
+  state: string
+  zip: string
+  lat?: number   // set after geocoding; absent if geocoding failed or wasn't run
+  lng?: number
+}
+
 export interface TransactionSummary {
   totalTransactions: number
   totalGallons: number
@@ -206,6 +217,8 @@ export interface TransactionSummary {
   truckMode?: boolean
   // Corridor-based OTR opportunity analysis (populated after geocoding)
   otrAnalysis?: import('./otr-analysis').OTRAnalysis
+  // Customer-supplied facility locations (depots, yards, offices) — optional, shown on the map
+  customerLocations?: CustomerLocation[]
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

@@ -1220,6 +1220,7 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
                   <FuelingMap
                     transactionPoints={summary.mapPoints}
                     ckStores={ckStorePins}
+                    customerLocations={summary.customerLocations}
                     height={520}
                     truckMode={summary.truckMode ?? false}
                   />

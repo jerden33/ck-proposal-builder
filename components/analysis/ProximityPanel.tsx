@@ -109,17 +109,19 @@ export function DetailedProximityPanel({
   captureRadiusMi?: number
 }) {
   const ck  = prox.ckGallons
-  const w2  = prox.within1mi.gallons + prox.within2mi.gallons
+  const w1  = prox.within1mi.gallons
+  const w2  = prox.within2mi.gallons
   const w5  = prox.within5mi.gallons
   const w10 = prox.within10mi.gallons
   const b10 = prox.beyond10mi.gallons
-  const tot = Math.max(ck + w2 + w5 + w10 + b10, 1)
+  const tot = Math.max(ck + w1 + w2 + w5 + w10 + b10, 1)
 
   const cap = capturableBands(captureRadiusMi)
 
   const rows = [
     { key: 'ck',  label: 'At Circle K',  gallons: ck,  color: 'bg-green-500',   text: 'text-green-700',   note: 'Already at CK',      capturable: true },
-    { key: 'w2',  label: 'Within 2 mi',  gallons: w2,  color: 'bg-emerald-400', text: 'text-emerald-700', note: 'Drove right past',    capturable: true },
+    { key: 'w1',  label: 'Within 1 mi',  gallons: w1,  color: 'bg-emerald-500', text: 'text-emerald-700', note: 'Drove right past',    capturable: true },
+    { key: 'w2',  label: '1–2 mi',       gallons: w2,  color: 'bg-emerald-400', text: 'text-emerald-700', note: 'Drove right past',    capturable: true },
     { key: 'w5',  label: '2–5 mi',       gallons: w5,  color: 'bg-amber-400',   text: 'text-amber-700',   note: 'Strong opportunity',  capturable: cap.has('w5') },
     { key: 'w10', label: '5–10 mi',      gallons: w10, color: 'bg-orange-400',  text: 'text-orange-700',  note: 'Moderate detour',     capturable: cap.has('w10') },
     { key: 'b10', label: '10+ mi',       gallons: b10, color: 'bg-red-400',     text: 'text-red-700',     note: 'No nearby CK',        capturable: false },
@@ -131,11 +133,11 @@ export function DetailedProximityPanel({
     <div>
       <h3 className="font-bold text-off-black text-sm uppercase tracking-wide mb-0.5">{title}</h3>
       <p className="text-xs text-gray-400 mb-3">{subtitle}</p>
-      {w2 > 0 && (
+      {w1 + w2 > 0 && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-3 flex items-start gap-2">
           <CheckCircle size={12} className="text-emerald-600 shrink-0 mt-0.5" />
           <p className="text-xs text-emerald-800 leading-snug">
-            <strong>{fmtGallons(monthSpan > 0 ? w2 / monthSpan : w2)} gal/mo</strong> within 2 mi — drove right past a Circle K.
+            <strong>{fmtGallons(monthSpan > 0 ? (w1 + w2) / monthSpan : (w1 + w2))} gal/mo</strong> within 2 mi — drove right past a Circle K.
           </p>
         </div>
       )}

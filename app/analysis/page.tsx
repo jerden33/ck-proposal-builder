@@ -29,7 +29,7 @@ import {
 } from 'lucide-react'
 import { Navbar } from '@/components/Navbar'
 import { ShareModal } from '@/components/ShareModal'
-import { parseFleetCSV } from '@/lib/transaction-parser'
+import { parseFleetCSV, type CustomerLocationInput } from '@/lib/transaction-parser'
 import { createAnalysis, getAnalysis, getAppSettings } from '@/lib/supabase/queries'
 import {
   analyzeTransactions,
@@ -43,6 +43,7 @@ import {
   type BrandSummary,
   type CitySummary,
   type CKStoreCoord,
+  type CustomerLocation,
 } from '@/lib/transaction-analysis'
 import { geocodeLocations, geocodeAddresses, geoKey, addrGeoKey } from '@/lib/geocoding'
 import { runOTRAnalysis } from '@/lib/otr-analysis'
@@ -57,6 +58,7 @@ import { VehiclesTab } from '@/components/analysis/VehiclesTab'
 import { BehavioralInsightsTab } from '@/components/analysis/BehavioralInsightsTab'
 import { TimePatternsTab } from '@/components/analysis/TimePatternsTab'
 import { FraudFlagsTab } from '@/components/analysis/FraudFlagsTab'
+import { CustomerLocationsInput } from '@/components/analysis/CustomerLocationsInput'
 
 // Dynamically import the maps (Mapbox can't SSR)
 const FuelingMap = dynamic(() => import('@/components/FuelingMap').then(m => m.FuelingMap), {
@@ -457,6 +459,7 @@ function AnalysisPageInner() {
   const [geoStateFilter, setGeoStateFilter] = useState('all')
   const [captureRadius, setCaptureRadius] = useState(10)
   const [fleetType, setFleetType] = useState<'auto' | 'truck' | 'mixed'>('auto')
+  const [customerLocationInputs, setCustomerLocationInputs] = useState<CustomerLocationInput[]>([])
   const [adminLoyalThreshold, setAdminLoyalThreshold]     = useState(70)
   const [adminMixedThreshold, setAdminMixedThreshold]     = useState(20)
   const [adminOTRDieselThreshold, setAdminOTRDieselThreshold] = useState(60)
@@ -469,6 +472,8 @@ function AnalysisPageInner() {
   useEffect(() => { captureRadiusRef.current = captureRadius }, [captureRadius])
   const fleetTypeRef = useRef<'auto' | 'truck' | 'mixed'>('auto')
   useEffect(() => { fleetTypeRef.current = fleetType }, [fleetType])
+  const customerLocationInputsRef = useRef<CustomerLocationInput[]>([])
+  useEffect(() => { customerLocationInputsRef.current = customerLocationInputs }, [customerLocationInputs])
   const adminLoyalThresholdRef = useRef(70)
   useEffect(() => { adminLoyalThresholdRef.current = adminLoyalThreshold }, [adminLoyalThreshold])
   const adminMixedThresholdRef = useRef(20)
@@ -778,6 +783,20 @@ function AnalysisPageInner() {
       // Filter to truck-accessible stores for diesel proximity analysis
       const truckStoreCoords = ckStoreCoords.filter(s => s.truckAccessible)
 
+      // Geocode customer-supplied facility locations (optional, entered at upload)
+      const customerLocInputs = customerLocationInputsRef.current.filter(l => l.address && l.city)
+      let customerLocations: CustomerLocation[] = []
+      if (customerLocInputs.length > 0) {
+        const geocodedCustomerAddrs = await geocodeAddresses(
+          customerLocInputs.map(l => ({ address: l.address, city: l.city, state: l.state })),
+          process.env.NEXT_PUBLIC_MAPBOX_TOKEN
+        )
+        customerLocations = customerLocInputs.map(l => {
+          const coord = geocodedCustomerAddrs.get(addrGeoKey(l.address, l.city, l.state))
+          return { ...l, lat: coord?.lat, lng: coord?.lng }
+        })
+      }
+
       // Pass truck-only stores as ckStores so diesel proximity is measured against
       // truck-accessible CK only; ckStoresAll (full network) drives gas proximity.
       const enrichedResult = analyzeTransactions(transactions, ckZipSet, {
@@ -791,6 +810,7 @@ function AnalysisPageInner() {
         mixedThreshold: adminMixedThresholdRef.current,
         explicitTruckMode: fleetTypeRef.current === 'auto' ? undefined : fleetTypeRef.current === 'truck',
       })
+      enrichedResult.customerLocations = customerLocations
 
       // Run OTR corridor analysis only for diesel-heavy fleets
       const inlineDieselGal = enrichedResult.fuelTypeBreakdown
@@ -867,6 +887,7 @@ function AnalysisPageInner() {
     setSaveError(null)
     setManualMonthSpan(null)
     setEditingPeriod(false)
+    setCustomerLocationInputs([])
     try { localStorage.removeItem('ck-analysis-v1') } catch { /* ignore */ }
     if (fileInputRef.current) fileInputRef.current.value = ''
     window.history.replaceState(null, '', '/analysis')
@@ -1154,6 +1175,8 @@ function AnalysisPageInner() {
                 </div>
               </div>
             </div>
+
+            <CustomerLocationsInput locations={customerLocationInputs} onChange={setCustomerLocationInputs} />
 
             {/* Drop zone */}
             <div
@@ -1750,6 +1773,7 @@ function AnalysisPageInner() {
                       <FuelingMap
                         transactionPoints={summary.mapPoints}
                         ckStores={ckStorePins}
+                        customerLocations={summary.customerLocations}
                         height={560}
                         geocodingInProgress={geocodingInProgress}
                         truckMode={isDieselFleet}
@@ -1787,6 +1811,7 @@ function AnalysisPageInner() {
                       mapPoints={summary.mapPoints}
                       ckStorePins={ckStorePins}
                       isDieselFleet={isDieselFleet}
+                      customerLocations={summary.customerLocations}
                     />
                   )}
                 </div>

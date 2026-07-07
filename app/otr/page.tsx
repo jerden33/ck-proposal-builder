@@ -29,7 +29,7 @@ import {
   ShieldAlert,
 } from 'lucide-react'
 import { Navbar } from '@/components/Navbar'
-import { parseFleetCSV } from '@/lib/transaction-parser'
+import { parseFleetCSV, type CustomerLocationInput } from '@/lib/transaction-parser'
 import {
   analyzeTransactions,
   buildCKZipSet,
@@ -40,12 +40,14 @@ import {
   type DriverSummary,
   type VehicleSegment,
   type FraudFlag,
+  type CustomerLocation,
 } from '@/lib/transaction-analysis'
 import { geocodeLocations, geocodeAddresses, geoKey, addrGeoKey } from '@/lib/geocoding'
 import { runOTRAnalysis, type OTRAnalysis } from '@/lib/otr-analysis'
 import { createAnalysis, createAnalysisShare, getAnalysis } from '@/lib/supabase/queries'
 import type { OTRMapStore } from '@/components/OTRMap'
 import type { CKStorePin } from '@/components/FuelingMap'
+import { CustomerLocationsInput } from '@/components/analysis/CustomerLocationsInput'
 
 // Dynamically import the maps (Mapbox can't SSR)
 const OTRMap = dynamic(() => import('@/components/OTRMap').then(m => m.OTRMap), {
@@ -451,10 +453,13 @@ function OTRPageInner() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [expandedTable, setExpandedTable] = useState(false)
+  const [customerLocationInputs, setCustomerLocationInputs] = useState<CustomerLocationInput[]>([])
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const customerNameRef = useRef(customerName)
   useEffect(() => { customerNameRef.current = customerName }, [customerName])
+  const customerLocationInputsRef = useRef<CustomerLocationInput[]>([])
+  useEffect(() => { customerLocationInputsRef.current = customerLocationInputs }, [customerLocationInputs])
 
   // ── Load saved analysis from ?load=<id> ─────────────────────────────────────
   useEffect(() => {
@@ -584,6 +589,20 @@ function OTRPageInner() {
         )
       }
 
+      // Geocode customer-supplied facility locations (optional, entered at upload)
+      const customerLocInputs = customerLocationInputsRef.current.filter(l => l.address && l.city)
+      let customerLocations: CustomerLocation[] = []
+      if (customerLocInputs.length > 0) {
+        const geocodedCustomerAddrs = await geocodeAddresses(
+          customerLocInputs.map(l => ({ address: l.address, city: l.city, state: l.state })),
+          token
+        )
+        customerLocations = customerLocInputs.map(l => {
+          const coord = geocodedCustomerAddrs.get(addrGeoKey(l.address, l.city, l.state))
+          return { ...l, lat: coord?.lat, lng: coord?.lng }
+        })
+      }
+
       // 5. Re-analyze with geocoding
       const enriched = analyzeTransactions(transactions, truckZipSet, {
         detectedFormat,
@@ -600,6 +619,7 @@ function OTRPageInner() {
       )
       enriched.otrAnalysis = otr
       enriched.truckMode = true
+      enriched.customerLocations = customerLocations
 
       setSummary(enriched)
       setOtrResult(otr)
@@ -633,6 +653,7 @@ function OTRPageInner() {
     setError(null)
     setSavedId(null)
     setShareToken(null)
+    setCustomerLocationInputs([])
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -726,6 +747,10 @@ function OTRPageInner() {
                 placeholder="e.g. Acme Logistics"
                 className="w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
               />
+            </div>
+
+            <div className="mb-5">
+              <CustomerLocationsInput locations={customerLocationInputs} onChange={setCustomerLocationInputs} />
             </div>
 
             {/* Drop zone */}
@@ -1085,6 +1110,7 @@ function OTRPageInner() {
               <FuelingMap
                 transactionPoints={summary.mapPoints}
                 ckStores={ckStores.map((s): CKStorePin => ({ ...s, zip: '', truckAccessible: true }))}
+                customerLocations={summary.customerLocations}
                 height={560}
                 truckMode={true}
               />

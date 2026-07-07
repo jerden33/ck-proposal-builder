@@ -4,8 +4,15 @@ import { useEffect, useRef, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { Maximize2, Minimize2 } from 'lucide-react'
-import type { MapPoint } from '@/lib/transaction-analysis'
+import type { MapPoint, CustomerLocation } from '@/lib/transaction-analysis'
 import { fmtGallons, fmtDollars, fmtMiles } from '@/lib/transaction-analysis'
+
+// Flag icon (SVG → bitmap) for customer-supplied facility locations
+const FLAG_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
+  <line x1="6" y1="3" x2="6" y2="20" stroke="#1f2937" stroke-width="2" stroke-linecap="round"/>
+  <path d="M6 3 L18 3 L15 7.5 L18 12 L6 12 Z" fill="#7c3aed" stroke="#1f2937" stroke-width="1"/>
+</svg>`
+const FLAG_ICON_ID = 'customer-location-flag'
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || ''
 
@@ -55,6 +62,24 @@ function buildTransactionGeoJSON(points: MapPoint[]) {
   }
 }
 
+function buildCustomerLocationGeoJSON(locations: CustomerLocation[]) {
+  return {
+    type: 'FeatureCollection' as const,
+    features: locations
+      .filter((l): l is CustomerLocation & { lat: number; lng: number } => l.lat != null && l.lng != null)
+      .map(l => ({
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: [l.lng, l.lat] },
+        properties: {
+          name: l.name,
+          address: l.address,
+          city: l.city,
+          state: l.state,
+        },
+      })),
+  }
+}
+
 function buildCKGeoJSON(stores: CKStorePin[], truckMode: boolean) {
   return {
     type: 'FeatureCollection' as const,
@@ -78,6 +103,7 @@ function buildCKGeoJSON(stores: CKStorePin[], truckMode: boolean) {
 interface FuelingMapProps {
   transactionPoints: MapPoint[]   // geocoded + analyzed
   ckStores: CKStorePin[]
+  customerLocations?: CustomerLocation[]  // optional customer-supplied facility pins
   height?: number
   geocodingInProgress?: boolean
   truckMode?: boolean
@@ -86,6 +112,7 @@ interface FuelingMapProps {
 export function FuelingMap({
   transactionPoints,
   ckStores,
+  customerLocations = [],
   height = 520,
   geocodingInProgress = false,
   truckMode = false,
@@ -94,8 +121,10 @@ export function FuelingMap({
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const loadedRef = useRef(false)
   const truckModeRef = useRef(truckMode)
+  const customerLocationsRef = useRef(customerLocations)
   const [fullscreen, setFullscreen] = useState(false)
   useEffect(() => { truckModeRef.current = truckMode }, [truckMode])
+  useEffect(() => { customerLocationsRef.current = customerLocations }, [customerLocations])
 
   // ── Initialize map once ──────────────────────────────────────────────────
   useEffect(() => {
@@ -170,8 +199,49 @@ export function FuelingMap({
         },
       })
 
+      // ── Customer location layer (flag icon) ─────────────────────────────
+      map.addSource('customer-locations', {
+        type: 'geojson',
+        data: buildCustomerLocationGeoJSON(customerLocationsRef.current),
+      })
+      const flagImg = new Image(22, 22)
+      flagImg.onload = () => {
+        if (!map.hasImage(FLAG_ICON_ID)) map.addImage(FLAG_ICON_ID, flagImg)
+        map.addLayer({
+          id: 'customer-locations-layer',
+          type: 'symbol',
+          source: 'customer-locations',
+          layout: {
+            'icon-image': FLAG_ICON_ID,
+            'icon-size': 1,
+            'icon-anchor': 'bottom',
+            'icon-allow-overlap': true,
+          },
+        })
+      }
+      flagImg.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(FLAG_SVG)
+
       // ── Popups ──────────────────────────────────────────────────────────
       const popup = new mapboxgl.Popup({ closeButton: false, maxWidth: '260px' })
+
+      // Customer location popup
+      const showCustomerLocPopup = (e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
+        map.getCanvas().style.cursor = 'pointer'
+        const p = e.features?.[0]?.properties
+        if (!p || !e.lngLat) return
+        popup
+          .setLngLat(e.lngLat)
+          .setHTML(`
+            <div style="font-family:sans-serif;padding:4px 2px">
+              <div style="font-weight:700;font-size:13px;color:#7c3aed">🚩 ${p.name}</div>
+              <div style="font-size:12px;color:#555;margin-top:2px">${p.address}</div>
+              <div style="font-size:12px;color:#555">${p.city}, ${p.state}</div>
+            </div>
+          `)
+          .addTo(map)
+      }
+      map.on('mouseenter', 'customer-locations-layer', showCustomerLocPopup)
+      map.on('mouseleave', 'customer-locations-layer', () => { map.getCanvas().style.cursor = ''; popup.remove() })
 
       // Transaction point popup
       map.on('mouseenter', 'transaction-points-layer', e => {
@@ -255,6 +325,14 @@ export function FuelingMap({
     src.setData(buildCKGeoJSON(ckStores, truckMode))
   }, [ckStores, truckMode])
 
+  // ── Update customer locations source when they change ────────────────────
+  useEffect(() => {
+    if (!loadedRef.current || !mapRef.current) return
+    const src = mapRef.current.getSource('customer-locations') as mapboxgl.GeoJSONSource | undefined
+    if (!src) return
+    src.setData(buildCustomerLocationGeoJSON(customerLocations))
+  }, [customerLocations])
+
   if (!mapboxgl.accessToken) {
     return (
       <div className="flex items-center justify-center bg-gray-100 rounded-xl text-gray-500 text-sm" style={{ height }}>
@@ -308,6 +386,14 @@ export function FuelingMap({
             <LegendDot color="#ED8B00" small label="Circle K store" />
           )}
         </div>
+        {customerLocations.length > 0 && (
+          <div className="border-t border-gray-200 pt-1.5 mt-1">
+            <div className="flex items-center gap-2">
+              <span className="shrink-0" style={{ fontSize: 12 }}>🚩</span>
+              <span className="text-gray-600">Customer location</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

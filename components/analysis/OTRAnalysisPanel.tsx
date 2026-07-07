@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import { MapPin, Truck, ChevronDown, ChevronUp, Info } from 'lucide-react'
-import { fmtGallons, fmtPct, type TransactionSummary } from '@/lib/transaction-analysis'
+import { fmtGallons, fmtPct, type TransactionSummary, type CustomerLocation } from '@/lib/transaction-analysis'
 import type { CKStorePin } from '@/components/FuelingMap'
 import type { OTRMapStore } from '@/components/OTRMap'
 
@@ -16,12 +16,13 @@ const OTRMap = dynamic(() => import('@/components/OTRMap').then(m => m.OTRMap), 
   loading: () => <div className="bg-gray-100 rounded-xl animate-pulse" style={{ height: 520 }} />,
 })
 
-export function OTRAnalysisPanel({ otr, months, mapPoints, ckStorePins, isDieselFleet }: {
+export function OTRAnalysisPanel({ otr, months, mapPoints, ckStorePins, isDieselFleet, customerLocations }: {
   otr: NonNullable<TransactionSummary['otrAnalysis']>
   months: number
   mapPoints: import('@/lib/transaction-analysis').MapPoint[]
   ckStorePins: CKStorePin[]
   isDieselFleet: boolean
+  customerLocations?: CustomerLocation[]
 }) {
   const [expanded, setExpanded] = useState(false)
   const shown = expanded ? otr.corridorResults : otr.corridorResults.slice(0, 8)
@@ -108,6 +109,7 @@ export function OTRAnalysisPanel({ otr, months, mapPoints, ckStorePins, isDiesel
             <FuelingMap
               transactionPoints={mapPoints}
               ckStores={ckStorePins.filter(s => s.truckAccessible)}
+              customerLocations={customerLocations}
               height={480}
               truckMode={true}
             />

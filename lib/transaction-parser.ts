@@ -579,3 +579,78 @@ export function parseHeartlandCSV(content: string): { transactions: FuelingTrans
   const { transactions, errors } = parseFleetCSV(content)
   return { transactions, errors }
 }
+
+// ─── Customer location CSV parser ──────────────────────────────────────────────
+// A separate, much smaller parser for the optional "customer facility locations"
+// upload (depots, yards, corporate offices) — distinct from fleet transaction data.
+
+export interface CustomerLocationInput {
+  name: string
+  address: string
+  city: string
+  state: string
+  zip: string
+}
+
+const CUSTOMER_LOCATION_ALIASES: Record<string, string[]> = {
+  name:    ['name', 'location name', 'site name', 'facility name', 'customer location', 'facility'],
+  address: ['address', 'street address', 'street', 'location address', 'addr'],
+  city:    ['city', 'location city'],
+  state:   ['state', 'location state', 'st', 'prov', 'province'],
+  zip:     ['zip', 'zip code', 'zipcode', 'postal code', 'postal'],
+}
+
+function buildCustomerLocationColumnIndex(headers: string[]): Record<string, number> {
+  const index: Record<string, number> = {}
+  const normalized = headers.map(normalizeKey)
+  for (const [canonical, aliases] of Object.entries(CUSTOMER_LOCATION_ALIASES)) {
+    for (const alias of aliases) {
+      const colIdx = normalized.indexOf(normalizeKey(alias))
+      if (colIdx !== -1) { index[canonical] = colIdx; break }
+    }
+  }
+  return index
+}
+
+/**
+ * Parse a small CSV of customer facility locations (Name, Address, City, State, Zip).
+ * Rows missing an address are skipped — geocoding requires at least a street address.
+ */
+export function parseCustomerLocationsCSV(content: string): { locations: CustomerLocationInput[]; errors: string[] } {
+  const clean = content.replace(/^\uFEFF/, '')
+  const rawLines = clean.split(/\r?\n/)
+  const locations: CustomerLocationInput[] = []
+  const errors: string[] = []
+
+  let headerIdx = 0
+  while (headerIdx < rawLines.length && !rawLines[headerIdx].trim()) headerIdx++
+  if (headerIdx >= rawLines.length) {
+    return { locations, errors: ['File is empty'] }
+  }
+
+  const headers = parseCSVLine(rawLines[headerIdx])
+  const colIdx = buildCustomerLocationColumnIndex(headers)
+
+  if (colIdx['address'] === undefined || colIdx['city'] === undefined) {
+    errors.push('Could not find Address and City columns — expected headers like "Name, Address, City, State, Zip".')
+    return { locations, errors }
+  }
+
+  for (let i = headerIdx + 1; i < rawLines.length; i++) {
+    const line = rawLines[i].trim()
+    if (!line) continue
+    const cols = parseCSVLine(line)
+    const address = col(cols, colIdx['address'])
+    const city = col(cols, colIdx['city'])
+    if (!address || !city) continue
+    locations.push({
+      name: col(cols, colIdx['name']) || `${city}`,
+      address,
+      city,
+      state: col(cols, colIdx['state']),
+      zip: normalizeZip(col(cols, colIdx['zip'])),
+    })
+  }
+
+  return { locations, errors }
+}
