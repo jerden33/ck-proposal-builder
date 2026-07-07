@@ -137,11 +137,11 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'zipcode', 'zip', 'zip code', 'postal code', 'zip_code',
     'postalcode', 'postal', 'zip/postal',
     // WEX — "Merchant Postal Code"
-    'merchant postal code', 'merchant zip', 'merchant zipcode',
+    'merchant postal code', 'merchant zip', 'merchant zipcode', 'merchant zip code',
     'service center zip code',
   ],
   unitNumber: [
-    'unit #', 'unit number', 'vehicle unit number', 'vehicle', 'card #', 'card number',
+    'unit #', 'unit number', 'vehicle unit number', 'vehicle number', 'vehicle', 'card #', 'card number',
     'vehicle id', 'asset', 'unit', 'vehicle #', 'asset id', 'asset number',
     'equipment', 'truck #', 'truck number', 'unit id',
   ],
