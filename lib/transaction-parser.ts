@@ -67,6 +67,8 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'prov', 'province', 'locationstate', 'transstate',
     // WEX variants — "Merchant State / Province" normalizes to "merchant state province"
     'merchant state province', 'merchant state  province',
+    // Bare "State/ Prov" / "State / Prov" variants normalize to "state prov"
+    'state prov', 'state province',
     'trans state', 'transaction state', 'service state', 'fill state',
     'loc state', 'mcht state', 'merch state',
     'truck stop state',
@@ -141,9 +143,12 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'service center zip code',
   ],
   unitNumber: [
-    'unit #', 'unit number', 'vehicle unit number', 'vehicle number', 'vehicle', 'card #', 'card number',
-    'vehicle id', 'asset', 'unit', 'vehicle #', 'asset id', 'asset number',
-    'equipment', 'truck #', 'truck number', 'unit id',
+    // Vehicle/unit identifiers take priority over card number — a fuel card can be
+    // reassigned between vehicles over time, so "Unit"/"Vehicle" is the more reliable ID
+    // when both a unit column and a card column are present in the same file.
+    'unit #', 'unit number', 'unit', 'vehicle unit number', 'vehicle number', 'vehicle', 'vehicle #',
+    'vehicle id', 'asset', 'asset id', 'asset number', 'equipment', 'truck #', 'truck number', 'unit id',
+    'card #', 'card number',
   ],
   driverCity: [
     'driver city', 'home city', 'driver home city', 'driver location',
@@ -166,7 +171,7 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'employee last name', 'driver lname', 'last',
   ],
   amount: [
-    'amount', 'total', 'total amount', 'spend', 'cost', 'sale amount',
+    'amt', 'amount', 'total', 'total amount', 'spend', 'cost', 'sale amount',
     'net amount', 'transaction amount', 'charge', 'total cost', 'total charge',
     'invoice amount', 'billed amount', 'dollars',
     // WEX column names
@@ -321,7 +326,7 @@ export function normalizeFuelType(raw: string): string {
 
   // ── DEF / exhaust fluid ────────────────────────────────────────────────────
   if (
-    r === 'DEF' || r.includes('EXHAUST FLUID') || r.includes('EXHAUST') ||
+    r === 'DEF' || r.startsWith('DEF') || r.includes('EXHAUST FLUID') || r.includes('EXHAUST') ||
     r === 'ADBLUE' || r === 'UREA' || r.includes('SCR FLUID')
   ) return 'DEF'
 
