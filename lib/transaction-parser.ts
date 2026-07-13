@@ -263,6 +263,9 @@ export const BRAND_DISPLAY_NAMES: Record<string, string> = {
   'FASMART': 'Fas Mart',
   'MAPCO': 'Mapco',
   'CIRCLE B': 'Circle B',
+  '7 ELEVEN': '7-Eleven',
+  'SEVEN ELEVEN': '7-Eleven',
+  'MAVERIK': 'Maverik',
 }
 
 export function normalizeBrandName(raw: string): string {
@@ -349,20 +352,26 @@ export function normalizeFuelType(raw: string): string {
   return raw.trim()
 }
 
+// Punctuation-normalized brand keys (longest-first), paired with their original
+// dictionary key for display-name lookup. Precomputed once at module load.
+function squashPunctuation(s: string): string {
+  return s.replace(/[^A-Z0-9]+/g, ' ').replace(/\s+/g, ' ').trim()
+}
+const BRAND_MATCH_KEYS: Array<{ normalized: string; original: string }> = Object.keys(BRAND_DISPLAY_NAMES)
+  .map(original => ({ normalized: squashPunctuation(original), original }))
+  .sort((a, b) => b.normalized.length - a.normalized.length)
+
 /**
  * When no dedicated brand column is present (e.g. RCPA format), try to infer
- * the brand from the station name by matching known brand prefixes.
- * "CHEVRON 0207755" → "Chevron", "CIRCLE K #12345" → "Circle K"
+ * the brand from the station name by matching a known brand as a whole word
+ * anywhere in the name — prefix ("CHEVRON 0207755"), hyphen-joined site number
+ * ("SPEEDWAY-44355"), or trailing brand after a store code ("SIXERS 83 - CITGO").
  */
 export function inferBrandFromName(stationName: string): string {
   if (!stationName) return ''
-  const upper = stationName.trim().toUpperCase()
-  // Sort keys longest-first so "CIRCLE K" beats "CK", "BP AMOCO" beats "BP", etc.
-  const keys = Object.keys(BRAND_DISPLAY_NAMES).sort((a, b) => b.length - a.length)
-  for (const key of keys) {
-    if (upper === key || upper.startsWith(key + ' ') || upper.startsWith(key + '#') || upper.startsWith(key + '_')) {
-      return BRAND_DISPLAY_NAMES[key]
-    }
+  const padded = ` ${squashPunctuation(stationName.trim().toUpperCase())} `
+  for (const { normalized, original } of BRAND_MATCH_KEYS) {
+    if (padded.includes(` ${normalized} `)) return BRAND_DISPLAY_NAMES[original]
   }
   return ''
 }
