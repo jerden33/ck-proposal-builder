@@ -195,6 +195,7 @@ const REQUIRED_FIELDS = ['date', 'city', 'gallons']
 
 export const BRAND_DISPLAY_NAMES: Record<string, string> = {
   'CIRCLE K': 'Circle K',
+  'CIRCLEK': 'Circle K',  // no-space variant seen in some POS exports (e.g. "CIRCLEK# 4700055")
   'SPEEDWAY': 'Speedway',
   'EXXONMOB': 'ExxonMobil',
   'EXXONMOBIL': 'ExxonMobil',
@@ -308,6 +309,15 @@ export function normalizeFuelType(raw: string): string {
   const nacsMatch = r.match(/^(\d{3})/)
   if (nacsMatch && NACS_FUEL_CODES[nacsMatch[1]]) return NACS_FUEL_CODES[nacsMatch[1]]
 
+  // ── DEF / exhaust fluid ──────────────────────────────────────────────────────
+  // Checked BEFORE diesel — "DEF (Diesel Exhaust Fluid)" contains the substring
+  // "DIESEL" and would otherwise be misclassified as diesel fuel by the broad
+  // includes('DIESEL') check below. DEF is an additive, not motor fuel.
+  if (
+    r === 'DEF' || r.startsWith('DEF') || r.includes('EXHAUST FLUID') || r.includes('EXHAUST') ||
+    r === 'ADBLUE' || r === 'UREA' || r.includes('SCR FLUID')
+  ) return 'DEF'
+
   // ── Diesel variants ────────────────────────────────────────────────────────
   if (
     r === 'D2' || r === 'D-2' || r === '#2' ||
@@ -326,12 +336,6 @@ export function normalizeFuelType(raw: string): string {
     r === 'CLEAR DIESEL' || r === 'HEATING OIL' ||
     r === 'NO2' || r === 'NO. 2' || r === 'NUMBER 2'
   ) return 'DIESEL'
-
-  // ── DEF / exhaust fluid ────────────────────────────────────────────────────
-  if (
-    r === 'DEF' || r.startsWith('DEF') || r.includes('EXHAUST FLUID') || r.includes('EXHAUST') ||
-    r === 'ADBLUE' || r === 'UREA' || r.includes('SCR FLUID')
-  ) return 'DEF'
 
   // ── Gasoline variants ──────────────────────────────────────────────────────
   if (
@@ -532,10 +536,16 @@ export function parseFleetCSV(content: string): ParseResult {
     const stationAddressRaw = col(cols, colIdx['stationAddress'])
     // If no dedicated brand column, infer from station name (handles RCPA / no-brand formats)
     const stationBrand = stationBrandRaw || inferBrandFromName(stationName)
+    // Also check the no-space "CIRCLEK" variant seen in some POS exports (e.g. "CIRCLEK# 4700055")
+    // directly against the raw brand/name/address text — catches it even when a dedicated brand
+    // column supplies the raw value verbatim (bypassing inferBrandFromName).
     const isCircleK =
       stationBrand.toUpperCase().includes('CIRCLE K') ||
+      stationBrand.toUpperCase().includes('CIRCLEK') ||
       stationName.toUpperCase().includes('CIRCLE K') ||
-      stationAddressRaw.toUpperCase().includes('CIRCLE K')
+      stationName.toUpperCase().includes('CIRCLEK') ||
+      stationAddressRaw.toUpperCase().includes('CIRCLE K') ||
+      stationAddressRaw.toUpperCase().includes('CIRCLEK')
 
     // fuelType: prefer dedicated field → productName → gallons-column-implied type
     const fuelType = normalizeFuelType(
