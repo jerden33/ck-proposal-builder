@@ -64,6 +64,8 @@ export async function POST(request: NextRequest) {
   }
 
   const rawFields = {
+    submitterName: formData.get('submitterName'),
+    submitterEmail: formData.get('submitterEmail'),
     companyName: formData.get('companyName'),
     hqLocation: formData.get('hqLocation'),
     contactName: formData.get('contactName'),
@@ -75,6 +77,8 @@ export async function POST(request: NextRequest) {
   const file = formData.get('file')
 
   if (
+    typeof rawFields.submitterName !== 'string' ||
+    typeof rawFields.submitterEmail !== 'string' ||
     typeof rawFields.companyName !== 'string' ||
     typeof rawFields.hqLocation !== 'string' ||
     typeof rawFields.contactName !== 'string' ||
@@ -86,6 +90,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'Missing required fields.' }, { status: 400 })
   }
 
+  const submitterName = sanitizeText(rawFields.submitterName)
+  const submitterEmail = sanitizeText(rawFields.submitterEmail)
   const companyName = sanitizeText(rawFields.companyName)
   const hqLocation = sanitizeText(rawFields.hqLocation)
   const contactName = sanitizeText(rawFields.contactName)
@@ -94,8 +100,11 @@ export async function POST(request: NextRequest) {
   const phone = sanitizeText(rawFields.phone)
   const fleetSize = Number(rawFields.fleetSize)
 
-  if (!companyName || !hqLocation || !contactName || !title || !email || !phone) {
+  if (!submitterName || !submitterEmail || !companyName || !hqLocation || !contactName || !title || !email || !phone) {
     return NextResponse.json({ success: false, error: 'All fields are required.' }, { status: 400 })
+  }
+  if (!EMAIL_RE.test(submitterEmail)) {
+    return NextResponse.json({ success: false, error: 'Please enter a valid email address.' }, { status: 400 })
   }
   if (!EMAIL_RE.test(email)) {
     return NextResponse.json({ success: false, error: 'Please enter a valid email address.' }, { status: 400 })
@@ -154,6 +163,8 @@ export async function POST(request: NextRequest) {
   const signedUrlExpiresAt = new Date(submittedAt.getTime() + SIGNED_URL_EXPIRY_SECONDS * 1000)
 
   const { error: insertError } = await supabase.from('partner_intake_submissions').insert({
+    submitter_name: submitterName,
+    submitter_email: submitterEmail,
     company_name: companyName,
     hq_location: hqLocation,
     contact_name: contactName,
@@ -184,6 +195,7 @@ export async function POST(request: NextRequest) {
       html: `
         <h2>New Fleet Partner Intake Submission</h2>
         <table cellpadding="6" cellspacing="0" border="0">
+          <tr><td><strong>Submitted By</strong></td><td>${escapeHtml(submitterName)} (${escapeHtml(submitterEmail)})</td></tr>
           <tr><td><strong>Company Name</strong></td><td>${escapeHtml(companyName)}</td></tr>
           <tr><td><strong>HQ Location</strong></td><td>${escapeHtml(hqLocation)}</td></tr>
           <tr><td><strong>Contact Name</strong></td><td>${escapeHtml(contactName)}</td></tr>

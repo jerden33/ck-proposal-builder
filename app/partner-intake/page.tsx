@@ -9,6 +9,8 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PHONE_RE = /^[0-9+()\-.\s]{7,20}$/
 
 interface FormState {
+  submitterName: string
+  submitterEmail: string
   companyName: string
   hqLocation: string
   contactName: string
@@ -19,6 +21,8 @@ interface FormState {
 }
 
 const initialState: FormState = {
+  submitterName: '',
+  submitterEmail: '',
   companyName: '',
   hqLocation: '',
   contactName: '',
@@ -70,6 +74,12 @@ export default function PartnerIntakePage() {
   const validate = (): boolean => {
     const errors: Partial<Record<keyof FormState | 'file', string>> = {}
 
+    if (!form.submitterName.trim()) errors.submitterName = 'Your name is required.'
+    if (!form.submitterEmail.trim()) {
+      errors.submitterEmail = 'Email address is required.'
+    } else if (!EMAIL_RE.test(form.submitterEmail.trim())) {
+      errors.submitterEmail = 'Please enter a valid email address.'
+    }
     if (!form.companyName.trim()) errors.companyName = 'Company name is required.'
     if (!form.hqLocation.trim()) errors.hqLocation = 'HQ location is required.'
     if (!form.contactName.trim()) errors.contactName = 'Contact name is required.'
@@ -107,6 +117,8 @@ export default function PartnerIntakePage() {
     setSubmitting(true)
     try {
       const body = new FormData()
+      body.append('submitterName', form.submitterName.trim())
+      body.append('submitterEmail', form.submitterEmail.trim())
       body.append('companyName', form.companyName.trim())
       body.append('hqLocation', form.hqLocation.trim())
       body.append('contactName', form.contactName.trim())
@@ -159,10 +171,6 @@ export default function PartnerIntakePage() {
             <Zap size={20} className="text-white" strokeWidth={2.5} />
           </div>
           <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">Fleet Partner Intake</h1>
-          <p className="text-sm text-zinc-500 mt-1">
-            Tell us about your fleet and share a recent transaction report — we&apos;ll review it and put
-            together a savings proposal.
-          </p>
         </div>
 
         <div className="bg-white rounded-2xl border border-zinc-200 p-6" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04),0 4px 8px rgba(0,0,0,0.03)' }}>
@@ -173,6 +181,38 @@ export default function PartnerIntakePage() {
                 <p className="text-sm text-red-700">{submitError}</p>
               </div>
             )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="input-label">
+                  Your Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={form.submitterName}
+                  onChange={handleChange('submitterName')}
+                  className="input-field"
+                  placeholder="Jane Doe"
+                  autoComplete="name"
+                />
+                {fieldErrors.submitterName && <p className="text-xs text-red-600 mt-1">{fieldErrors.submitterName}</p>}
+              </div>
+
+              <div>
+                <label className="input-label">
+                  Email Address <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={form.submitterEmail}
+                  onChange={handleChange('submitterEmail')}
+                  className="input-field"
+                  placeholder="you@company.com"
+                  autoComplete="email"
+                />
+                {fieldErrors.submitterEmail && <p className="text-xs text-red-600 mt-1">{fieldErrors.submitterEmail}</p>}
+              </div>
+            </div>
 
             <div>
               <label className="input-label">
