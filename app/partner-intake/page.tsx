@@ -18,6 +18,7 @@ interface FormState {
   email: string
   phone: string
   fleetSize: string
+  notes: string
 }
 
 const initialState: FormState = {
@@ -30,6 +31,7 @@ const initialState: FormState = {
   email: '',
   phone: '',
   fleetSize: '',
+  notes: '',
 }
 
 function validateFile(file: File | null): string | null {
@@ -55,6 +57,10 @@ export default function PartnerIntakePage() {
 
   const handleChange = (field: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((prev) => ({ ...prev, [field]: e.target.value }))
+  }
+
+  const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setForm((prev) => ({ ...prev, notes: e.target.value }))
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -126,6 +132,7 @@ export default function PartnerIntakePage() {
       body.append('email', form.email.trim())
       body.append('phone', form.phone.trim())
       body.append('fleetSize', form.fleetSize.trim())
+      body.append('notes', form.notes.trim())
       if (file) body.append('file', file)
 
       const res = await fetch('/api/partner-intake', { method: 'POST', body })
@@ -319,6 +326,18 @@ export default function PartnerIntakePage() {
                 />
                 {fieldErrors.fleetSize && <p className="text-xs text-red-600 mt-1">{fieldErrors.fleetSize}</p>}
               </div>
+            </div>
+
+            <div>
+              <label className="input-label">Notes</label>
+              <textarea
+                value={form.notes}
+                onChange={handleNotesChange}
+                className="input-field"
+                rows={4}
+                placeholder="Anything else we should know about your fleet or fueling needs?"
+                maxLength={2000}
+              />
             </div>
 
             <div>

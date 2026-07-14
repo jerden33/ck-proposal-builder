@@ -23,6 +23,16 @@ function sanitizeText(value: string): string {
     .slice(0, 200)
 }
 
+function sanitizeNotes(value: string): string {
+  // Same control-character/angle-bracket stripping as sanitizeText, but
+  // preserves newlines and allows a much longer, optional free-text value.
+  return value
+    .replace(/\r\n/g, '\n')
+    .replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F<>]/g, '')
+    .trim()
+    .slice(0, 2000)
+}
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -73,6 +83,7 @@ export async function POST(request: NextRequest) {
     email: formData.get('email'),
     phone: formData.get('phone'),
     fleetSize: formData.get('fleetSize'),
+    notes: formData.get('notes'),
   }
   const file = formData.get('file')
 
@@ -99,6 +110,7 @@ export async function POST(request: NextRequest) {
   const email = sanitizeText(rawFields.email)
   const phone = sanitizeText(rawFields.phone)
   const fleetSize = Number(rawFields.fleetSize)
+  const notes = typeof rawFields.notes === 'string' ? sanitizeNotes(rawFields.notes) : ''
 
   if (!submitterName || !submitterEmail || !companyName || !hqLocation || !contactName || !title || !email || !phone) {
     return NextResponse.json({ success: false, error: 'All fields are required.' }, { status: 400 })
@@ -172,6 +184,7 @@ export async function POST(request: NextRequest) {
     email,
     phone,
     fleet_size: fleetSize,
+    notes,
     file_path: storagePath,
     file_name: safeFileName,
     file_size: file.size,
@@ -205,6 +218,7 @@ export async function POST(request: NextRequest) {
           <tr><td><strong>Fleet Size</strong></td><td>${fleetSize.toLocaleString()}</td></tr>
           <tr><td><strong>Submitted</strong></td><td>${submittedAt.toISOString()}</td></tr>
         </table>
+        ${notes ? `<p><strong>Notes:</strong><br />${escapeHtml(notes).replace(/\n/g, '<br />')}</p>` : ''}
         <p>
           <strong>90-Day Transaction Report:</strong><br />
           <a href="${signedUrlData.signedUrl}">${escapeHtml(safeFileName)}</a>
