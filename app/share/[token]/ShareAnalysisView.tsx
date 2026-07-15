@@ -25,8 +25,6 @@ import {
   DollarSign,
   TrendingUp,
   Clock,
-  Mail,
-  User,
   Truck,
   Zap,
 } from 'lucide-react'
@@ -46,7 +44,7 @@ interface ShareData {
   id: string
   analysis_id: string
   token: string
-  type: 'internal' | 'customer'
+  type: 'internal' | 'customer' | 'map'
   view_count: number
   created_at: string
 }
@@ -444,7 +442,7 @@ function ProximityPanel({
         <div className="mb-4 bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
           <span className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0 mt-1" />
           <p className="text-sm text-green-800">
-            <span className="font-bold">{fmtGallons(within2mi)}</span> gallons were fueled within <span className="font-bold">2 miles</span> of a Circle K — drivers drove right past without stopping.
+            <span className="font-bold">{fmtGallons(within2mi)}</span> gallons were fueled within <span className="font-bold">2 miles</span> of a Circle K — a prime opportunity to capture with the right offer.
           </p>
         </div>
       )}
@@ -846,45 +844,16 @@ function TimePatternsSection({ summary }: { summary: TransactionSummary }) {
   )
 }
 
-// ─── Rep Contact Card (customer only) ─────────────────────────────────────────
-
-function RepContactCard({ rep }: { rep: RepData }) {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="bg-brand-orange px-6 py-4">
-        <h2 className="text-white font-bold text-lg">Your Circle K Rep</h2>
-        <p className="text-orange-100 text-sm mt-0.5">Get in touch to learn more or get started</p>
-      </div>
-      <div className="p-6 flex flex-col sm:flex-row gap-5 items-start sm:items-center">
-        <div className="w-14 h-14 rounded-full bg-zinc-100 flex items-center justify-center shrink-0">
-          <User size={26} className="text-zinc-500" />
-        </div>
-        <div className="space-y-2">
-          {rep.full_name && (
-            <p className="text-xl font-bold text-off-black">{rep.full_name}</p>
-          )}
-          <a
-            href={`mailto:${rep.email}`}
-            className="inline-flex items-center gap-2 text-accent hover:underline font-medium"
-          >
-            <Mail size={16} />
-            {rep.email}
-          </a>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ─── Tab types ────────────────────────────────────────────────────────────────
 
 type Tab = 'brands' | 'geographic' | 'locations' | 'vehicles' | 'insights' | 'timing' | 'fraud' | 'map'
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function ShareAnalysisView({ share, analysis, rep }: Props) {
+export function ShareAnalysisView({ share, analysis }: Props) {
   const summary = analysis.data
   const isCustomer = share.type === 'customer'
+  const isMapOnly = share.type === 'map'
   const months = computeMonthSpan(summary.dateRange)
 
   const internalTabs: { id: Tab; label: string }[] = [
@@ -930,6 +899,80 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
       })
       .catch(() => { /* non-fatal */ })
   }, [])
+
+  // ── Map & Proximity link — a stripped-down view with just the fueling map
+  // and the distance breakdown, nothing else (no rep card, opportunity panel,
+  // savings calculator, OTR corridor, or tabs).
+  if (isMapOnly) {
+    const prox = summary.proximityBreakdownAll ?? summary.proximityBreakdown
+    return (
+      <div className="min-h-screen bg-off-white">
+        <div className="bg-white border-b border-zinc-200 px-6 py-3 flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-accent rounded-md flex items-center justify-center">
+              <Zap size={12} className="text-white" strokeWidth={2.5} />
+            </div>
+            <span className="font-semibold text-zinc-800 text-sm">Fleet Insights</span>
+          </div>
+          <div className="w-px h-4 bg-zinc-200" />
+          <span className="text-zinc-400 text-sm">Fleet Analysis Report</span>
+        </div>
+
+        <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
+          <div>
+            {analysis.account_name ? (
+              <>
+                <p className="text-sm text-gray-500 mb-0.5">Prepared for</p>
+                <h1 className="text-3xl font-bold text-off-black">{analysis.account_name}</h1>
+              </>
+            ) : (
+              <h1 className="text-3xl font-bold text-off-black">Fleet Analysis</h1>
+            )}
+            <p className="text-sm text-gray-400 mt-0.5">
+              {analysis.date_range_start}
+              {analysis.date_range_end && analysis.date_range_end !== analysis.date_range_start
+                ? ` – ${analysis.date_range_end}`
+                : ''}
+            </p>
+          </div>
+
+          {prox && (
+            <ProximityPanel
+              prox={prox}
+              totalGallons={summary.totalGallons}
+              isCustomer={true}
+              captureRadiusMi={summary.captureRadiusMi ?? 10}
+              capturedGallons={summary.ckCaptureAnalysis.captured.gallons}
+            />
+          )}
+
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <h2 className="font-bold text-off-black text-lg mb-1">Fueling Activity Map</h2>
+            <p className="text-xs text-gray-400 mb-4">
+              Transaction locations overlaid with Circle K network coverage.
+            </p>
+            {summary.mapPoints.length > 0 ? (
+              <FuelingMap
+                transactionPoints={summary.mapPoints}
+                ckStores={ckStorePins}
+                customerLocations={summary.customerLocations}
+                height={520}
+                truckMode={summary.truckMode ?? false}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-48 bg-gray-50 rounded-xl border border-gray-200 text-sm text-gray-400">
+                Map data is only available when the analysis was run with geocoding enabled.
+              </div>
+            )}
+          </div>
+
+          <p className="text-center text-xs text-gray-400 pb-4">
+            Circle K Fleet Analysis &nbsp;·&nbsp; This report was generated for {analysis.account_name || 'your fleet'} and is confidential.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-off-white">
@@ -1276,9 +1319,6 @@ export function ShareAnalysisView({ share, analysis, rep }: Props) {
             )}
           </div>
         </div>
-
-        {/* Rep contact (customer only) */}
-        {isCustomer && <RepContactCard rep={rep} />}
 
         {/* Footer */}
         <p className="text-center text-xs text-gray-400 pb-4">

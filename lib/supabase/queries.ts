@@ -387,7 +387,7 @@ export async function getAnalysisShares(analysisId: string): Promise<AnalysisSha
 
 export async function createAnalysisShare(
   analysisId: string,
-  type: 'internal' | 'customer'
+  type: 'internal' | 'customer' | 'map'
 ): Promise<AnalysisShare | null> {
   const supabase = createClient()
   const user = await getCurrentUser()

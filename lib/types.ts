@@ -42,7 +42,7 @@ export interface AnalysisShare {
   id: string
   analysis_id: string
   token: string
-  type: 'internal' | 'customer'
+  type: 'internal' | 'customer' | 'map'
   created_by: string
   view_count: number
   created_at: string

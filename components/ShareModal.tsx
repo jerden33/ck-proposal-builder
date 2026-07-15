@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { X, Copy, Check, Link, Trash2, Users, Lock, Eye } from 'lucide-react'
+import { X, Copy, Check, Link, Trash2, Users, Lock, Eye, MapPin } from 'lucide-react'
 import type { AnalysisShare } from '@/lib/types'
 import {
   getAnalysisShares,
@@ -34,7 +34,7 @@ function CopyButton({ url }: { url: string }) {
 }
 
 interface ShareRowProps {
-  type: 'internal' | 'customer'
+  type: 'internal' | 'customer' | 'map'
   share: AnalysisShare | null
   onCreate: () => Promise<void>
   onRevoke: (token: string) => Promise<void>
@@ -42,9 +42,16 @@ interface ShareRowProps {
   revoking: boolean
 }
 
+const SHARE_ROW_META = {
+  internal: { icon: Lock, label: 'Internal Link', desc: '— Same as creator view, all data', headerClass: 'bg-gray-50 border-b border-gray-100', iconClass: 'text-gray-600' },
+  customer: { icon: Users, label: 'Customer Link', desc: '— CK branded, savings focus', headerClass: 'bg-orange-50 border-b border-orange-100', iconClass: 'text-brand-orange' },
+  map: { icon: MapPin, label: 'Map & Proximity Link', desc: '— Just the map and distance breakdown', headerClass: 'bg-orange-50 border-b border-orange-100', iconClass: 'text-brand-orange' },
+} as const
+
 function ShareRow({ type, share, onCreate, onRevoke, creating, revoking }: ShareRowProps) {
   const [confirmingRevoke, setConfirmingRevoke] = useState(false)
-  const isCustomer = type === 'customer'
+  const meta = SHARE_ROW_META[type]
+  const Icon = meta.icon
   const shareUrl = share
     ? `${typeof window !== 'undefined' ? window.location.origin : ''}/share/${share.token}`
     : null
@@ -59,20 +66,14 @@ function ShareRow({ type, share, onCreate, onRevoke, creating, revoking }: Share
   return (
     <div className="rounded-xl border border-gray-200 overflow-hidden">
       {/* Header */}
-      <div className={`px-4 py-3 flex items-center justify-between ${isCustomer ? 'bg-orange-50 border-b border-orange-100' : 'bg-gray-50 border-b border-gray-100'}`}>
+      <div className={`px-4 py-3 flex items-center justify-between ${meta.headerClass}`}>
         <div className="flex items-center gap-2">
-          {isCustomer ? (
-            <Users size={16} className="text-brand-orange" />
-          ) : (
-            <Lock size={16} className="text-gray-600" />
-          )}
+          <Icon size={16} className={meta.iconClass} />
           <span className="font-semibold text-sm text-off-black">
-            {isCustomer ? 'Customer Link' : 'Internal Link'}
+            {meta.label}
           </span>
           <span className="text-xs text-gray-400">
-            {isCustomer
-              ? '— CK branded, savings focus, rep contact'
-              : '— Same as creator view, all data'}
+            {meta.desc}
           </span>
         </div>
         {share && (
@@ -149,7 +150,7 @@ function ShareRow({ type, share, onCreate, onRevoke, creating, revoking }: Share
 export function ShareModal({ analysisId, onClose }: Props) {
   const [shares, setShares] = useState<AnalysisShare[]>([])
   const [loading, setLoading] = useState(true)
-  const [creating, setCreating] = useState<'internal' | 'customer' | null>(null)
+  const [creating, setCreating] = useState<'internal' | 'customer' | 'map' | null>(null)
   const [revoking, setRevoking] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -169,7 +170,7 @@ export function ShareModal({ analysisId, onClose }: Props) {
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  const handleCreate = async (type: 'internal' | 'customer') => {
+  const handleCreate = async (type: 'internal' | 'customer' | 'map') => {
     setCreating(type)
     setError(null)
     const share = await createAnalysisShare(analysisId, type)
@@ -190,6 +191,7 @@ export function ShareModal({ analysisId, onClose }: Props) {
 
   const internalShare = shares.find(s => s.type === 'internal') ?? null
   const customerShare = shares.find(s => s.type === 'customer') ?? null
+  const mapShare = shares.find(s => s.type === 'map') ?? null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
@@ -230,6 +232,14 @@ export function ShareModal({ analysisId, onClose }: Props) {
                 onRevoke={handleRevoke}
                 creating={creating === 'customer'}
                 revoking={revoking !== null && customerShare?.token === revoking}
+              />
+              <ShareRow
+                type="map"
+                share={mapShare}
+                onCreate={() => handleCreate('map')}
+                onRevoke={handleRevoke}
+                creating={creating === 'map'}
+                revoking={revoking !== null && mapShare?.token === revoking}
               />
               <p className="text-xs text-gray-400 text-center">
                 Links do not expire and can only be revoked manually.
