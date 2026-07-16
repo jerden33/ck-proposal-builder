@@ -409,28 +409,36 @@ function detectFraudFlags(transactions: FuelingTransaction[]): FraudFlag[] {
   }
 
   // 2. Multi-fill same vehicle same day (≥ 3 fills)
+  // Date-dependent checks (multi-fill, state-hop) require genuine per-transaction
+  // dates — skip them entirely when no transaction has one (e.g. pre-aggregated
+  // rollup formats with no per-fill date), otherwise every unit with 3+ synthetic
+  // records or fills across 2+ states would collapse onto one blank-date key and
+  // spuriously trigger these flags for nearly every row.
+  const hasRealDates = transactions.some(t => t.transDate)
   const byUnitDate = new Map<string, FuelingTransaction[]>()
-  for (const t of transactions) {
-    const key = `${t.unitNumber || 'Unknown'}|${t.transDate}`
-    const arr = byUnitDate.get(key) ?? []
-    arr.push(t)
-    byUnitDate.set(key, arr)
-  }
-  for (const [key, fills] of Array.from(byUnitDate)) {
-    if (fills.length < 3) continue
-    const [unit, date] = key.split('|')
-    const totalGal = fills.reduce((s, t) => s + t.gallons, 0)
-    flags.push({
-      type: 'multi-fill',
-      severity: fills.length >= 4 ? 'high' : 'medium',
-      unitNumber: unit,
-      transDate: date,
-      description: `${fills.length} fills in one day totaling ${totalGal.toFixed(0)} gal`,
-      gallons: totalGal,
-      amount: fills.reduce((s, t) => s + t.amount, 0),
-      stationCity: fills[0].stationCity,
-      stationState: fills[0].stationState,
-    })
+  if (hasRealDates) {
+    for (const t of transactions) {
+      const key = `${t.unitNumber || 'Unknown'}|${t.transDate}`
+      const arr = byUnitDate.get(key) ?? []
+      arr.push(t)
+      byUnitDate.set(key, arr)
+    }
+    for (const [key, fills] of Array.from(byUnitDate)) {
+      if (fills.length < 3) continue
+      const [unit, date] = key.split('|')
+      const totalGal = fills.reduce((s, t) => s + t.gallons, 0)
+      flags.push({
+        type: 'multi-fill',
+        severity: fills.length >= 4 ? 'high' : 'medium',
+        unitNumber: unit,
+        transDate: date,
+        description: `${fills.length} fills in one day totaling ${totalGal.toFixed(0)} gal`,
+        gallons: totalGal,
+        amount: fills.reduce((s, t) => s + t.amount, 0),
+        stationCity: fills[0].stationCity,
+        stationState: fills[0].stationState,
+      })
+    }
   }
 
   // 3. PPG outlier (only when spend data is present)

@@ -176,8 +176,8 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'invoice amount', 'billed amount', 'dollars',
     // WEX column names
     'net cost', 'total fuel cost', 'gross amount', 'gross cost',
-    // Comdata — "Total Amount Due" / "Cost of Tractor Fuel"
-    'total amount due', 'cost of tractor fuel',
+    // Comdata — "Total Amount Due" / "Total Amt Due" / "Cost of Tractor Fuel"
+    'total amount due', 'total amt due', 'cost of tractor fuel',
   ],
   productName: [
     'product name', 'product', 'item', 'fuel grade', 'grade',
@@ -267,6 +267,7 @@ export const BRAND_DISPLAY_NAMES: Record<string, string> = {
   '7 ELEVEN': '7-Eleven',
   'SEVEN ELEVEN': '7-Eleven',
   'MAVERIK': 'Maverik',
+  'GATE': 'Gate',
 }
 
 export function normalizeBrandName(raw: string): string {
@@ -447,6 +448,109 @@ function to24h(hhmm: string, ampm: string): string {
   return `${String(h).padStart(2, '0')}:${mStr}`
 }
 
+// ─── Comdata merchant-level rollup format ──────────────────────────────────────
+// Some Comdata reports are pre-aggregated by (branch, merchant) pair over the
+// reporting period rather than one row per fill — separate Diesel/Reefer/UNL
+// gallon+cost columns per row, with a single combined transaction count for all
+// fuel types. Each row is expanded into synthetic per-fuel-type transactions
+// (Reefer counted as diesel — reefer units burn diesel) so the diesel/gas split
+// still works for proximity and OTR analysis. There is no per-transaction date
+// in this format (rely on the manual Data Period override elsewhere in the app)
+// and no vehicle ID — "Customer Name" (the fleet's own branch/cost-center code)
+// is used as unitNumber since it's the closest thing to a segmentation key.
+
+function findColExact(normalized: string[], key: string): number {
+  return normalized.indexOf(key)
+}
+function findColIncludes(normalized: string[], needle: string): number {
+  return normalized.findIndex(h => h.includes(needle))
+}
+
+function parseComdataMerchantRollup(rawLines: string[], headerIdx: number, headers: string[]): ParseResult {
+  const normalized = headers.map(normalizeKey)
+  const idx = {
+    customerName: findColExact(normalized, 'customer name'),
+    merchantName: findColExact(normalized, 'merchant name'),
+    merchantAddress: findColExact(normalized, 'merchant address'),
+    merchantCity: findColExact(normalized, 'merchant city'),
+    state: findColExact(normalized, 'st'),
+    zip: findColExact(normalized, 'merchant postal code'),
+    transactionCount: findColIncludes(normalized, 'transaction'),
+    dieselGallons: findColExact(normalized, 'diesel gallons'),
+    dieselCost: findColExact(normalized, 'diesel gross cost'),
+    reeferGallons: findColExact(normalized, 'reefer gallons'),
+    reeferCost: findColExact(normalized, 'reefer cost'),
+    unlGallons: findColExact(normalized, 'unl gallons'),
+    otherCost: findColExact(normalized, 'other fuel cost'),
+  }
+
+  const transactions: FuelingTransaction[] = []
+  const num = (v: string) => parseFloat((v || '').replace(/[$,]/g, '')) || 0
+
+  for (let i = headerIdx + 1; i < rawLines.length; i++) {
+    const line = rawLines[i].trim()
+    if (!line) continue
+    const cols = parseCSVLine(line)
+
+    const dieselGal = num(col(cols, idx.dieselGallons))
+    const dieselCost = num(col(cols, idx.dieselCost))
+    const reeferGal = num(col(cols, idx.reeferGallons))
+    const reeferCost = num(col(cols, idx.reeferCost))
+    const unlGal = num(col(cols, idx.unlGallons))
+    const otherCost = num(col(cols, idx.otherCost))
+    const txCount = Math.max(0, Math.round(num(col(cols, idx.transactionCount))))
+
+    const totalGal = dieselGal + reeferGal + unlGal
+    if (totalGal <= 0) continue  // skip blank/summary rows
+
+    const stationName = col(cols, idx.merchantName)
+    const stationAddress = col(cols, idx.merchantAddress)
+    const stationCity = col(cols, idx.merchantCity)
+    const stationState = col(cols, idx.state)
+    const zipCode = normalizeZip(col(cols, idx.zip))
+    const unitNumber = col(cols, idx.customerName)
+
+    const stationBrand = inferBrandFromName(stationName)
+    const upperName = stationName.toUpperCase()
+    const upperAddr = stationAddress.toUpperCase()
+    const isCircleK =
+      stationBrand.toUpperCase().includes('CIRCLE K') || stationBrand.toUpperCase().includes('CIRCLEK') ||
+      upperName.includes('CIRCLE K') || upperName.includes('CIRCLEK') ||
+      upperAddr.includes('CIRCLE K') || upperAddr.includes('CIRCLEK')
+
+    // Split each fuel bucket into N equal synthetic fills (N allocated from the
+    // row's combined transaction count, proportional to that bucket's gallon
+    // share) rather than one giant synthetic fill — keeps totalTransactions,
+    // per-location counts, and average-fill-size calculations meaningful.
+    const buckets: { gallons: number; amount: number; fuelType: string }[] = []
+    if (dieselGal > 0) buckets.push({ gallons: dieselGal, amount: dieselCost, fuelType: 'DIESEL' })
+    if (reeferGal > 0) buckets.push({ gallons: reeferGal, amount: reeferCost, fuelType: 'DIESEL' })
+    if (unlGal > 0)    buckets.push({ gallons: unlGal,    amount: otherCost, fuelType: 'GASOLINE' })
+
+    for (const b of buckets) {
+      const n = totalGal > 0 && txCount > 0 ? Math.max(1, Math.round((b.gallons / totalGal) * txCount)) : 1
+      for (let f = 0; f < n; f++) {
+        transactions.push({
+          transDate: '',
+          stationCity, stationState, gallons: b.gallons / n, fuelType: b.fuelType,
+          stationName, stationBrand, stationAddress, zipCode, unitNumber,
+          driverCity: '', driverName: '', amount: b.amount / n, productName: '', isCircleK,
+        })
+      }
+    }
+  }
+
+  return {
+    transactions,
+    errors: [],
+    detectedFormat: 'Comdata Merchant Rollup',
+    missingRequiredFields: [],
+    foundFields: ['date', 'city', 'gallons', 'unitNumber', 'stationName', 'stationAddress', 'zipCode'],
+    hasDriverData: false,
+    isMobileFueling: false,
+  }
+}
+
 // ─── Main parser ──────────────────────────────────────────────────────────────
 
 export function parseFleetCSV(content: string): ParseResult {
@@ -469,6 +573,14 @@ export function parseFleetCSV(content: string): ParseResult {
 
   // Detect format by header fingerprint
   const headerJoined = headers.map(normalizeKey).join('|')
+
+  // Comdata merchant-level rollup — pre-aggregated by (branch, merchant) over the
+  // reporting period, with separate Diesel/Reefer/UNL gallon+cost columns per row
+  // instead of one row per fill. Needs a dedicated expansion path (see below).
+  if (headerJoined.includes('diesel gallons') && headerJoined.includes('reefer gallons') && headerJoined.includes('unl gallons')) {
+    return parseComdataMerchantRollup(rawLines, headerIdx, headers)
+  }
+
   let detectedFormat = 'Generic Fleet'
   if (headerJoined.includes('station brand name')) detectedFormat = 'WEX'
   else if (headerJoined.includes('posting date') || headerJoined.includes('post date')) detectedFormat = 'WEX / Fleet One'
