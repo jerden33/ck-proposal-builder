@@ -232,7 +232,12 @@ function parseDate(dateStr: string): Date | null {
   }
   const parts = dateStr.split('/')
   if (parts.length !== 3) return null
-  const d = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]))
+  // JS's Date(year, ...) constructor treats a 2-digit year (0-99) as 1900+year —
+  // "6/1/26" would silently become 1926, not 2026. Fleet transaction data is
+  // never from the 1900s, so normalize any 2-digit year to the 2000s.
+  let year = parseInt(parts[2])
+  if (year >= 0 && year < 100) year += 2000
+  const d = new Date(year, parseInt(parts[0]) - 1, parseInt(parts[1]))
   return isNaN(d.getTime()) ? null : d
 }
 

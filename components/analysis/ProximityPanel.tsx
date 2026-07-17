@@ -101,14 +101,21 @@ export function DetailedProximityPanel({
   subtitle,
   monthSpan,
   captureRadiusMi = 10,
+  capturedGallons,
 }: {
   prox: NonNullable<TransactionSummary['proximityBreakdown']>
   title: string
   subtitle: string
   monthSpan: number
   captureRadiusMi?: number
+  // Override for the "At Circle K" row — pass the all-fuel-types captured total
+  // (summary.ckCaptureAnalysis.captured.gallons) when this is the ONLY proximity
+  // panel shown (mixed/gas fleets), so it matches the header stat and share view.
+  // Leave unset for the two-panel diesel-fleet case, where each panel intentionally
+  // shows its own fuel-type-specific ckGallons to avoid double-counting between them.
+  capturedGallons?: number
 }) {
-  const ck  = prox.ckGallons
+  const ck  = capturedGallons ?? prox.ckGallons
   const w1  = prox.within1mi.gallons
   const w2  = prox.within2mi.gallons
   const w5  = prox.within5mi.gallons

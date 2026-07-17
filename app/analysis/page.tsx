@@ -1525,6 +1525,7 @@ function AnalysisPageInner() {
                             subtitle={isDieselFleet ? 'Non-CK gas gallons vs. all CK sites (incl. c-stores)' : 'Full CK network'}
                             monthSpan={monthSpan}
                             captureRadiusMi={summary.captureRadiusMi ?? 10}
+                            capturedGallons={!isDieselFleet ? summary.ckCaptureAnalysis.captured.gallons : undefined}
                           />
                         )}
                       </div>
