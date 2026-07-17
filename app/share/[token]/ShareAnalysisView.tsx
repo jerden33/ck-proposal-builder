@@ -442,7 +442,7 @@ function ProximityPanel({
         <div className="mb-4 bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
           <span className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0 mt-1" />
           <p className="text-sm text-green-800">
-            <span className="font-bold">{fmtGallons(within2mi)}</span> gallons were fueled within <span className="font-bold">2 miles</span> of a Circle K — a prime opportunity to capture with the right offer.
+            <span className="font-bold">{fmtGallons(within2mi)}</span> gallons were fueled within <span className="font-bold">2 miles</span> of a Circle K — a prime opportunity to capture savings.
           </p>
         </div>
       )}
