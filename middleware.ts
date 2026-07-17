@@ -6,35 +6,45 @@ export async function middleware(request: NextRequest) {
     request,
   })
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
-          })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
-
-  // Refresh session if expired - required for Server Components
-  const { data: { user } } = await supabase.auth.getUser()
-
   const { pathname } = request.nextUrl
 
   // Public routes that don't require authentication
   const publicRoutes = ['/login', '/share', '/comparison']
   const isPublicRoute = publicRoutes.some(route => pathname === route || pathname.startsWith(`${route}/`))
+
+  // A Supabase hiccup (paused project, network blip, bad credentials) must never
+  // take the whole site down with a hard 500 — fail safe to "unauthenticated"
+  // instead. Public routes stay reachable; protected routes fall through to the
+  // login redirect below rather than crashing the middleware invocation.
+  let user = null
+  try {
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+            supabaseResponse = NextResponse.next({
+              request,
+            })
+            cookiesToSet.forEach(({ name, value, options }) =>
+              supabaseResponse.cookies.set(name, value, options)
+            )
+          },
+        },
+      }
+    )
+
+    // Refresh session if expired - required for Server Components
+    const { data } = await supabase.auth.getUser()
+    user = data.user
+  } catch (err) {
+    console.error('Middleware auth check failed — treating as unauthenticated:', err)
+  }
 
   // If user is not logged in and trying to access protected route
   if (!user && !isPublicRoute) {
