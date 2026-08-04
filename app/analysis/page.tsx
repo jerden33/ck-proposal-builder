@@ -1286,7 +1286,14 @@ function AnalysisPageInner() {
                     </span>
                   )}
                   {restoredFromCache && (
-                    <span className="text-xs bg-zinc-100 text-zinc-500 rounded px-2 py-0.5">Restored from last session</span>
+                    <button
+                      type="button"
+                      onClick={reset}
+                      className="text-xs bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700 rounded px-2 py-0.5 transition-colors"
+                      title="This is a cached result from your last upload, not freshly processed — click to start a new upload"
+                    >
+                      Restored from last session — click for a fresh upload
+                    </button>
                   )}
                   {featureFlags.skipGeocoding && (
                     <span className="text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 rounded px-2 py-0.5 flex items-center gap-1">
