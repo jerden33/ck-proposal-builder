@@ -12,14 +12,26 @@ const CONCURRENCY = 8  // parallel requests
 /**
  * Geocode a single query string (e.g. "Bethany Beach, DE").
  * Returns null if geocoding fails or no result found.
+ * Retries with backoff on rate-limit (429) and transient network errors rather
+ * than silently dropping the location — large files (1000+ unique locations)
+ * can otherwise exceed Mapbox's per-minute rate limit partway through and lose
+ * a large fraction of coordinates with no indication why.
  */
-async function geocodeOne(query: string, token: string, types?: string): Promise<GeocodedCoord | null> {
+async function geocodeOne(query: string, token: string, types?: string, attempt = 0): Promise<GeocodedCoord | null> {
   if (!query.trim() || !token) return null
+  const MAX_RATE_LIMIT_RETRIES = 4
+  const MAX_NETWORK_RETRIES = 2
   try {
     const encoded = encodeURIComponent(query)
     const typesParam = types ?? 'place,locality,neighborhood'
     const url = `${GEOCODE_BASE}/${encoded}.json?country=US&types=${typesParam}&limit=1&access_token=${token}`
     const res = await fetch(url)
+    if (res.status === 429 && attempt < MAX_RATE_LIMIT_RETRIES) {
+      const retryAfterHeader = parseFloat(res.headers.get('retry-after') ?? '')
+      const delayMs = !isNaN(retryAfterHeader) ? retryAfterHeader * 1000 : 400 * Math.pow(2, attempt)
+      await new Promise(resolve => setTimeout(resolve, delayMs))
+      return geocodeOne(query, token, types, attempt + 1)
+    }
     if (!res.ok) return null
     const data = await res.json()
     const feature = data.features?.[0]
@@ -27,6 +39,10 @@ async function geocodeOne(query: string, token: string, types?: string): Promise
     const [lng, lat] = feature.center
     return { lat, lng }
   } catch {
+    if (attempt < MAX_NETWORK_RETRIES) {
+      await new Promise(resolve => setTimeout(resolve, 300 * (attempt + 1)))
+      return geocodeOne(query, token, types, attempt + 1)
+    }
     return null
   }
 }
