@@ -501,7 +501,7 @@ function parseComdataMerchantRollup(rawLines: string[], headerIdx: number, heade
     const txCount = Math.max(0, Math.round(num(col(cols, idx.transactionCount))))
 
     const totalGal = dieselGal + reeferGal + unlGal
-    if (totalGal <= 0) continue  // skip blank/summary rows
+    if (totalGal <= 0) continue  // skip blank/zero-gallon rows
 
     const stationName = col(cols, idx.merchantName)
     const stationAddress = col(cols, idx.merchantAddress)
@@ -509,6 +509,13 @@ function parseComdataMerchantRollup(rawLines: string[], headerIdx: number, heade
     const stationState = col(cols, idx.state)
     const zipCode = normalizeZip(col(cols, idx.zip))
     const unitNumber = col(cols, idx.customerName)
+
+    // Some Comdata exports append a grand-total row with real gallon/cost
+    // figures but every identifying field blank — its totals typically equal
+    // the sum of every other row in the file. Without a merchant/city, it
+    // can never be geocoded and would silently double every summary figure
+    // (total gallons, brand/fuel breakdowns, geocoded %) if included.
+    if (!stationName && !stationCity) continue
 
     const stationBrand = inferBrandFromName(stationName)
     const upperName = stationName.toUpperCase()
@@ -610,6 +617,13 @@ export function parseFleetCSV(content: string): ParseResult {
     const gallons = parseFloat(col(cols, colIdx['gallons'])) || 0
     if (gallons <= 0) continue  // skip summary/blank rows
 
+    const stationCity = col(cols, colIdx['city'])
+    // Some exports append a grand-total row with a real gallons/amount figure
+    // but every identifying field blank — skip it rather than treat it as a
+    // real, unlocatable fill-up (which would double totals and permanently
+    // fail geocoding regardless of retries).
+    if (!stationCity) continue
+
     const rawAmount = col(cols, colIdx['amount']).replace(/[$,]/g, '')
     let amount = parseFloat(rawAmount) || 0
     // RCPA and some formats have no total-amount column — derive from PPU × gallons
@@ -676,7 +690,7 @@ export function parseFleetCSV(content: string): ParseResult {
     transactions.push({
       transDate,
       transTime,
-      stationCity: col(cols, colIdx['city']),
+      stationCity,
       stationState: col(cols, colIdx['state']),
       gallons,
       fuelType,
