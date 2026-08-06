@@ -33,6 +33,7 @@ import { parseFleetCSV, type CustomerLocationInput } from '@/lib/transaction-par
 import {
   analyzeTransactions,
   buildCKZipSet,
+  attachNearestCKToCustomerLocations,
   fmtGallons,
   fmtPct,
   fmtDollars,
@@ -48,6 +49,7 @@ import { createAnalysis, createAnalysisShare, getAnalysis } from '@/lib/supabase
 import type { OTRMapStore } from '@/components/OTRMap'
 import type { CKStorePin } from '@/components/FuelingMap'
 import { CustomerLocationsInput } from '@/components/analysis/CustomerLocationsInput'
+import { CustomerLocationProximityPanel } from '@/components/analysis/CustomerLocationProximityPanel'
 
 // Dynamically import the maps (Mapbox can't SSR)
 const OTRMap = dynamic(() => import('@/components/OTRMap').then(m => m.OTRMap), {
@@ -601,6 +603,7 @@ function OTRPageInner() {
           const coord = geocodedCustomerAddrs.get(addrGeoKey(l.address, l.city, l.state))
           return { ...l, lat: coord?.lat, lng: coord?.lng }
         })
+        customerLocations = attachNearestCKToCustomerLocations(customerLocations, allStoreCoords, truckStoreCoords)
       }
 
       // 5. Re-analyze with geocoding
@@ -1115,6 +1118,13 @@ function OTRPageInner() {
                 truckMode={true}
               />
             </Suspense>
+          </div>
+        )}
+
+        {/* Customer Location Proximity — standalone card */}
+        {summary.customerLocations && summary.customerLocations.length > 0 && (
+          <div className="mb-6">
+            <CustomerLocationProximityPanel locations={summary.customerLocations} />
           </div>
         )}
 

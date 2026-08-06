@@ -35,6 +35,7 @@ import {
   analyzeTransactions,
   buildCKZipSet,
   nearestCKDistance,
+  attachNearestCKToCustomerLocations,
   fmtGallons,
   fmtDollars,
   fmtPct,
@@ -49,6 +50,7 @@ import { geocodeLocations, geocodeAddresses, geoKey, addrGeoKey } from '@/lib/ge
 import { runOTRAnalysis } from '@/lib/otr-analysis'
 import type { CKStorePin } from '@/components/FuelingMap'
 import { TopCKLocationsCard } from '@/components/analysis/TopCKLocationsCard'
+import { CustomerLocationProximityPanel } from '@/components/analysis/CustomerLocationProximityPanel'
 import { OpportunityPanel } from '@/components/analysis/OpportunityPanel'
 import { DetailedProximityPanel } from '@/components/analysis/ProximityPanel'
 import { SavingsCalculatorPanel } from '@/components/analysis/SavingsCalculatorPanel'
@@ -795,6 +797,7 @@ function AnalysisPageInner() {
           const coord = geocodedCustomerAddrs.get(addrGeoKey(l.address, l.city, l.state))
           return { ...l, lat: coord?.lat, lng: coord?.lng }
         })
+        customerLocations = attachNearestCKToCustomerLocations(customerLocations, ckStoreCoords, truckStoreCoords)
       }
 
       // Pass truck-only stores as ckStores so diesel proximity is measured against
@@ -1563,6 +1566,11 @@ function AnalysisPageInner() {
             {/* Top CK Opportunity Locations — standalone card */}
             {summary.topCKOpportunityLocations.length > 0 && (
               <TopCKLocationsCard locations={summary.topCKOpportunityLocations} truckMode={isDieselFleet} />
+            )}
+
+            {/* Customer Location Proximity — standalone card */}
+            {summary.customerLocations && summary.customerLocations.length > 0 && (
+              <CustomerLocationProximityPanel locations={summary.customerLocations} />
             )}
 
             {/* Tabbed detail sections — only shown if at least one tab is visible */}

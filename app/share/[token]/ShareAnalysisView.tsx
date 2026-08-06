@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import type { CKStorePin } from '@/components/FuelingMap'
 import type { OTRMapStore } from '@/components/OTRMap'
 import type { MapPoint } from '@/lib/transaction-analysis'
+import { CustomerLocationProximityPanel } from '@/components/analysis/CustomerLocationProximityPanel'
 
 const FuelingMap = dynamic(() => import('@/components/FuelingMap').then(m => m.FuelingMap), {
   ssr: false,
@@ -966,6 +967,10 @@ export function ShareAnalysisView({ share, analysis }: Props) {
             )}
           </div>
 
+          {summary.customerLocations && summary.customerLocations.length > 0 && (
+            <CustomerLocationProximityPanel locations={summary.customerLocations} />
+          )}
+
           <p className="text-center text-xs text-gray-400 pb-4">
             Circle K Fleet Analysis &nbsp;·&nbsp; This report was generated for {analysis.account_name || 'your fleet'} and is confidential.
           </p>
@@ -1058,6 +1063,11 @@ export function ShareAnalysisView({ share, analysis }: Props) {
             captureRadiusMi={summary.captureRadiusMi ?? 10}
             capturedGallons={summary.ckCaptureAnalysis.captured.gallons}
           />
+        )}
+
+        {/* Customer Location Proximity */}
+        {summary.customerLocations && summary.customerLocations.length > 0 && (
+          <CustomerLocationProximityPanel locations={summary.customerLocations} />
         )}
 
         {/* OTR Corridor Analysis (when rep ran it) */}

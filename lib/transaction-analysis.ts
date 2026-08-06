@@ -168,6 +168,16 @@ export interface ProximityBreakdown {
 }
 
 /** A customer-supplied facility location (depot, yard, corporate office) shown on the map */
+/** Nearest Circle K store match attached to a customer location */
+export interface NearestCKInfo {
+  name: string
+  siteNumber?: string
+  city: string
+  state: string
+  distanceMi: number
+  truckAccessible: boolean
+}
+
 export interface CustomerLocation {
   name: string
   address: string
@@ -176,6 +186,38 @@ export interface CustomerLocation {
   zip: string
   lat?: number   // set after geocoding; absent if geocoding failed or wasn't run
   lng?: number
+  nearestCK?: NearestCKInfo       // nearest CK store from the full network (incl. c-stores)
+  nearestTruckCK?: NearestCKInfo  // nearest truck-accessible CK store
+}
+
+/**
+ * Compute nearest-CK and nearest-truck-CK for each geocoded customer location.
+ * Locations without lat/lng (failed geocoding) are returned unchanged.
+ */
+export function attachNearestCKToCustomerLocations(
+  locations: CustomerLocation[],
+  allStores: CKStoreCoord[],
+  truckStores: CKStoreCoord[]
+): CustomerLocation[] {
+  return locations.map(loc => {
+    if (loc.lat == null || loc.lng == null) return loc
+    const toInfo = (match: { store: CKStoreCoord; distanceMi: number } | null): NearestCKInfo | undefined =>
+      match
+        ? {
+            name: match.store.name ?? 'Circle K',
+            siteNumber: match.store.siteNumber,
+            city: match.store.city ?? '',
+            state: match.store.state ?? '',
+            distanceMi: match.distanceMi,
+            truckAccessible: !!match.store.truckAccessible,
+          }
+        : undefined
+    return {
+      ...loc,
+      nearestCK: toInfo(findNearestCKStore(loc.lat, loc.lng, allStores)),
+      nearestTruckCK: toInfo(findNearestCKStore(loc.lat, loc.lng, truckStores)),
+    }
+  })
 }
 
 export interface TransactionSummary {
@@ -299,7 +341,7 @@ export function nearestCKDistance(
 }
 
 /** Find the nearest CK store and its distance for a given coordinate */
-function findNearestCKStore(
+export function findNearestCKStore(
   lat: number,
   lng: number,
   ckStores: CKStoreCoord[]
