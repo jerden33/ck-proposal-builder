@@ -487,6 +487,21 @@ function parseComdataMerchantRollup(rawLines: string[], headerIdx: number, heade
   const transactions: FuelingTransaction[] = []
   const num = (v: string) => parseFloat((v || '').replace(/[$,]/g, '')) || 0
 
+  // First pass: total gallons across every row, so a later pass can tell a
+  // genuine grand-total row (its gallons are a huge share of the whole file's
+  // total — the observed real-world case summed to exactly everything else)
+  // apart from a real transaction that's just missing merchant identity. Only
+  // the former gets dropped; the latter still counts toward totals, it just
+  // won't appear on the map or in location-based breakdowns.
+  let fileTotalGal = 0
+  for (let i = headerIdx + 1; i < rawLines.length; i++) {
+    const line = rawLines[i].trim()
+    if (!line) continue
+    const cols = parseCSVLine(line)
+    fileTotalGal += num(col(cols, idx.dieselGallons)) + num(col(cols, idx.reeferGallons)) + num(col(cols, idx.unlGallons))
+  }
+  const GRAND_TOTAL_SHARE_THRESHOLD = 0.4  // a single row this large a share of the file is a total, not a fill
+
   for (let i = headerIdx + 1; i < rawLines.length; i++) {
     const line = rawLines[i].trim()
     if (!line) continue
@@ -510,12 +525,12 @@ function parseComdataMerchantRollup(rawLines: string[], headerIdx: number, heade
     const zipCode = normalizeZip(col(cols, idx.zip))
     const unitNumber = col(cols, idx.customerName)
 
-    // Some Comdata exports append a grand-total row with real gallon/cost
-    // figures but every identifying field blank — its totals typically equal
-    // the sum of every other row in the file. Without a merchant/city, it
-    // can never be geocoded and would silently double every summary figure
-    // (total gallons, brand/fuel breakdowns, geocoded %) if included.
-    if (!stationName && !stationCity) continue
+    // Only drop a blank-identity row when its gallons are implausibly large
+    // relative to the whole file — a real branch/merchant pair, even a busy
+    // one, won't plausibly account for 40%+ of a whole fleet's period total.
+    // A blank-identity row with a modest, plausible total is kept — it's
+    // almost certainly a real transaction just missing merchant info.
+    if (!stationName && !stationCity && fileTotalGal > 0 && totalGal / fileTotalGal >= GRAND_TOTAL_SHARE_THRESHOLD) continue
 
     const stationBrand = inferBrandFromName(stationName)
     const upperName = stationName.toUpperCase()
@@ -619,10 +634,15 @@ export function parseFleetCSV(content: string): ParseResult {
 
     const stationCity = col(cols, colIdx['city'])
     // Some exports append a grand-total row with a real gallons/amount figure
-    // but every identifying field blank — skip it rather than treat it as a
-    // real, unlocatable fill-up (which would double totals and permanently
-    // fail geocoding regardless of retries).
-    if (!stationCity) continue
+    // but a blank city and no other identifying info — since each row here
+    // represents a single fill-up (not an aggregate), an implausibly large
+    // single "fill" with no location is almost certainly such a row, not a
+    // real transaction. No legitimate single fill approaches this size even
+    // for the largest dual-tank trucks, so the threshold is set far above any
+    // real fill to avoid dropping a genuine transaction that's just missing
+    // its city. A blank-city row with a plausible fill size is kept — it
+    // still counts toward totals, it just won't appear on the map.
+    if (!stationCity && gallons >= 1000) continue
 
     const rawAmount = col(cols, colIdx['amount']).replace(/[$,]/g, '')
     let amount = parseFloat(rawAmount) || 0
