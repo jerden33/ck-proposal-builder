@@ -965,7 +965,7 @@ function buildMapData(
   geocodedAddresses?: Map<string, GeocodedCoord>,
   ckStoresAll?: CKStoreCoord[],
   captureRadiusMi = 10
-): { mapPoints: MapPoint[]; proximityBreakdown: ProximityBreakdown | null; proximityBreakdownAll: ProximityBreakdown | null; topCKOpportunityLocations: CKOpportunityLocation[]; proxCapturable: { gallons: number; transactions: number; spend: number } | null } {
+): { mapPoints: MapPoint[]; proximityBreakdown: ProximityBreakdown | null; proximityBreakdownAll: ProximityBreakdown | null; topCKOpportunityLocations: CKOpportunityLocation[]; proxCapturable: { gallons: number; transactions: number; spend: number } | null; stationCapturable: Map<string, { diesel: boolean; gas: boolean }> } {
   if (!geocodedCoords || geocodedCoords.size === 0) {
     return { mapPoints: [], proximityBreakdown: null, proximityBreakdownAll: null, topCKOpportunityLocations: [], proxCapturable: null, stationCapturable: new Map() }
   }
