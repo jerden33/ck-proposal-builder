@@ -130,7 +130,7 @@ const FIELD_ALIASES: Record<string, string[]> = {
   stationAddress: [
     'station address', 'address', 'street', 'street address',
     'site address', 'location address', 'addr', 'address 1',
-    'merchant address', 'merchant street',
+    'merchant address', 'merchant street', 'merchant street address',
     'service center address',
     // CamelCase variants
     'siteaddress', 'stationaddress',
