@@ -822,7 +822,44 @@ export function analyzeTransactions(
   )
 
   // Map points + proximity breakdown + CK opportunity locations (requires geocoding)
-  const { mapPoints, proximityBreakdown, proximityBreakdownAll, topCKOpportunityLocations, proxCapturable } = buildMapData(transactions, geocodedCoords, ckStores, totalGallons, geocodedAddresses, ckStoresAll, captureRadiusMi)
+  const { mapPoints, proximityBreakdown, proximityBreakdownAll, topCKOpportunityLocations, proxCapturable, stationCapturable } = buildMapData(transactions, geocodedCoords, ckStores, totalGallons, geocodedAddresses, ckStoresAll, captureRadiusMi)
+
+  // Correct state/city/vehicle/driver "capturable" gallons to respect the proximity-
+  // based capture radius, same as ckCaptureAnalysis below — they were built above
+  // using the coarser "CK exists somewhere in this ZIP code" fallback, which ignores
+  // captureRadiusMi entirely. Only run when geocoding succeeded; otherwise the
+  // ZIP-based figures already computed above remain the correct fallback.
+  if (proxCapturable !== null) {
+    const stateCap   = new Map<string, number>()
+    const cityCap    = new Map<string, number>()
+    const vehicleCap = new Map<string, number>()
+    const driverCap  = new Map<string, number>()
+
+    for (const t of transactions) {
+      if (t.isCircleK) continue
+      const stationKey = `${t.stationName}||${t.stationAddress}||${t.stationCity}||${t.stationState}`
+      const cap = stationCapturable.get(stationKey)
+      if (!cap) continue
+      const isCapturable = fuelCategory(t.fuelType) === 'diesel' ? cap.diesel : cap.gas
+      if (!isCapturable) continue
+
+      const state = t.stationState || 'Unknown'
+      stateCap.set(state, (stateCap.get(state) ?? 0) + t.gallons)
+
+      const cityKey = `${t.stationCity || 'Unknown'}||${state}`
+      cityCap.set(cityKey, (cityCap.get(cityKey) ?? 0) + t.gallons)
+
+      const unit = t.unitNumber || 'Unknown'
+      vehicleCap.set(unit, (vehicleCap.get(unit) ?? 0) + t.gallons)
+
+      if (t.driverName) driverCap.set(t.driverName, (driverCap.get(t.driverName) ?? 0) + t.gallons)
+    }
+
+    for (const s of stateBreakdown)   s.capturableGallons = stateCap.get(s.state) ?? 0
+    for (const c of cityBreakdown)    c.capturableGallons = cityCap.get(`${c.city}||${c.state}`) ?? 0
+    for (const v of vehicleBreakdown) v.capturableGallons = vehicleCap.get(v.unitNumber) ?? 0
+    for (const d of driverBreakdown)  d.capturableGallons = driverCap.get(d.driverName) ?? 0
+  }
 
   // Use proximity-based capture when geocoding was done; fall back to ZIP-based otherwise
   let ckCaptureAnalysis: CKCaptureAnalysis
@@ -930,7 +967,7 @@ function buildMapData(
   captureRadiusMi = 10
 ): { mapPoints: MapPoint[]; proximityBreakdown: ProximityBreakdown | null; proximityBreakdownAll: ProximityBreakdown | null; topCKOpportunityLocations: CKOpportunityLocation[]; proxCapturable: { gallons: number; transactions: number; spend: number } | null } {
   if (!geocodedCoords || geocodedCoords.size === 0) {
-    return { mapPoints: [], proximityBreakdown: null, proximityBreakdownAll: null, topCKOpportunityLocations: [], proxCapturable: null }
+    return { mapPoints: [], proximityBreakdown: null, proximityBreakdownAll: null, topCKOpportunityLocations: [], proxCapturable: null, stationCapturable: new Map() }
   }
 
   // Aggregate transactions by individual fueling station (not city)
@@ -991,8 +1028,12 @@ function buildMapData(
   const ckOppMap = new Map<string, CKOpportunityLocation>()
   // Combined proximity capture (for opportunity panel): non-CK gallons within 10 mi of appropriate CK
   const proxCapt = { gallons: 0, transactions: 0, spend: 0 }
+  // Per-station capturability, keyed the same as stationMap — lets callers correct
+  // state/city/vehicle/driver "capturable" figures to respect captureRadiusMi
+  // instead of the coarser same-ZIP-code fallback used when those are first built.
+  const stationCapturable = new Map<string, { diesel: boolean; gas: boolean }>()
 
-  for (const [, agg] of Array.from(stationMap)) {
+  for (const [stationKey, agg] of Array.from(stationMap)) {
     // Prefer address-level coords (precise) over city centroid
     const addrKey = addrGeoKey(agg.stationAddress, agg.city, agg.state)
     const coord = geocodedAddresses?.get(addrKey) ?? geocodedCoords.get(geoKey(agg.city, agg.state))
@@ -1003,6 +1044,11 @@ function buildMapData(
     const dist    = ckNearest    ? ckNearest.distanceMi    : -1
     const distAll = ckNearestAll ? ckNearestAll.distanceMi : -1
     const allCK = agg.ckGallons === agg.gallons
+
+    stationCapturable.set(stationKey, {
+      diesel: dist >= 0 && dist <= captureRadiusMi,
+      gas: distAll >= 0 && distAll <= captureRadiusMi,
+    })
 
     mapPoints.push({
       lat: coord.lat,
@@ -1161,6 +1207,7 @@ function buildMapData(
     proximityBreakdownAll: ckStoresAll ? toBreakdown(proxAll) : null,
     topCKOpportunityLocations,
     proxCapturable: (ckStores?.length || ckStoresAll?.length) ? proxCapt : null,
+    stationCapturable,
   }
 }
 
