@@ -629,7 +629,11 @@ export function parseFleetCSV(content: string): ParseResult {
     if (!line) continue
 
     const cols = parseCSVLine(line)
-    const gallons = parseFloat(col(cols, colIdx['gallons'])) || 0
+    // Strip thousands-separator commas (and any stray $) before parsing — some
+    // report exports write large gallon totals as "7,072.61". Without this,
+    // parseFloat stops at the first comma ("7,072.61" -> 7), silently truncating
+    // any gallons value of 1,000+ to just its leading digits.
+    const gallons = parseFloat(col(cols, colIdx['gallons']).replace(/[$,]/g, '')) || 0
     if (gallons <= 0) continue  // skip summary/blank rows
 
     const stationCity = col(cols, colIdx['city'])
