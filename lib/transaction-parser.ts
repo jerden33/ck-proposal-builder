@@ -124,6 +124,8 @@ const FIELD_ALIASES: Record<string, string[]> = {
   stationBrand: [
     'station brand name', 'brand', 'network', 'station brand',
     'merchant brand', 'fuel brand', 'chain', 'oil company', 'brand name',
+    // Comdata — "Merchant Chain Description"
+    'merchant chain description', 'merchant chain',
     // CamelCase variants
     'stationbrand', 'stationbrandname',
   ],
@@ -132,6 +134,8 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'site address', 'location address', 'addr', 'address 1',
     'merchant address', 'merchant street', 'merchant street address',
     'service center address',
+    // Comdata — "Merchant Addr Line1 Desc"
+    'merchant addr line1 desc', 'merchant addr line 1 desc',
     // CamelCase variants
     'siteaddress', 'stationaddress',
   ],
