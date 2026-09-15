@@ -1561,7 +1561,7 @@ function AnalysisPageInner() {
             )}
 
             {/* CK Opportunity Panel */}
-            <div className="fade-in"><OpportunityPanel analysis={summary.ckCaptureAnalysis} totalGallons={summary.totalGallons} captureRadiusMi={summary.captureRadiusMi ?? 10} /></div>
+            <div className="fade-in"><OpportunityPanel analysis={summary.ckCaptureAnalysis} totalGallons={summary.totalGallons} captureRadiusMi={summary.captureRadiusMi ?? 10} truckMode={isDieselFleet} /></div>
 
             {/* Top CK Opportunity Locations — standalone card */}
             {summary.topCKOpportunityLocations.length > 0 && (

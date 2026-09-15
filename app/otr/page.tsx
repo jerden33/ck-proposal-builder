@@ -606,13 +606,17 @@ function OTRPageInner() {
         customerLocations = attachNearestCKToCustomerLocations(customerLocations, allStoreCoords, truckStoreCoords)
       }
 
-      // 5. Re-analyze with geocoding
+      // 5. Re-analyze with geocoding — the OTR page is always truck-focused, so
+      // force truck mode into the analysis itself rather than just labeling the
+      // result afterward (which would leave the internal diesel/truck-lane
+      // comparison on auto-detect instead of matching the forced label).
       const enriched = analyzeTransactions(transactions, truckZipSet, {
         detectedFormat,
         geocodedCoords,
         geocodedAddresses: geocodedAddrs,
         ckStores: truckStoreCoords,
         ckStoresAll: allStoreCoords,
+        explicitTruckMode: true,
       })
 
       // 6. Run corridor analysis

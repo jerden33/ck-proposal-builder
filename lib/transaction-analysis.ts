@@ -822,7 +822,7 @@ export function analyzeTransactions(
   )
 
   // Map points + proximity breakdown + CK opportunity locations (requires geocoding)
-  const { mapPoints, proximityBreakdown, proximityBreakdownAll, topCKOpportunityLocations, proxCapturable, stationCapturable } = buildMapData(transactions, geocodedCoords, ckStores, totalGallons, geocodedAddresses, ckStoresAll, captureRadiusMi)
+  const { mapPoints, proximityBreakdown, proximityBreakdownAll, topCKOpportunityLocations, proxCapturable, stationCapturable } = buildMapData(transactions, geocodedCoords, ckStores, totalGallons, geocodedAddresses, ckStoresAll, captureRadiusMi, truckMode)
 
   // Correct state/city/vehicle/driver "capturable" gallons to respect the proximity-
   // based capture radius, same as ckCaptureAnalysis below — they were built above
@@ -964,7 +964,12 @@ function buildMapData(
   totalGallons: number,
   geocodedAddresses?: Map<string, GeocodedCoord>,
   ckStoresAll?: CKStoreCoord[],
-  captureRadiusMi = 10
+  captureRadiusMi = 10,
+  // When false, diesel gallons don't need truck-specific lanes and should be
+  // compared against the full CK network (incl. c-stores) — same as gas —
+  // instead of truck-accessible sites only. Defaults to true (existing
+  // truck-lane behavior) for callers that don't pass it explicitly.
+  truckMode = true
 ): { mapPoints: MapPoint[]; proximityBreakdown: ProximityBreakdown | null; proximityBreakdownAll: ProximityBreakdown | null; topCKOpportunityLocations: CKOpportunityLocation[]; proxCapturable: { gallons: number; transactions: number; spend: number } | null; stationCapturable: Map<string, { diesel: boolean; gas: boolean }> } {
   if (!geocodedCoords || geocodedCoords.size === 0) {
     return { mapPoints: [], proximityBreakdown: null, proximityBreakdownAll: null, topCKOpportunityLocations: [], proxCapturable: null, stationCapturable: new Map() }
@@ -1045,8 +1050,15 @@ function buildMapData(
     const distAll = ckNearestAll ? ckNearestAll.distanceMi : -1
     const allCK = agg.ckGallons === agg.gallons
 
+    // Diesel compares against truck-accessible CK only when truckMode is on;
+    // otherwise (this fleet doesn't need truck lanes) it compares against the
+    // full network, same as gas always does.
+    const dieselDist    = truckMode ? dist       : distAll
+    const dieselNearest = truckMode ? ckNearest  : ckNearestAll
+    const dieselBucket  = truckMode ? prox       : proxAll
+
     stationCapturable.set(stationKey, {
-      diesel: dist >= 0 && dist <= captureRadiusMi,
+      diesel: dieselDist >= 0 && dieselDist <= captureRadiusMi,
       gas: distAll >= 0 && distAll <= captureRadiusMi,
     })
 
@@ -1066,15 +1078,18 @@ function buildMapData(
 
     prox.geocodedGallons    += agg.gallons
     proxAll.geocodedGallons += agg.gallons
-    // Truck panel: diesel gallons at CK; Full-network panel: gas gallons at CK
+    // Diesel gallons at CK go to the truck panel when truckMode is on, or the
+    // full-network panel otherwise (merging with gas there — same panel then
+    // covers the whole fleet). Gas always goes to the full-network panel.
     // (share view uses ckCaptureAnalysis.captured.gallons for the total CK row)
-    prox.ckGallons    += agg.ckDieselGallons
-    proxAll.ckGallons += agg.ckGasGallons
+    dieselBucket.ckGallons += agg.ckDieselGallons
+    proxAll.ckGallons      += agg.ckGasGallons
 
-    // Bucket non-CK diesel gallons against truck-accessible CK
-    if (agg.nonCKDieselGallons > 0 && dist >= 0) {
+    // Bucket non-CK diesel gallons against the appropriate CK set (truck-only
+    // when truckMode, full network otherwise)
+    if (agg.nonCKDieselGallons > 0 && dieselDist >= 0) {
       const r = agg.nonCKDieselGallons / Math.max(agg.gallons, 1)
-      const bd = dist < 1 ? prox.within1mi : dist < 2 ? prox.within2mi : dist < 5 ? prox.within5mi : dist < 10 ? prox.within10mi : prox.beyond10mi
+      const bd = dieselDist < 1 ? dieselBucket.within1mi : dieselDist < 2 ? dieselBucket.within2mi : dieselDist < 5 ? dieselBucket.within5mi : dieselDist < 10 ? dieselBucket.within10mi : dieselBucket.beyond10mi
       bd.gallons += agg.nonCKDieselGallons
       bd.transactions += Math.round(agg.transactions * r)
       bd.spend += agg.spend * r
@@ -1102,24 +1117,25 @@ function buildMapData(
     const nonCKGallons = agg.gallons - agg.ckGallons
 
     if (!allCK) {
-      // Proximity-based opportunity capture: classify non-CK gallons by distance to CK
-      // Diesel uses truck-accessible CK distance; gas uses full-network CK distance;
-      // unknown fuel type uses the best available distance.
+      // Proximity-based opportunity capture: classify non-CK gallons by distance to CK.
+      // Diesel uses truck-accessible CK distance when truckMode is on, full-network
+      // distance otherwise; gas always uses full-network CK distance; unknown fuel
+      // type uses the best available distance.
       const diesel = agg.nonCKDieselGallons
       const gas    = agg.nonCKGasGallons
       const other  = nonCKGallons - diesel - gas
 
-      // Attribute diesel competitor gallons → nearest truck-accessible CK
-      if (diesel > 0 && ckNearest && ckNearest.distanceMi <= captureRadiusMi) {
-        const k = `${ckNearest.store.lat.toFixed(6)},${ckNearest.store.lng.toFixed(6)}`
+      // Attribute diesel competitor gallons → nearest appropriate CK
+      if (diesel > 0 && dieselNearest && dieselNearest.distanceMi <= captureRadiusMi) {
+        const k = `${dieselNearest.store.lat.toFixed(6)},${dieselNearest.store.lng.toFixed(6)}`
         const entry = ckOppMap.get(k) ?? {
-          ckName: ckNearest.store.name ?? 'Circle K',
-          city: ckNearest.store.city ?? '',
-          state: ckNearest.store.state ?? '',
-          lat: ckNearest.store.lat,
-          lng: ckNearest.store.lng,
-          truckAccessible: ckNearest.store.truckAccessible ?? false,
-          siteNumber: ckNearest.store.siteNumber,
+          ckName: dieselNearest.store.name ?? 'Circle K',
+          city: dieselNearest.store.city ?? '',
+          state: dieselNearest.store.state ?? '',
+          lat: dieselNearest.store.lat,
+          lng: dieselNearest.store.lng,
+          truckAccessible: dieselNearest.store.truckAccessible ?? false,
+          siteNumber: dieselNearest.store.siteNumber,
           competitorGallons: 0, competitorTransactions: 0, competitorSpend: 0, nearbyStationCount: 0,
           dieselGallons: 0, gasGallons: 0,
         }
@@ -1158,7 +1174,7 @@ function buildMapData(
 
       if (diesel > 0) {
         const r = diesel / Math.max(agg.gallons, 1)
-        if (dist >= 0 && dist < captureRadiusMi) {
+        if (dieselDist >= 0 && dieselDist < captureRadiusMi) {
           proxCapt.gallons      += diesel
           proxCapt.transactions += Math.round(agg.transactions * r)
           proxCapt.spend        += agg.spend * r
