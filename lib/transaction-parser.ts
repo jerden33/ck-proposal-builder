@@ -236,6 +236,7 @@ export const BRAND_DISPLAY_NAMES: Record<string, string> = {
   "LOVE'S": "Love's Travel Stops",
   'PILOT': 'Pilot Flying J',
   'FLYING J': 'Flying J',
+  'FJ': 'Flying J',  // abbreviation seen in some site-name conventions, e.g. "FJ-FARGO 685"
   'THORNTON': 'Thorntons',
   'THORNTONS': 'Thorntons',
   'WAWA': 'Wawa',
