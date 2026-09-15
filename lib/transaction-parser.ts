@@ -175,7 +175,7 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'net amount', 'transaction amount', 'charge', 'total cost', 'total charge',
     'invoice amount', 'billed amount', 'dollars',
     // WEX column names
-    'net cost', 'total fuel cost', 'gross amount', 'gross cost',
+    'net cost', 'total fuel cost', 'gross amount', 'gross cost', 'grossdollars',
     // Comdata — "Total Amount Due" / "Total Amt Due" / "Cost of Tractor Fuel"
     'total amount due', 'total amt due', 'cost of tractor fuel',
   ],
@@ -346,7 +346,7 @@ export function normalizeFuelType(raw: string): string {
     r === 'REG' || r === 'REGULAR' || r === 'GASOLINE' || r === 'GAS' ||
     r.includes('PREMIUM') || r.includes('MIDGRADE') || r.includes('MID-GRADE') ||
     r === 'PRM' || r === 'PRML' || r === 'MID' || r === 'SUPER' || r === 'PLUS' ||
-    r.startsWith('E85') || r === 'ETHANOL' || r.includes('FLEX FUEL') || // E85 (Et 85%) etc.
+    r.startsWith('E85') || r === 'ETHANOL' || r === 'ETH' || r.includes('FLEX FUEL') || // E85 (Et 85%) etc.
     r.includes('LEADED') ||                         // Me Reg Leaded, Reg Leaded Gas
     r === '87' || r === '89' || r === '91' || r === '93' || // octane grades
     r.match(/^(87|89|91|93)\s*OCT/) !== null ||
