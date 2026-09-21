@@ -47,7 +47,7 @@ const FIELD_ALIASES: Record<string, string[]> = {
     // Combined datetime fields first — avoids grabbing a date-only column when
     // a richer combined column (e.g. "Trans DateTime") is present in the same file
     'trans datetime', 'transaction datetime',
-    'trans date', 'date', 'transaction date', 'posting date', 'posted date', 'post date',
+    'trans date', 'date', 'transaction date', 'purchase date', 'posting date', 'posted date', 'post date',
     'tran date', 'service date', 'fill date', 'invoice date', 'sale date',
     'transactionposdate', 'pos date', 'transdate',
   ],
@@ -106,16 +106,32 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'product code',  // e.g. "Diesel" / "Reefer" — spaced header variant
     // CamelCase / compact column names with descriptive fuel names (preferred over NACS codes)
     'productdesc', 'product desc', 'productdescription', 'product description',
+    // Prefer the more specific product description (e.g. "UNLEADED REGULAR",
+    // "REGULAR DIESEL #2") over the vaguer category label below it
+    'supplier product description',
+    // Generic category label (e.g. "Regular"/"Diesel"/"Premium" alone) — only
+    // used when nothing more descriptive is available
+    'fuel product category description',
     // NACS product category code column (e.g. 001 = Unleaded, 019 = Diesel, 020 = Premium Diesel)
     // Listed last — use only when no descriptive column is available
     'nacs',
     // Bare single-word column (e.g. "Type" with values "DSL", "GAS")
     'type',
   ],
+  // Category flag distinguishing real fuel purchases from non-fuel convenience-
+  // store line items (car washes, merchandise, coupons/discounts) that share the
+  // same "Quantity" column — e.g. Coast reports use "Fuel Product Category
+  // Description" = "Non Fuel" for these, with Quantity = "1" (item count, not
+  // gallons). Used only to skip non-fuel rows, never as a display field.
+  productCategory: [
+    'fuel product category description',
+  ],
   stationName: [
     'station name', 'site name', 'location name', 'merchant name',
     'store name', 'location description',
     'truck stop name', 'service center',
+    // Coast/similar reports use "Supplier Name" for the merchant name
+    'supplier name',
     // CamelCase variants
     'stationname', 'sitename',
     // Bare single-word column (e.g. "Merchant" with store name values)
@@ -136,6 +152,8 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'service center address',
     // Comdata — "Merchant Addr Line1 Desc"
     'merchant addr line1 desc', 'merchant addr line 1 desc',
+    // Coast/similar reports use "Supplier Address"
+    'supplier address',
     // CamelCase variants
     'siteaddress', 'stationaddress',
   ],
@@ -145,6 +163,13 @@ const FIELD_ALIASES: Record<string, string[]> = {
     // WEX — "Merchant Postal Code"
     'merchant postal code', 'merchant zip', 'merchant zipcode', 'merchant zip code',
     'service center zip code',
+  ],
+  // Combined "CITY STATE ZIP" field with no delimiter (e.g. Coast reports'
+  // "Supplier Details": "RICHMOND VA 23227-1107") — only used as a fallback
+  // source to derive city when no dedicated City column exists. Never used
+  // directly as a display field.
+  cityStateZipCombined: [
+    'supplier details',
   ],
   unitNumber: [
     // Vehicle/unit identifiers take priority over card number — a fuel card can be
@@ -182,6 +207,8 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'net cost', 'total fuel cost', 'gross amount', 'gross cost', 'grossdollars',
     // Comdata — "Total Amount Due" / "Total Amt Due" / "Cost of Tractor Fuel"
     'total amount due', 'total amt due', 'cost of tractor fuel',
+    // Coast/similar reports — "Product Price Amount"
+    'product price amount',
   ],
   productName: [
     'product name', 'product', 'item', 'fuel grade', 'grade',
@@ -350,7 +377,7 @@ export function normalizeFuelType(raw: string): string {
     r === 'REG' || r === 'REGULAR' || r === 'GASOLINE' || r === 'GAS' ||
     r.includes('PREMIUM') || r.includes('MIDGRADE') || r.includes('MID-GRADE') ||
     r === 'PRM' || r === 'PRML' || r === 'MID' || r === 'SUPER' || r === 'PLUS' ||
-    r.startsWith('E85') || r === 'ETHANOL' || r === 'ETH' || r.includes('FLEX FUEL') || // E85 (Et 85%) etc.
+    r.startsWith('E85') || r.startsWith('E-85') || r === 'ETHANOL' || r === 'ETH' || r.includes('FLEX FUEL') || // E85 (Et 85%) etc.
     r.includes('LEADED') ||                         // Me Reg Leaded, Reg Leaded Gas
     r === '87' || r === '89' || r === '91' || r === '93' || // octane grades
     r.match(/^(87|89|91|93)\s*OCT/) !== null ||
@@ -435,6 +462,22 @@ function parseCSVLine(line: string): string[] {
 
 function normalizeZip(raw: string): string {
   return raw.replace(/[^0-9]/g, '').substring(0, 5)
+}
+
+// Derives a city from a combined "CITY STATE ZIP" field (e.g. Coast reports'
+// "Supplier Details": "RICHMOND VA 23227-1107") by locating the already-known
+// state abbreviation as a whole word and taking everything before it. Falls
+// back to the raw combined value if the state token can't be found, so the
+// field is never silently dropped.
+function deriveCityFromCombined(combined: string, state: string): string {
+  const trimmed = combined.trim()
+  if (!trimmed) return ''
+  const stateAbbr = state.trim().toUpperCase()
+  if (stateAbbr) {
+    const match = new RegExp(`\\b${stateAbbr}\\b`).exec(trimmed.toUpperCase())
+    if (match) return trimmed.substring(0, match.index).trim()
+  }
+  return trimmed
 }
 
 function col(cols: string[], idx: number | undefined): string {
@@ -596,7 +639,11 @@ export function parseFleetCSV(content: string): ParseResult {
   const headers = parseCSVLine(rawLines[headerIdx])
   const colIdx = buildColumnIndex(headers)
   const foundFields = Object.keys(colIdx)
-  const missingRequiredFields = REQUIRED_FIELDS.filter(f => !(f in colIdx))
+  // 'city' isn't truly missing if it can be derived from a combined
+  // "CITY STATE ZIP" field (e.g. Coast reports' "Supplier Details") plus a
+  // dedicated State column.
+  const canDeriveCity = 'cityStateZipCombined' in colIdx && 'state' in colIdx
+  const missingRequiredFields = REQUIRED_FIELDS.filter(f => !(f in colIdx) && !(f === 'city' && canDeriveCity))
 
   // Detect format by header fingerprint
   const headerJoined = headers.map(normalizeKey).join('|')
@@ -641,7 +688,22 @@ export function parseFleetCSV(content: string): ParseResult {
     const gallons = parseFloat(col(cols, colIdx['gallons']).replace(/[$,]/g, '')) || 0
     if (gallons <= 0) continue  // skip summary/blank rows
 
-    const stationCity = col(cols, colIdx['city'])
+    // Skip non-fuel convenience-store line items (car wash, merchandise, coupons)
+    // that reuse the gallons/quantity column for an item count rather than a
+    // fuel volume — otherwise they'd appear as phantom "1-gallon" fill-ups.
+    if (normalizeKey(col(cols, colIdx['productCategory'])) === 'non fuel') continue
+    // Fuel discount/rebate adjustment lines (e.g. "Discount 1", "Discount 2")
+    // pair with a separate fuel-purchase row, carry a negative dollar amount,
+    // and also reuse the quantity column as an item count of "1" rather than
+    // gallons — same phantom-fill-up problem as the non-fuel items above, just
+    // not flagged under the "Non Fuel" category.
+    const rawFuelDesc = (col(cols, colIdx['fuelType']) || col(cols, colIdx['productName'])).trim().toUpperCase()
+    if (rawFuelDesc.startsWith('DISCOUNT')) continue
+
+    const stationState = col(cols, colIdx['state'])
+    const stationCity = colIdx['city'] !== undefined
+      ? col(cols, colIdx['city'])
+      : deriveCityFromCombined(col(cols, colIdx['cityStateZipCombined']), stationState)
     // Some exports append a grand-total row with a real gallons/amount figure
     // but a blank city and no other identifying info — since each row here
     // represents a single fill-up (not an aggregate), an implausibly large
@@ -720,7 +782,7 @@ export function parseFleetCSV(content: string): ParseResult {
       transDate,
       transTime,
       stationCity,
-      stationState: col(cols, colIdx['state']),
+      stationState,
       gallons,
       fuelType,
       stationName,
