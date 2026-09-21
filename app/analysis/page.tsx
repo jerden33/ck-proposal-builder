@@ -1630,9 +1630,14 @@ function AnalysisPageInner() {
                       <div>
                         {/* Header + toggle */}
                         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-                          <h3 className="font-bold text-off-black">
-                            {geoView === 'state' ? 'Fueling Activity by State' : 'Fueling Activity by City'}
-                          </h3>
+                          <div>
+                            <h3 className="font-bold text-off-black">
+                              {geoView === 'state' ? 'Fueling Activity by State' : 'Fueling Activity by City'}
+                            </h3>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              Opp. Gal/mo = non-CK gallons within {summary.captureRadiusMi ?? 10} mi of a Circle K, averaged per month over the {monthSpan.toFixed(1)}-month data period
+                            </p>
+                          </div>
                           <div className="flex items-center gap-2 shrink-0">
                             {geoView === 'city' && cityStates.length > 1 && (
                               <select
@@ -1664,7 +1669,7 @@ function AnalysisPageInner() {
                             <table className="w-full text-sm">
                               <thead>
                                 <tr className="border-b border-gray-200">
-                                  {['State', 'Transactions', 'Gallons', 'Spend', 'CK Gallons', 'Opp. Gallons', 'CK Share'].map(h => (
+                                  {['State', 'Transactions', 'Gallons', 'Spend', 'CK Gallons', 'Opp. Gal/mo', 'CK Share'].map(h => (
                                     <th key={h} className={`py-2 ${h === 'State' ? 'text-left pr-4' : 'text-right px-4'} text-xs font-semibold uppercase tracking-wider text-gray-500`}>{h}</th>
                                   ))}
                                 </tr>
@@ -1678,7 +1683,7 @@ function AnalysisPageInner() {
                                     <td className="py-2.5 px-4 text-right text-gray-600">{row.spend > 0 ? fmtDollars(row.spend) : <span className="text-gray-300">—</span>}</td>
                                     <td className="py-2.5 px-4 text-right text-accent font-medium">{fmtGallons(row.ckGallons)}</td>
                                     <td className="py-2.5 px-4 text-right text-green-600 font-medium">
-                                      {row.capturableGallons > 0 ? fmtGallons(row.capturableGallons) : <span className="text-gray-300">—</span>}
+                                      {row.capturableGallons > 0 ? fmtGallons(mo(row.capturableGallons)) : <span className="text-gray-300">—</span>}
                                     </td>
                                     <td className="py-2.5 pl-4 text-right">
                                       <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${row.ckSharePct >= 20 ? 'bg-green-100 text-green-700' : row.ckSharePct > 0 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
@@ -1698,7 +1703,7 @@ function AnalysisPageInner() {
                             <table className="w-full text-sm">
                               <thead>
                                 <tr className="border-b border-gray-200">
-                                  {['City', 'State', 'Transactions', 'Gallons', 'Spend', 'CK Gallons', 'Opp. Gallons', 'CK Share'].map(h => (
+                                  {['City', 'State', 'Transactions', 'Gallons', 'Spend', 'CK Gallons', 'Opp. Gal/mo', 'CK Share'].map(h => (
                                     <th key={h} className={`py-2 ${['City', 'State'].includes(h) ? 'text-left pr-4' : 'text-right px-4'} text-xs font-semibold uppercase tracking-wider text-gray-500`}>{h}</th>
                                   ))}
                                 </tr>
@@ -1713,7 +1718,7 @@ function AnalysisPageInner() {
                                     <td className="py-2.5 px-4 text-right text-gray-600">{row.spend > 0 ? fmtDollars(row.spend) : <span className="text-gray-300">—</span>}</td>
                                     <td className="py-2.5 px-4 text-right text-accent font-medium">{fmtGallons(row.ckGallons)}</td>
                                     <td className="py-2.5 px-4 text-right text-green-600 font-medium">
-                                      {row.capturableGallons > 0 ? fmtGallons(row.capturableGallons) : <span className="text-gray-300">—</span>}
+                                      {row.capturableGallons > 0 ? fmtGallons(mo(row.capturableGallons)) : <span className="text-gray-300">—</span>}
                                     </td>
                                     <td className="py-2.5 pl-4 text-right">
                                       <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${row.ckSharePct >= 20 ? 'bg-green-100 text-green-700' : row.ckSharePct > 0 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'}`}>
