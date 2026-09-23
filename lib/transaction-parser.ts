@@ -60,6 +60,9 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'station city', 'city', 'site city', 'location city', 'trans city',
     'merchant city', 'fuel city', 'fueling city', 'store city',
     'truck stop city', 'locationcity', 'transcity', 'sitecity',
+    // Hawkins/similar reports mislabel their city column "Merchant State City"
+    // (it holds city values, e.g. "JACKSON" / "OLATHE" — not state+city combined)
+    'merchant state city',
   ],
   state: [
     'station state', 'state', 'site state', 'location state',
@@ -115,6 +118,10 @@ const FIELD_ALIASES: Record<string, string[]> = {
     // NACS product category code column (e.g. 001 = Unleaded, 019 = Diesel, 020 = Premium Diesel)
     // Listed last — use only when no descriptive column is available
     'nacs',
+    // Hawkins/similar reports combine both under one header: "Category/Product
+    // Code" — the "/" is stripped with no separator left behind by
+    // normalizeKey, fusing it into "categoryproduct code"
+    'categoryproduct code',
     // Bare single-word column (e.g. "Type" with values "DSL", "GAS")
     'type',
   ],
@@ -298,6 +305,7 @@ export const BRAND_DISPLAY_NAMES: Record<string, string> = {
   'CIRCLE B': 'Circle B',
   '7 ELEVEN': '7-Eleven',
   'SEVEN ELEVEN': '7-Eleven',
+  '7 11': '7-Eleven',  // numeral shorthand seen in some POS exports, e.g. "7 11 35788", "7-11 #42117"
   'MAVERIK': 'Maverik',
   'GATE': 'Gate',
 }
@@ -363,17 +371,19 @@ export function normalizeFuelType(raw: string): string {
     r === 'REEFER FUEL' || r === 'REEFERF' ||
     r.includes('OFF ROAD') || r.includes('OFF-ROAD') ||
     r.includes('DYE') || r.includes('RED DSL') || r.includes('DYED') ||
-    r.includes('BIODIESEL') || r.startsWith('B20') || r.startsWith('B5') ||
+    r.includes('BIODIESEL') || r === 'BDSL' || r.startsWith('B20') || r.startsWith('B5') ||
     r.startsWith('B10') || r.startsWith('B2 ') ||   // biodiesel blends
     r.includes('WINTER DIESEL') || r.includes('ARCTIC DIESEL') ||
     r === 'CLEAR DIESEL' || r === 'HEATING OIL' ||
-    r === 'NO2' || r === 'NO. 2' || r === 'NUMBER 2'
+    r === 'NO2' || r === 'NO. 2' || r === 'NUMBER 2' ||
+    r.startsWith('DSL') || r === 'CDSL' || r === 'ULSR'  // Hawkins-style codes: DSL1/DSL2, "Card Diesel", ULS Regular/Reefer
   ) return 'DIESEL'
 
   // ── Gasoline variants ──────────────────────────────────────────────────────
   if (
     r.includes('UNL') || r.includes('UNLEAD') ||   // catches UNL*, ETUNL*, MEUNL*, etc.
-    r === 'UNRG' || r === 'UNPR' || r === 'UNMD' || r === 'UNMID' || // Comdata UN* product codes
+    r === 'UNRG' || r === 'UNPR' || r === 'UNPL' || r === 'UNMD' || r === 'UNMID' || // Comdata UN* product codes
+    r.startsWith('GASO') ||                         // "GASO" abbreviation
     r === 'REG' || r === 'REGULAR' || r === 'GASOLINE' || r === 'GAS' ||
     r.includes('PREMIUM') || r.includes('MIDGRADE') || r.includes('MID-GRADE') ||
     r === 'PRM' || r === 'PRML' || r === 'MID' || r === 'SUPER' || r === 'PLUS' ||
@@ -699,6 +709,11 @@ export function parseFleetCSV(content: string): ParseResult {
     // not flagged under the "Non Fuel" category.
     const rawFuelDesc = (col(cols, colIdx['fuelType']) || col(cols, colIdx['productName'])).trim().toUpperCase()
     if (rawFuelDesc.startsWith('DISCOUNT')) continue
+    // Hawkins/similar reports overload the same "Category/Product Code" column
+    // with non-fuel line items — state tax (STAX), parts (PART), merchandise
+    // (MERC), and balancing/split adjustments (SPLT) — whose "Quantity" is an
+    // item count or dollar adjustment, not gallons.
+    if (rawFuelDesc === 'STAX' || rawFuelDesc === 'PART' || rawFuelDesc === 'MERC' || rawFuelDesc === 'SPLT') continue
 
     const stationState = col(cols, colIdx['state'])
     const stationCity = colIdx['city'] !== undefined
