@@ -575,12 +575,16 @@ export function analyzeTransactions(
     : (totalGallons > 0 && autoDieselGallons / totalGallons >= 0.10)
 
   // Date range
+  // Reduced rather than spread into Math.min/Math.max — a large file can have
+  // tens of thousands of dated transactions, and spreading that many arguments
+  // into a function call exceeds the JS engine's call-stack argument limit
+  // ("Maximum call stack size exceeded").
   const dates = transactions.map(t => parseDate(t.transDate)).filter((d): d is Date => d !== null)
   const dateRange =
     dates.length > 0
       ? {
-          start: formatDate(new Date(Math.min(...dates.map(d => d.getTime())))),
-          end: formatDate(new Date(Math.max(...dates.map(d => d.getTime())))),
+          start: formatDate(new Date(dates.reduce((min, d) => (d.getTime() < min ? d.getTime() : min), dates[0].getTime()))),
+          end: formatDate(new Date(dates.reduce((max, d) => (d.getTime() > max ? d.getTime() : max), dates[0].getTime()))),
         }
       : { start: '', end: '' }
 

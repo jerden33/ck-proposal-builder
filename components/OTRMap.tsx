@@ -266,10 +266,18 @@ export function OTRMap({ transactionPoints, ckStores, corridorResults, height = 
 
       // ── Fit to transaction bounds ──────────────────────────────────────────
       if (transactionPoints.length > 0) {
+        // Reduced rather than spread into Math.min/Math.max — a large fleet
+        // file can have thousands of unique stations, and spreading that many
+        // arguments into a function call exceeds the JS engine's call-stack
+        // argument limit ("Maximum call stack size exceeded").
         const lngs = transactionPoints.map(p => p.lng)
         const lats = transactionPoints.map(p => p.lat)
+        const minLng = lngs.reduce((min, v) => (v < min ? v : min), lngs[0])
+        const maxLng = lngs.reduce((max, v) => (v > max ? v : max), lngs[0])
+        const minLat = lats.reduce((min, v) => (v < min ? v : min), lats[0])
+        const maxLat = lats.reduce((max, v) => (v > max ? v : max), lats[0])
         m.fitBounds(
-          [[Math.min(...lngs) - 2, Math.min(...lats) - 1], [Math.max(...lngs) + 2, Math.max(...lats) + 1]],
+          [[minLng - 2, minLat - 1], [maxLng + 2, maxLat + 1]],
           { padding: 50, duration: 0, maxZoom: 8 },
         )
       }

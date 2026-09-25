@@ -119,13 +119,19 @@ export function getBounds(coordinates: Coordinates[]): {
   maxLng: number
   maxLat: number
 } {
+  // Reduced rather than spread into Math.min/Math.max — a large coordinate
+  // list can exceed the JS engine's call-stack argument limit and throw
+  // "Maximum call stack size exceeded".
+  if (coordinates.length === 0) {
+    return { minLng: Infinity, minLat: Infinity, maxLng: -Infinity, maxLat: -Infinity }
+  }
   const lngs = coordinates.map(c => c.lng)
   const lats = coordinates.map(c => c.lat)
-  
+
   return {
-    minLng: Math.min(...lngs),
-    minLat: Math.min(...lats),
-    maxLng: Math.max(...lngs),
-    maxLat: Math.max(...lats)
+    minLng: lngs.reduce((min, v) => (v < min ? v : min), lngs[0]),
+    minLat: lats.reduce((min, v) => (v < min ? v : min), lats[0]),
+    maxLng: lngs.reduce((max, v) => (v > max ? v : max), lngs[0]),
+    maxLat: lats.reduce((max, v) => (v > max ? v : max), lats[0]),
   }
 }
