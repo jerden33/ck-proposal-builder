@@ -12,6 +12,7 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [analyses, setAnalyses] = useState<AnalysisRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
@@ -22,13 +23,23 @@ export default function DashboardPage() {
 
   const loadData = async () => {
     setLoading(true)
-    const [userProfile, userAnalyses] = await Promise.all([
-      getUserProfile(),
-      getUserAnalyses(),
-    ])
-    setProfile(userProfile)
-    setAnalyses(userAnalyses)
-    setLoading(false)
+    setLoadError(false)
+    try {
+      const [userProfile, userAnalyses] = await Promise.all([
+        getUserProfile(),
+        getUserAnalyses(),
+      ])
+      setProfile(userProfile)
+      setAnalyses(userAnalyses)
+    } catch (error) {
+      // Without this, an unexpected rejection anywhere in the Promise.all above
+      // (e.g. a transient auth/network failure) leaves `loading` stuck at
+      // true forever — the page spins indefinitely instead of ever recovering.
+      console.error('Failed to load dashboard data:', error)
+      setLoadError(true)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleDeleteAnalysis = async (id: string) => {
@@ -59,6 +70,23 @@ export default function DashboardPage() {
         <div className="text-center">
           <div className="w-10 h-10 border-2 border-zinc-200 border-t-accent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-sm text-zinc-500">Loading…</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-off-white">
+        <div className="text-center max-w-xs">
+          <p className="text-sm font-medium text-zinc-700 mb-1">Couldn&apos;t load your analyses</p>
+          <p className="text-sm text-zinc-400 mb-4">This is usually a temporary connection issue. Try again, or refresh the page.</p>
+          <button
+            onClick={() => loadData()}
+            className="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90 transition-colors"
+          >
+            Try again
+          </button>
         </div>
       </div>
     )

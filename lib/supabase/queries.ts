@@ -5,8 +5,18 @@ import { nanoid } from 'nanoid'
 // User Queries
 export async function getCurrentUser() {
   const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  return user
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    return user
+  } catch (error) {
+    // A network blip or an invalid/expired session can make auth.getUser()
+    // throw instead of resolving with a null user. Every caller treats "no
+    // user" as a valid, handled state, but an uncaught throw here propagates
+    // up through Promise.all() calls (e.g. the dashboard's loadData) and
+    // leaves their loading state stuck forever — fail safe instead.
+    console.error('Error fetching current user:', error)
+    return null
+  }
 }
 
 export async function getUserProfile(): Promise<UserProfile | null> {
