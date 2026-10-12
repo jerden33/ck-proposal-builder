@@ -84,6 +84,9 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'fuel volume',
     // RCPA format uses "Unit/Gallons" (normalizeKey strips the slash → "unitgallons")
     'unit/gallons', 'units/gallons', 'unit gallons', 'units gallons',
+    // "Units (gal)" — the parenthetical unit suffix survives normalizeKey as a
+    // trailing word ("units gal"), so it needs its own exact-phrase entry
+    'units gal', 'unit gal',
     // WEX standard export uses "Units" for fuel quantity
     'units',
     'net qty', 'net quantity', 'billed quantity', 'billed qty',
