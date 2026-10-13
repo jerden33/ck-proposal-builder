@@ -90,6 +90,9 @@ const FIELD_ALIASES: Record<string, string[]> = {
     // WEX standard export uses "Units" for fuel quantity
     'units',
     'net qty', 'net quantity', 'billed quantity', 'billed qty',
+    // "Product Qty" — e.g. fleet card exports with a Product Description +
+    // Product Qty pair instead of a bare "Quantity"/"Gallons" column
+    'product qty', 'product quantity',
     // Product-typed gallons columns (e.g. "#2 Diesel Gallons" → "2 diesel gallons" after normalizeKey)
     '2 diesel gallons', 'diesel gallons', 'gasoline gallons', 'gas gallons',
     'unleaded gallons', 'def gallons',
@@ -117,7 +120,7 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'supplier product description',
     // Generic category label (e.g. "Regular"/"Diesel"/"Premium" alone) — only
     // used when nothing more descriptive is available
-    'fuel product category description',
+    'fuel product category description', 'fuel type description',
     // NACS product category code column (e.g. 001 = Unleaded, 019 = Diesel, 020 = Premium Diesel)
     // Listed last — use only when no descriptive column is available
     'nacs',
@@ -129,12 +132,14 @@ const FIELD_ALIASES: Record<string, string[]> = {
     'type',
   ],
   // Category flag distinguishing real fuel purchases from non-fuel convenience-
-  // store line items (car washes, merchandise, coupons/discounts) that share the
-  // same "Quantity" column — e.g. Coast reports use "Fuel Product Category
-  // Description" = "Non Fuel" for these, with Quantity = "1" (item count, not
-  // gallons). Used only to skip non-fuel rows, never as a display field.
+  // store line items (car washes, merchandise, coupons/discounts, fuel-price
+  // adjustments) that share the same quantity column — e.g. Coast reports use
+  // "Fuel Product Category Description" = "Non Fuel"; other exports use
+  // "Fuel Type Description" = "Non-Fuel" for an adjustment line whose Quantity
+  // can be a real-looking number, not just "1". Used only to skip non-fuel
+  // rows, never as a display field.
   productCategory: [
-    'fuel product category description',
+    'fuel product category description', 'fuel type description',
   ],
   stationName: [
     'station name', 'site name', 'location name', 'merchant name',
@@ -701,10 +706,16 @@ export function parseFleetCSV(content: string): ParseResult {
     const gallons = parseFloat(col(cols, colIdx['gallons']).replace(/[$,]/g, '')) || 0
     if (gallons <= 0) continue  // skip summary/blank rows
 
-    // Skip non-fuel convenience-store line items (car wash, merchandise, coupons)
-    // that reuse the gallons/quantity column for an item count rather than a
-    // fuel volume — otherwise they'd appear as phantom "1-gallon" fill-ups.
-    if (normalizeKey(col(cols, colIdx['productCategory'])) === 'non fuel') continue
+    // Skip non-fuel convenience-store/adjustment line items (car wash,
+    // merchandise, coupons, fuel-price adjustments) that reuse the gallons/
+    // quantity column for something other than a real fuel volume —
+    // sometimes an item count of "1", sometimes a plausible-looking number
+    // (e.g. a "Fuel Adjustment" line) that would otherwise pass as a real
+    // fill-up. Checked against both "non fuel" (space-delimited, e.g. Coast's
+    // "Non Fuel") and "nonfuel" (hyphenated "Non-Fuel" fuses with no space
+    // left behind by normalizeKey).
+    const category = normalizeKey(col(cols, colIdx['productCategory']))
+    if (category === 'non fuel' || category === 'nonfuel') continue
     // Fuel discount/rebate adjustment lines (e.g. "Discount 1", "Discount 2")
     // pair with a separate fuel-purchase row, carry a negative dollar amount,
     // and also reuse the quantity column as an item count of "1" rather than
